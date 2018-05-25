@@ -1,0 +1,136 @@
+{
+  "output_file": "Settings/settings.json",
+  "info_command": {
+    "type": "textbox",
+    "value": "!info",
+    "label": "info command",
+    "tooltip": "Show your level, eq, damage/defense, location, and specials/effects.",
+    "group": "Command Names"
+  },
+  "condensed_info_command": {
+    "type": "textbox",
+    "value": "!i",
+    "label": "condensed info command",
+    "tooltip": "condensed version of info including experience progress.",
+    "group": "Command Names"
+  },
+  "stat_command": {
+    "type": "textbox",
+    "value": "!stat",
+    "label": "stat command",
+    "tooltip": "Show the current Hero and King/Queen of Pieland.",
+    "group": "Command Names"
+  },
+  "defend_command": {
+    "type": "textbox",
+    "value": "!defend",
+    "label": "defend command",
+    "tooltip": "This will give you a defense bonus and prevent looting during an attack. Will not kill attacker.",
+    "group": "Command Names"
+  },
+  "counter_command": {
+    "type": "textbox",
+    "value": "!counter",
+    "label": "counter_command",
+    "tooltip": "This will attack your attacker giving you a small damage bonus.",
+    "group": "Command Names"
+  },
+  "flee_command": {
+    "type": "textbox",
+    "value": "!flee",
+    "label": "flee command",
+    "tooltip": "This will give you a large defense bonus and but you may still be looted. You go to a random location. !move will also initiate a flee to the specified location.",
+    "group": "Command Names"
+  },
+  "dough_command": {
+    "type": "textbox",
+    "value": "!dough",
+    "label": "dough command",
+    "tooltip": "check piecoin balance.",
+    "group": "Command Names"
+  },
+  "queen_command": {
+    "type": "textbox",
+    "value": "!queen",
+    "label": "queen command",
+    "tooltip": "This command adjust some messages for gender.",
+    "group": "Command Names"
+  },
+  "king_command": {
+    "type": "textbox",
+    "value": "!king",
+    "label": "king command",
+    "tooltip": "This command adjust some messages for gender.",
+    "group": "Command Names"
+  },
+  "move_command": {
+    "type": "textbox",
+    "value": "!move",
+    "label": "move command",
+    "tooltip": "Moves to the location and starts leveling if there are monsters.",
+    "group": "Command Names"
+  },
+  "buy_command": {
+    "type": "textbox",
+    "value": "!buy",
+    "label": "buy command",
+    "tooltip": "Attempts to purchase and equip the desired weapon or armor.",
+    "group": "Command Names"
+  },
+  "attack_command": {
+    "type": "textbox",
+    "value": "!attack",
+    "label": "attack command",
+    "tooltip": "This will start an attack on a nearby player which will resolve in 20 seconds.",
+    "group": "Command Names"
+  },
+  "look_command": {
+    "type": "textbox",
+    "value": "!look",
+    "label": "look command",
+    "tooltip": "Get an idea of your chances against a nearby player.",
+    "group": "Command Names"
+  },
+  "tax_command": {
+    "type": "textbox",
+    "value": "!tax",
+    "label": "tax command",
+    "tooltip": "This allows the king to tax everyone at a certain percentage (0-100).",
+    "group": "Command Names"
+  },
+  "vote_command": {
+    "type": "textbox",
+    "value": "!vote",
+    "label": "vote command",
+    "tooltip": "Cast your vote for Pieland's hero. Must be level 5+ to vote.",
+    "group": "Command Names"
+  },
+  "smite_command": {
+    "type": "textbox",
+    "value": "!smite",
+    "label": "smite command",
+    "tooltip": "Put a peasant in their place. They must be less than level 5.",
+    "group": "Command Names"
+  },
+  "unsmite_command": {
+    "type": "textbox",
+    "value": "!unsmite",
+    "label": "unsmite command",
+    "tooltip": "Unban a player.",
+    "group": "Command Names"
+  },
+  "give_command": {
+    "type": "textbox",
+    "value": "!give",
+    "label": "give command",
+    "tooltip": "give piecoins to a player. Giving to Piebank can remove bounty.",
+    "group": "Command Names"
+  },
+  "bounty_command": {
+    "type": "textbox",
+    "value": "!bounty",
+    "label": "bounty command",
+    "tooltip": "place piecoins on a player's head (loot reward).",
+    "group": "Command Names"
+  }
+}
