@@ -20,7 +20,6 @@ def commands(script_settings):
         script_settings.vote_command: vote,
         script_settings.smite_command: smite,
         script_settings.unsmite_command: unsmite,
-
     }]
 
 

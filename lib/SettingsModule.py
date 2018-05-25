@@ -1,14 +1,21 @@
 import json
 import codecs
 
+
 class Settings(object):
-    def __init__(self, settingsfile=None, script_name):
+    def __init__(self, settings_file, script_name):
+        global log
         self.script_name = script_name
-        self.settings_file = settingsfile
+        self.settings_file = settings_file
+
         try:
             with codecs.open(self.settings_file, encoding="utf-8-sig", mode="r") as f:
                 self.__dict__ = json.load(f, encoding="utf-8")
         except:
+            #config
+            self.test_offline = False
+            self.update_interval = 60
+
             # command names
             # 0 args
             self.info_command = "!info"
@@ -46,7 +53,7 @@ class Settings(object):
         try:
             with codecs.open(self.settings_file, encoding="utf-8-sig", mode="w+") as f:
                 json.dump(self.__dict__, f, encoding="utf-8", ensure_ascii=False)
-            with codecs.open(self.settingsfile.replace("json", "js"), encoding="utf-8-sig", mode="w+") as f:
+            with codecs.open(self.settings_file.replace("json", "js"), encoding="utf-8-sig", mode="w+") as f:
                 f.write("var settings = {0};".format(json.dumps(self.__dict__, encoding='utf-8', ensure_ascii=False)))
         except:
             Parent.Log(self.script_name, "Failed to save settings to file.")
