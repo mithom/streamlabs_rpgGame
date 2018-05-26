@@ -16,7 +16,7 @@ def commands(script_settings):
         script_settings.look_command: look,
         script_settings.give_command: give,
         script_settings.bounty_command: bounty,
-        script_settings.tax_Command: tax,
+        script_settings.tax_command: tax,
         script_settings.vote_command: vote,
         script_settings.smite_command: smite,
         script_settings.unsmite_command: unsmite,

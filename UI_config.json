@@ -14,6 +14,13 @@
     "tooltip":"Time in between gaining experience/dieing, this is the game's tick rate.",
     "group":"config"
   },
+  "only_active":{
+    "type":"checkbox",
+    "value":true,
+    "label":"only reward active users exp",
+    "tooltip":"when enabled, lurking people will not gain experience",
+    "group":"config"
+  },
   "info_command": {
     "type": "textbox",
     "value": "!info",

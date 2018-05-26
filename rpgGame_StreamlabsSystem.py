@@ -9,8 +9,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "lib")) #point at lib fo
 import clr
 clr.AddReference("IronPython.Modules.dll")
 
-from RpgGame import RpgGame
-from SettingsModule import Settings
+import RpgGame
+import SettingsModule
 from Commands import commands
 
 # ---------------------------------------
@@ -36,6 +36,9 @@ next_update = None
 # ---------------------------------------
 def Init():
     global ScriptSettings, game
+    # Insert Parent in submodules
+    RpgGame.Parent = Parent
+    SettingsModule.Parent = Parent
 
     #   Create Settings and db Directory
     settings_directory = os.path.join(os.path.dirname(__file__), "Settings")
@@ -47,8 +50,8 @@ def Init():
         os.makedirs(db_directory)
 
     #   Load settings
-    ScriptSettings = Settings(m_settings_file, ScriptName)
-    game = RpgGame(ScriptSettings, ScriptName, db_directory)
+    ScriptSettings = SettingsModule.Settings(m_settings_file, ScriptName)
+    game = RpgGame.RpgGame(ScriptSettings, ScriptName, db_directory)
 
     # Prepare Tick()
     set_next_update()
@@ -75,16 +78,18 @@ def ScriptToggle(state):
 def Tick():
     if Parent.IsLive() or ScriptSettings.test_offline:
         if time.time() > next_update:
+            set_next_update()
             game.tick()
 
 
 def Execute(data):
     if data.IsChatMessage():
         p_count = data.GetParamCount()
-        if p_count <= len(commands):
+        command_functions = commands(ScriptSettings)
+        if p_count <= len(command_functions):
             param0 = data.GetParam(0)
-            if param0 in commands[p_count-1]:
-                commands[p_count](*data.Message.split()[1:])
+            if param0 in command_functions[p_count-1]:
+                command_functions[p_count-1](*data.Message.split()[1:])
 
 
 # ---------------------------------------
