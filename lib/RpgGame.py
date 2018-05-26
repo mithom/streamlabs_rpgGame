@@ -24,12 +24,15 @@ class RpgGame(object):
 
     def prepare_database(self):
         conn = self.get_connection()
-
-        # create all tables, location first, because character got foreign key to this
-        Location.create_table_if_not_exists(conn)
-        Character.create_table_if_not_exists(conn)
-        Weapon.create_table_if_not_exists(conn)
-        Armor.create_table_if_not_exists(conn)
+        try:
+            # create all tables, location first, because character got foreign key to this
+            Location.create_table_if_not_exists(conn)
+            Character.create_table_if_not_exists(conn)
+            Weapon.create_table_if_not_exists(conn)
+            Armor.create_table_if_not_exists(conn)
+            Location.create_locations(self.scriptSettings, conn)
+        finally:
+            conn.close()
 
     def apply_reload(self):
         pass
@@ -40,13 +43,16 @@ class RpgGame(object):
         else:
             result = Parent.GetViewerList()
         conn = self.get_connection()
-        for user_id in result:
-            char = Character.find_by_user(user_id, conn)
-            if char is None:
-                town = filter(lambda loc: loc.name == "Town", Location.load_locations(conn))[0]
-                char = Character.create("test", user_id, town.location_id)
-            Parent.SendStreamMessage("%s zijn char %s met id %i zit in zone %s" %
-                                     (char.user_id, char.name, char.char_id, char.location_id))
+        try:
+            for user_id in result:
+                char = Character.find_by_user(user_id, conn)
+                if char is None:
+                    town = filter(lambda loc: loc.name == "Town", Location.load_locations(conn))[0]
+                    char = Character.create("test", user_id, town.location_id)
+                Parent.SendStreamMessage("%s zijn char %s met id %i zit in zone %s" %
+                                         (char.user_id, char.name, char.char_id, char.location_id))
+        finally:
+            conn.close()
 
 
 class Character(object):
@@ -67,14 +73,14 @@ class Character(object):
             where char_id = :char_id""",
             location_id=self.location_id, name=self.name, user_id=self.user_id, char_id=self.char_id,
         )
-        cursor.commit()
+        self.connection.commit()
 
     @classmethod
     def create(cls, name, user_id, location_id, connection):
         cursor = connection.execute('''INSERT INTO Characters (name, user_id, location_id)
                                         VALUES (:name, :user_id, :location_id)''',
                                     {"name": name, "user_id": user_id, "location_id": location_id})
-        cursor.commit()
+        connection.commit()
         return cls(cursor.lastrowid, name, user_id, location_id, connection=connection)
 
     @classmethod
@@ -85,6 +91,8 @@ class Character(object):
             {"user_id": user_id}
         )
         row = cursor.fetchone()
+        if row is None:
+            return None
         return cls(*row, connection=connection)
 
     @classmethod

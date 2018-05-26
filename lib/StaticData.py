@@ -23,8 +23,8 @@ class Location(object):
     def create_locations(cls, script_settings, connection):
         """creates weapons into the database"""
         locations = [("Town", 1), ("Castle", 0), ("Forest", 3), ("Fields", 2)]
-        cursor = connection.executemany('INSERT INTO locations VALUES (?, ?)', locations)
-        cursor.commit()
+        cursor = connection.executemany('INSERT INTO locations(name, difficulty) VALUES (?, ?)', locations)
+        connection.commit()
 
     @classmethod
     def load_locations(cls, connection):
