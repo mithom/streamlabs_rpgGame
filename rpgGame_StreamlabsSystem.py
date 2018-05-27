@@ -11,7 +11,6 @@ clr.AddReference("IronPython.Modules.dll")
 
 import RpgGame
 import SettingsModule
-from Commands import commands
 
 # ---------------------------------------
 #   [Required]  Script Information
@@ -28,7 +27,7 @@ Version = "0.0.1"
 m_settings_file = os.path.join(os.path.dirname(__file__), "Settings\settings.json")
 ScriptSettings = None
 game = None
-next_update = None
+next_update = 0
 
 
 # ---------------------------------------
@@ -51,6 +50,8 @@ def Init():
 
     #   Load settings
     ScriptSettings = SettingsModule.Settings(m_settings_file, ScriptName)
+
+    # Create game
     game = RpgGame.RpgGame(ScriptSettings, ScriptName, db_directory)
 
     # Prepare Tick()
@@ -85,11 +86,11 @@ def Tick():
 def Execute(data):
     if data.IsChatMessage():
         p_count = data.GetParamCount()
-        command_functions = commands(ScriptSettings)
+        command_functions = game.commands()
         if p_count <= len(command_functions):
             param0 = data.GetParam(0)
             if param0 in command_functions[p_count-1]:
-                command_functions[p_count-1](*data.Message.split()[1:])
+                command_functions[p_count-1](data.User, *data.Message.split()[1:])
 
 
 # ---------------------------------------

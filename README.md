@@ -110,4 +110,8 @@ Pay attention to the difficulty hint when you move between areas. There is no hp
 
 Player vs player combat is only allowed for levels 5 and above, and is prohibited in the castle. Be aware that if you attack you are vulnerable to any number of players to sneak attack you in return without the ability to defend or flee. Once you are locked in combat you can only respond with one action and it cannot be changed during that round even if more players join combat. Only the player who lands the killing blow will earn tax free loot, and will gain extra loot from the victim kill count and any placed bounties. Experience may be gained by other participants. Kills show up on a player's info and will give more loot when they are killed themselves.
 
-When the stream is offline you can't gain experience or die unless there is a live Roshan. Before you leave the channel or when the stream goes offline make sure to move to town (or castle) to be safe. 
+When the stream is offline you can't gain experience or die unless there is a live Roshan. Before you leave the channel or when the stream goes offline make sure to move to town (or castle) to be safe.
+
+
+Possible additions:
+ability to add gender, if gender  

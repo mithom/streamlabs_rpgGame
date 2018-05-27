@@ -1,9 +1,8 @@
 from StaticData import Location, Weapon, Armor
+from characters import Character
 import os
 
-# noinspection PyUnresolvedReferences
 import clr
-
 clr.AddReference("IronPython.SQLite.dll")
 import sqlite3
 
@@ -18,6 +17,7 @@ class RpgGame(object):
 
         # Prepare everything
         self.prepare_database()
+        self.create_and_load_static_data()
 
     def get_connection(self):
         return sqlite3.connect(os.path.join(self.db_directory, "database.db"))
@@ -30,9 +30,13 @@ class RpgGame(object):
             Character.create_table_if_not_exists(conn)
             Weapon.create_table_if_not_exists(conn)
             Armor.create_table_if_not_exists(conn)
-            Location.create_locations(self.scriptSettings, conn)
         finally:
             conn.close()
+
+    def create_and_load_static_data(self):
+        conn = self.get_connection()
+        Location.create_locations(self.scriptSettings, conn)
+        pass
 
     def apply_reload(self):
         pass
@@ -54,76 +58,99 @@ class RpgGame(object):
         finally:
             conn.close()
 
+    def commands(self):
+        return [{
+            self.scriptSettings.info_command: self.info,
+            self.scriptSettings.condensed_info_command: self.condensed_info,
+            self.scriptSettings.stat_command: self.stat,
+            self.scriptSettings.defend_command: self.defend,
+            self.scriptSettings.counter_command: self.counter,
+            self.scriptSettings.flee_command: self.flee,
+            self.scriptSettings.dough_command: self.dough,
+            self.scriptSettings.queen_command: self.queen,
+            self.scriptSettings.king_command: self.king
+        }, {
+            self.scriptSettings.move_command: self.move,
+            self.scriptSettings.buy_command: self.buy,
+            self.scriptSettings.attack_command: self.attack,
+            self.scriptSettings.look_command: self.look,
+            self.scriptSettings.tax_command: self.tax,
+            self.scriptSettings.vote_command: self.vote,
+            self.scriptSettings.smite_command: self.smite,
+            self.scriptSettings.unsmite_command: self.unsmite,
+        }, {
+            self.scriptSettings.give_command: self.give,
+            self.scriptSettings.bounty_command: self.bounty,
+        }]
 
-class Character(object):
-    def __init__(self, char_id, name, user_id, location_id, connection):
-        self.__char_id = char_id
-        self.name = name
-        self.user_id = user_id,
-        self.location_id = location_id
-        self.connection = connection;
+    def info(self, user_id):
+        conn = self.get_connection()
+        character = Character.find_by_user(user_id, conn)
+        Parent.SendStreamMessage(self.format_message(
+            "{0}, your character {1} is located in {2}",
+            Parent.GetUserName(user_id),
+            character.name,
+            Location.find(character.location_id).name
+        ))
 
-    @property
-    def char_id(self):
-        return self.__char_id
-
-    def save(self):
-        cursor = self.connection.execute(
-            """UPDATE characters set location_id = :location_id, name = :name, user_id = :user_id
-            where char_id = :char_id""",
-            location_id=self.location_id, name=self.name, user_id=self.user_id, char_id=self.char_id,
-        )
-        self.connection.commit()
-
-    @classmethod
-    def create(cls, name, user_id, location_id, connection):
-        cursor = connection.execute('''INSERT INTO Characters (name, user_id, location_id)
-                                        VALUES (:name, :user_id, :location_id)''',
-                                    {"name": name, "user_id": user_id, "location_id": location_id})
-        connection.commit()
-        return cls(cursor.lastrowid, name, user_id, location_id, connection=connection)
-
-    @classmethod
-    def find_by_user(cls, user_id, connection):
-        cursor = connection.execute(
-            """SELECT character_id, name, user_id, location_id from characters
-            WHERE user_id = :user_id""",
-            {"user_id": user_id}
-        )
-        row = cursor.fetchone()
-        if row is None:
-            return None
-        return cls(*row, connection=connection)
-
-    @classmethod
-    def create_table_if_not_exists(cls, connection):
-        connection.execute(
-            """create table if not exists characters
-            (character_id integer PRIMARY KEY   NOT NULL,
-            name            text  NOT NULL,
-            user_id         text  UNIQUE ,
-            location_id     integer NOT NULL,
-              FOREIGN KEY (location_id) REFERENCES locations(location_id)
-            );"""
-        )
-
-
-class Boss(object):
-    def __init__(self):
+    def condensed_info(self, user_id):
         pass
 
-
-class Roshan(Boss):
-    def __init__(self):
-        super(Roshan, self).__init__()
+    def move(self, user_id, location_name):
         pass
 
-
-class Traits(object):
-    def __init__(self):
+    def buy(self, user_id, item_name):
         pass
 
-
-class Specials(object):
-    def __init__(self):
+    def attack(self, user_id, target_name):
         pass
+
+    def defend(self, user_id):
+        pass
+
+    def counter(self, user_id):
+        pass
+
+    def flee(self, user_id):
+        pass
+
+    def look(self, user_id, target_name):
+        pass
+
+    def dough(self, user_id):
+        pass
+
+    def give(self, user_id, amount, recipient_name):
+        pass
+
+    def bounty(self, user_id, amount, target_name):
+        pass
+
+    def tax(self, user_id, amount):
+        pass
+
+    def queen(self, user_id):
+        pass
+
+    def king(self, user_id):
+        pass
+
+    def vote(self, user_id, target_name):
+        pass
+
+    def smite(self, user_id, target_name):
+        pass
+
+    def unsmite(self, user_id, target_name):
+        pass
+
+    def stat(self, user_id):
+        pass
+
+    # ---------------------------------------
+    #   auxiliary functions
+    # ---------------------------------------
+    def format_message(self, msg, *args):
+        if self.scriptSettings.add_me:
+            msg = "/me " + msg
+        return msg.format(*args)

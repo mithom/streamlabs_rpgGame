@@ -1,5 +1,7 @@
 class Location(object):
     connection = None
+    locations_by_id = {}
+    locations_by_name = {}
 
     def __init__(self, location_id, name, difficulty, connection):
         self.__location_id = location_id
@@ -15,7 +17,7 @@ class Location(object):
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists locations
             (location_id integer PRIMARY KEY   NOT NULL,
-            name            text  NOT NULL,
+            name            text  UNIQUE ,
             difficulty      integer  NOT NULL
             );""")
 
@@ -23,14 +25,17 @@ class Location(object):
     def create_locations(cls, script_settings, connection):
         """creates weapons into the database"""
         locations = [("Town", 1), ("Castle", 0), ("Forest", 3), ("Fields", 2)]
-        cursor = connection.executemany('INSERT INTO locations(name, difficulty) VALUES (?, ?)', locations)
+        connection.executemany('INSERT INTO locations(name, difficulty) VALUES (?, ?)', locations)
         connection.commit()
 
     @classmethod
     def load_locations(cls, connection):
         """loads weapons from database"""
         cursor = connection.execute('SELECT location_id, name, difficulty FROM locations')
-        return [cls(*row, connection=connection) for row in cursor]
+        for row in cursor:
+            location = cls(*row, connection=connection)
+            cls.locations_by_id[location.location_id] = location
+            cls.locations_by_name[location.name] = location
 
     @classmethod
     def update_locations(cls, connection):
@@ -53,7 +58,7 @@ class Weapon(Item):
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists weapons
                 (weapon_id integer PRIMARY KEY   NOT NULL,
-                name            text  NOT NULL,
+                name            text  UNIQUE,
                 price      integer  NOT NULL,
                 min_lvl     integer NOT NULL 
                 );""")
@@ -82,7 +87,7 @@ class Armor(Item):
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists armors
                 (weapon_id integer PRIMARY KEY   NOT NULL,
-                name            text  NOT NULL,
+                name            text  UNIQUE ,
                 price      integer  NOT NULL,
                 min_lvl     integer NOT NULL 
                 );""")
