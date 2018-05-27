@@ -86,18 +86,42 @@ class RpgGame(object):
     def info(self, user_id):
         conn = self.get_connection()
         character = Character.find_by_user(user_id, conn)
+        location = Location.find(character.location_id)
+        Parent.SendStreamMessage(self.format_message(
+            "{0}, your character {1} is located in {2} with difficulty {3}",
+            Parent.GetUserName(user_id),
+            character.name,
+            location.name,
+            location.difficulty
+        ))
+        conn.close()
+
+    def condensed_info(self, user_id):
+        conn = self.get_connection()
+        character = Character.find_by_user(user_id, conn)
         Parent.SendStreamMessage(self.format_message(
             "{0}, your character {1} is located in {2}",
             Parent.GetUserName(user_id),
             character.name,
             Location.find(character.location_id).name
         ))
-
-    def condensed_info(self, user_id):
-        pass
+        conn.close()
 
     def move(self, user_id, location_name):
-        pass
+        conn = self.get_connection()
+        location = Location.find_by_name(location_name)
+        character = Character.find_by_user(user_id, conn)
+        if character.location_id != character.location_id:
+            character.location_id = location.id
+            character.save()
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, {1} moved to location {2} with difficulty {3}",
+                Parent.GetUserName(user_id),
+                character.name,
+                location.name,
+                location.difficulty
+            ))
+        conn.close()
 
     def buy(self, user_id, item_name):
         pass
