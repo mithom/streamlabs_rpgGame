@@ -53,8 +53,8 @@ class RpgGame(object):
                 if char is None:
                     town = filter(lambda loc: loc.name == "Town", Location.load_locations(conn))[0]
                     char = Character.create("test", user_id, town.location_id, conn)
-                Parent.SendStreamMessage("%s zijn char %s met id %i zit in zone %s" %
-                                         (char.user_id, char.name, char.char_id, char.location_id))
+                Parent.SendStreamMessage(self.format_message("{0} zijn char {1} met id {2} zit in de zone: {3}" %
+                                         char.user_id, char.name, char.char_id, char.location.name))
         finally:
             conn.close()
 

@@ -115,3 +115,5 @@ When the stream is offline you can't gain experience or die unless there is a li
 
 Possible additions:
 ability to add gender, if gender is available, automatically adapt game to it (auto king/queen)
+
+add make command, no automatic characters/revives, ability to choose name, cannot be same as prev character
