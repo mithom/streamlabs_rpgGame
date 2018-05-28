@@ -13,6 +13,9 @@ class Location(object):
     def id(self):
         return self.__location_id
 
+    def __eq__(self, other):
+        return self.id == other.id
+
     @classmethod
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists locations

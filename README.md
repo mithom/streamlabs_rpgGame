@@ -117,3 +117,36 @@ Possible additions:
 ability to add gender, if gender is available, automatically adapt game to it (auto king/queen)
 
 add make command, no automatic characters/revives, ability to choose name, cannot be same as prev character
+
+notes
+
+only 1 weapon at a time, possibility to second
+only 1 armor at a time
+each lvl has difficulty, if not high enough lvl, death chance goes up
+towns - safe, 0% death chance
+beginning terrains, 5-10% death chance
+exp depending on difficulty, exponential exp gain with difficulty
+
+battle system separate tick rate
+after attack, certain amount of time to react, (20 seconds) to type a different command
+succesrate flee 45%
+fight = 1 round
+sneak attack, when attacking outside of village or town -> you cannot flee.
+player vs multiple, find own system
+there is a map, always the same
+move has it's own cooldown, shorter CD then game tick.
+exp gained depending on last time moved (safe time in db and filter on it)
+cannot move while being attacked
+
+boss fights
+boss has HP, but players do not HP (1)
+boss can take 25 hits
+he attacks 1 player, but attacks hem twice
+boss is in a zone, 1hour respawn time
+boss only attacks after he is attacked, and then keeps doing so
+zone is always there, but kind of safe zone, but no shopping
+shopping only in towns
+upon death: lose everything except coins
+Persist ability: get best weapon for lvl until you reach your persisted weapon
+
+default currency

@@ -3,6 +3,7 @@ from characters import Character
 import os
 
 import clr
+
 clr.AddReference("IronPython.SQLite.dll")
 import sqlite3
 
@@ -54,7 +55,7 @@ class RpgGame(object):
                     town = filter(lambda loc: loc.name == "Town", Location.load_locations(conn))[0]
                     char = Character.create("test", user_id, town.location_id, conn)
                 Parent.SendStreamMessage(self.format_message("{0} zijn char {1} met id {2} zit in de zone: {3}" %
-                                         char.user_id, char.name, char.char_id, char.location.name))
+                                                             char.user_id, char.name, char.char_id, char.location.name))
         finally:
             conn.close()
 
@@ -83,92 +84,111 @@ class RpgGame(object):
             self.scriptSettings.bounty_command: self.bounty,
         }]
 
-    def info(self, user_id):
+    def info(self, user_id, username):
         conn = self.get_connection()
         character = Character.find_by_user(user_id, conn)
-        location = Location.find(character.location_id)
+        location = character.location
         Parent.SendStreamMessage(self.format_message(
             "{0}, your character {1} is located in {2} with difficulty {3}",
-            Parent.GetUserName(user_id),
+            username,
             character.name,
             location.name,
             location.difficulty
         ))
         conn.close()
 
-    def condensed_info(self, user_id):
+    def condensed_info(self, user_id, username):
         conn = self.get_connection()
         character = Character.find_by_user(user_id, conn)
         Parent.SendStreamMessage(self.format_message(
             "{0}, your character {1} is located in {2}",
-            Parent.GetUserName(user_id),
+            username,
             character.name,
-            Location.find(character.location_id).name
+            character.location.name
         ))
         conn.close()
 
-    def move(self, user_id, location_name):
+    def move(self, user_id, username, location_name):
         conn = self.get_connection()
         location = Location.find_by_name(location_name)
         character = Character.find_by_user(user_id, conn)
         if character.location_id != character.location_id:
-            character.location_id = location.id
+            character.location = location
             character.save()
             Parent.SendStreamMessage(self.format_message(
                 "{0}, {1} moved to location {2} with difficulty {3}",
-                Parent.GetUserName(user_id),
+                username,
                 character.name,
                 location.name,
                 location.difficulty
             ))
         conn.close()
 
-    def buy(self, user_id, item_name):
+    def buy(self, user_id, username, item_name):
+        conn = self.get_connection()
+        character = Character.find_by_user(user_id, conn)
+        weapon = Weapon.find_by_name(item_name)
+        if weapon is not None:
+            if character.lvl >= weapon.min_lvl and Parent.RemovePoints(user_id, username, weapon.price):
+                character.weapon = weapon
+                character.save()
+        else:
+            armor = Armor.find_by_name(item_name)
+            if armor is not None:
+                if character.lvl >= weapon.min_lvl and Parent.RemovePoints(user_id, username, armor.price):
+                    character.armor = armor
+                    character.save()
+            else:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, {1} does not exists",
+                    username,
+                    item_name
+                ))
+        conn.close()
+
+    def attack(self, user_id, username, target_name):
         pass
 
-    def attack(self, user_id, target_name):
+    def defend(self, user_id, username):
         pass
 
-    def defend(self, user_id):
+    def counter(self, user_id, username):
         pass
 
-    def counter(self, user_id):
+    def flee(self, user_id, username):
         pass
 
-    def flee(self, user_id):
+    def look(self, user_id, username, target_name):
         pass
 
-    def look(self, user_id, target_name):
+    def dough(self, user_id, username):
         pass
 
-    def dough(self, user_id):
+    def give(self, user_id, username, amount, recipient_name):
         pass
 
-    def give(self, user_id, amount, recipient_name):
+    def bounty(self, user_id, username, amount, target_name):
         pass
 
-    def bounty(self, user_id, amount, target_name):
+    def tax(self, user_id, username, amount):
         pass
 
-    def tax(self, user_id, amount):
+    def queen(self, user_id, username):
         pass
 
-    def queen(self, user_id):
+    def king(self, user_id, username):
         pass
 
-    def king(self, user_id):
+    def vote(self, user_id, username, target_name):
         pass
 
-    def vote(self, user_id, target_name):
+    def smite(self, user_id, username, target_name):
         pass
 
-    def smite(self, user_id, target_name):
+    def unsmite(self, user_id, username, target_name):
         pass
 
-    def unsmite(self, user_id, target_name):
-        pass
-
-    def stat(self, user_id):
+    def stat(self, user_id, username):
         pass
 
     # ---------------------------------------

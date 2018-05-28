@@ -90,7 +90,7 @@ def Execute(data):
         if p_count <= len(command_functions):
             param0 = data.GetParam(0)
             if param0 in command_functions[p_count-1]:
-                command_functions[p_count-1](data.User, *data.Message.split()[1:])
+                command_functions[p_count-1](data.User, data.UserName, *data.Message.split()[1:])
 
 
 # ---------------------------------------
