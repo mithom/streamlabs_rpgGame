@@ -1,4 +1,4 @@
-from StaticData import Location, Weapon, Armor
+from StaticData import Location, Weapon, Armor, StaticData
 
 
 class Character(object):
@@ -126,11 +126,13 @@ class Roshan(Boss):
         pass
 
 
-class Traits(object):
-    def __init__(self):
-        pass
+class Traits(StaticData):
+    def __init__(self, trait_id, name, connection):
+        super(Traits, self).__init__(trait_id, connection)
+        self.name = name
 
 
 class Specials(object):
+    """This is no static data as it needs to remember a cooldown for each user"""
     def __init__(self):
         pass

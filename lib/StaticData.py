@@ -1,20 +1,33 @@
-class Location(object):
-    connection = None
-    locations_by_id = {}
-    locations_by_name = {}
+class StaticData(object):
+    data_by_name = {}
+    data_by_id = {}
 
-    def __init__(self, location_id, name, difficulty, connection):
-        self.__location_id = location_id
-        self.name = name
-        self.difficulty = difficulty
+    def __init__(self, data_id, connection):
         self.connection = connection
+        self.__data_id = data_id
 
     @property
     def id(self):
-        return self.__location_id
+        return self.__data_id
 
     def __eq__(self, other):
         return self.id == other.id
+
+    @classmethod
+    def find(cls, data_id):
+        return cls.data_by_id[data_id]
+
+    @classmethod
+    def find_by_name(cls, name):
+        return cls.data_by_name[name]
+
+
+class Location(StaticData):
+
+    def __init__(self, location_id, name, difficulty, connection):
+        super(Location, self).__init__(location_id, connection)
+        self.name = name
+        self.difficulty = difficulty
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
@@ -33,21 +46,13 @@ class Location(object):
         connection.commit()
 
     @classmethod
-    def find(cls, location_id):
-        return cls.locations_by_id[location_id]
-
-    @classmethod
-    def find_by_name(cls, name):
-        return cls.locations_by_name[name]
-
-    @classmethod
     def load_locations(cls, connection):
         """loads weapons from database"""
         cursor = connection.execute('SELECT location_id, name, difficulty FROM locations')
         for row in cursor:
             location = cls(*row, connection=connection)
-            cls.locations_by_id[location.location_id] = location
-            cls.locations_by_name[location.name] = location
+            cls.data_by_id[location.id] = location
+            cls.data_by_name[location.name] = location
 
     @classmethod
     def update_locations(cls, connection):
@@ -55,28 +60,13 @@ class Location(object):
         pass
 
 
-class Item(object):
-    item_by_name = {}
-    item_by_id = {}
+class Item(StaticData):
 
     def __init__(self, item_id, name, price, min_lvl, connection):
-        self.__item_id = item_id
+        super(Item, self).__init__(item_id, connection)
         self.name = name
         self.price = price
         self.min_lvl = min_lvl
-        self.connection = connection
-
-    @property
-    def id(self):
-        return self.__item_id
-
-    @classmethod
-    def find(cls, item_id):
-        return cls.item_by_id[item_id]
-
-    @classmethod
-    def find_by_name(cls, name):
-        return cls.item_by_name[name]
 
 
 class Weapon(Item):
@@ -103,8 +93,8 @@ class Weapon(Item):
         cursor = connection.execute('SELECT weapon_id, name, price, min_lvl FROM weapons')
         for row in cursor:
             weapon = cls(*row, connection=connection)
-            cls.item_by_id[weapon.id] = weapon
-            cls.item_by_name[weapon.name] = weapon
+            cls.data_by_id[weapon.id] = weapon
+            cls.data_by_name[weapon.name] = weapon
 
     @classmethod
     def update_weapons(cls):
@@ -136,8 +126,8 @@ class Armor(Item):
         cursor = connection.execute('SELECT armor_id, name, price, min_lvl FROM armors')
         for row in cursor:
             armor = cls(*row, connection=connection)
-            cls.item_by_id[armor.id] = armor
-            cls.item_by_name[armor.name] = armor
+            cls.data_by_id[armor.id] = armor
+            cls.data_by_name[armor.name] = armor
 
     @classmethod
     def update_armors(cls):
