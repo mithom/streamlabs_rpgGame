@@ -129,7 +129,7 @@ exp depending on difficulty, exponential exp gain with difficulty
 
 battle system separate tick rate
 after attack, certain amount of time to react, (20 seconds) to type a different command
-succesrate flee 45%
+success rate flee 45%
 fight = 1 round
 sneak attack, when attacking outside of village or town -> you cannot flee.
 player vs multiple, find own system
@@ -150,3 +150,9 @@ upon death: lose everything except coins
 Persist ability: get best weapon for lvl until you reach your persisted weapon
 
 default currency
+
+
+idea for new minigame: the family game werewolfs
+every person gets hes role whispered, bot or streamer is game leader
+can be fun interactive
+https://steamcommunity.com/groups/kaylovespie/discussions/0/598198356166839850/

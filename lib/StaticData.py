@@ -2,9 +2,10 @@ class StaticData(object):
     data_by_name = {}
     data_by_id = {}
 
-    def __init__(self, data_id, connection):
+    def __init__(self, data_id, name, connection):
         self.connection = connection
         self.__data_id = data_id
+        self.name = name
 
     @property
     def id(self):
@@ -25,8 +26,7 @@ class StaticData(object):
 class Location(StaticData):
 
     def __init__(self, location_id, name, difficulty, connection):
-        super(Location, self).__init__(location_id, connection)
-        self.name = name
+        super(Location, self).__init__(location_id, name, connection)
         self.difficulty = difficulty
 
     @classmethod
@@ -63,8 +63,7 @@ class Location(StaticData):
 class Item(StaticData):
 
     def __init__(self, item_id, name, price, min_lvl, connection):
-        super(Item, self).__init__(item_id, connection)
-        self.name = name
+        super(Item, self).__init__(item_id, name, connection)
         self.price = price
         self.min_lvl = min_lvl
 
