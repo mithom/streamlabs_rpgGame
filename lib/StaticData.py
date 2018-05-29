@@ -42,7 +42,7 @@ class Location(StaticData):
         """creates weapons into the database"""
         # TODO: button to dynamically add zones/weapons/armors
         locations = [("Town", 1), ("Castle", 0), ("Forest", 3), ("Fields", 2)]
-        connection.executemany('INSERT INTO locations(name, difficulty) VALUES (?, ?)', locations)
+        connection.executemany('INSERT OR IGNORE INTO locations(name, difficulty) VALUES (?, ?)', locations)
         connection.commit()
 
     @classmethod

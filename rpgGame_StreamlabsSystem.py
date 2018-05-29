@@ -5,7 +5,7 @@ import os
 import time
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "lib")) #point at lib folder for classes / references
+sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))  # Point at lib folder for classes / references
 import clr
 clr.AddReference("IronPython.Modules.dll")
 
@@ -33,6 +33,7 @@ next_update = 0
 # ---------------------------------------
 #   main interface
 # ---------------------------------------
+# noinspection PyPep8Naming
 def Init():
     global ScriptSettings, game
     # Insert Parent in submodules
@@ -58,15 +59,18 @@ def Init():
     set_next_update()
 
 
+# noinspection PyPep8Naming
 def ReloadSettings(jsondata):
     ScriptSettings.reload(jsondata)
     game.apply_reload()
 
 
+# noinspection PyPep8Naming
 def Unload():
     ScriptSettings.save()
 
 
+# noinspection PyPep8Naming
 def ScriptToggle(state):
     global next_update
     # next_update is time remaining in tick while script is toggled off.
@@ -76,6 +80,7 @@ def ScriptToggle(state):
         next_update -= time.time()
 
 
+# noinspection PyPep8Naming
 def Tick():
     if Parent.IsLive() or ScriptSettings.test_offline:
         if time.time() > next_update:
@@ -83,6 +88,7 @@ def Tick():
             game.tick()
 
 
+# noinspection PyPep8Naming
 def Execute(data):
     if data.IsChatMessage():
         p_count = data.GetParamCount()
@@ -90,7 +96,7 @@ def Execute(data):
         if p_count <= len(command_functions):
             param0 = data.GetParam(0)
             if param0 in command_functions[p_count-1]:
-                command_functions[p_count-1](data.User, data.UserName, *data.Message.split()[1:])
+                command_functions[p_count-1][param0](data.User, data.UserName, *data.Message.split()[1:])
 
 
 # ---------------------------------------

@@ -1,5 +1,5 @@
 from StaticData import Location, Weapon, Armor
-from characters import Character
+from characters import Character, Attack
 import os
 
 import clr
@@ -20,6 +20,8 @@ class RpgGame(object):
         self.prepare_database()
         self.create_and_load_static_data()
 
+        Character.game = self
+
     def get_connection(self):
         return sqlite3.connect(os.path.join(self.db_directory, "database.db"))
 
@@ -28,16 +30,21 @@ class RpgGame(object):
         try:
             # create all tables, location first, because character got foreign key to this
             Location.create_table_if_not_exists(conn)
-            Character.create_table_if_not_exists(conn)
             Weapon.create_table_if_not_exists(conn)
             Armor.create_table_if_not_exists(conn)
+            Character.create_table_if_not_exists(conn)
+            Attack.create_table_if_not_exists(conn)
         finally:
             conn.close()
 
     def create_and_load_static_data(self):
         conn = self.get_connection()
         Location.create_locations(self.scriptSettings, conn)
-        pass
+        Location.load_locations(conn)
+        Armor.load_armors(conn)
+        Weapon.load_weapons(conn)
+        Character.load_static_data(conn)
+        conn.close()
 
     def apply_reload(self):
         pass
@@ -53,7 +60,7 @@ class RpgGame(object):
                 char = Character.find_by_user(user_id, conn)
                 if char is None:
                     town = filter(lambda loc: loc.name == "Town", Location.load_locations(conn))[0]
-                    char = Character.create("test", user_id, town.location_id, conn)
+                    char = Character.create("test", user_id, 0, 1, town.location_id, None, None, None, None, conn)
                 Parent.SendStreamMessage(self.format_message("{0} zijn char {1} met id {2} zit in de zone: {3}" %
                                                              char.user_id, char.name, char.char_id, char.location.name))
         finally:

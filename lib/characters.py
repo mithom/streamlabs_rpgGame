@@ -1,11 +1,11 @@
 from StaticData import Location, Weapon, Armor, StaticData
-# TODO: delete functions in all classes
 
 
 class Character(object):
     """
     by default lazy load static data, this is in memory anyway
     """
+    game = None
 
     def __init__(self, char_id, name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
                  exp_gain_time, connection, location=None, weapon=None, armor=None, trait=None, special_ids=None,
@@ -90,17 +90,17 @@ class Character(object):
         self.connection.execute(
             """UPDATE characters set location_id = :location_id, name = :name, user_id = :user_id,
             weapon_id = :weapon_id, armor_id = :armor_id, experience = :experience, lvl = :lvl,
-             exp_gain_time = :exp_gain_time
-            where char_id = :char_id""",
-            {"location_id": self.location_id, "name": self.name, "user_id": self.user_id, "char_id": self.char_id,
+            exp_gain_time = :exp_gain_time
+            where character_id = :character_id""",
+            {"location_id": self.location_id, "name": self.name, "user_id": self.user_id, "character_id": self.char_id,
              "weapon_id": self.weapon_id, "armor_id": self.armor_id, "experience": self.experience,
              "lvl": self.lvl, "exp_gain_time": self.exp_gain_time}
         )
         self.connection.commit()
 
     @classmethod
-    def create(cls, name, user_id, experience, lvl, location_id, weapon_id, armor_id, connection, trait_id,
-               exp_gain_time):
+    def create(cls, name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id, exp_gain_time,
+               connection):
         cursor = connection.execute(
             '''INSERT INTO characters (name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
             exp_gain_time)
@@ -144,6 +144,7 @@ class Character(object):
         """timestamp can be null, if stream goes offline for example"""
         Trait.create_table_if_not_exists(connection)
         Special.create_table_if_not_exists(connection)
+        # TODO: create specials join table with user_cooldown
         connection.execute(
             """create table if not exists characters
             (character_id integer PRIMARY KEY   NOT NULL,
@@ -159,9 +160,13 @@ class Character(object):
               FOREIGN KEY (location_id) REFERENCES locations(location_id),
               FOREIGN KEY (weapon_id)   REFERENCES weapons(weapon_id),
               FOREIGN KEY (armor_id)    REFERENCES armors(armor_id),
-              FOREIGN KEY (trait_id)    REFERENCES trait(trait_id)
+              FOREIGN KEY (trait_id)    REFERENCES traits(orig_name)
             );"""
         )
+
+    @classmethod
+    def load_static_data(cls, connection):
+        Trait.load_traits(connection)
 
 
 class Attack(object):
@@ -174,8 +179,10 @@ class Attack(object):
         self.__attack_id = attack_id
         self.resolve_time = resolve_time
         self.connection = connection
-        self.children = children
         self.action = action
+        self.children = []
+        for child in children:
+            self.add_child(child)
 
         self.attacker_id = attacker_id
         self._attacker = None
@@ -184,7 +191,7 @@ class Attack(object):
         self._target = None
 
         self.resolver_id = resolver_id
-        self._resolver = None
+        self.resolver = None
 
     @property
     def attack_id(self):
@@ -193,7 +200,7 @@ class Attack(object):
     @property
     def attacker(self):
         if self._attacker is None:
-            self._attacker = Character.find(self.attack_id)
+            self._attacker = Character.find(self.attack_id, Character.game.get_connection())
         return self._attacker
 
     @attacker.setter
@@ -204,7 +211,7 @@ class Attack(object):
     @property
     def target(self):
         if self._target is None:
-            self._target = Character.find(self.target_id)
+            self._target = Character.find(self.target_id, Character.game.get_connection())
         return self._target
 
     @target.setter
@@ -212,24 +219,15 @@ class Attack(object):
         self._target = target
         self.target_id = target.id
 
-    @property
-    def resolver(self):
-        if self._resolver is None and self.resolver_id is not None:
-            self._resolver = Attack.find(self.resolver_id)
-        return self._resolver
-
-    @resolver.setter
-    def resolver(self, resolver):
-        self._resolver = resolver
-        self.resolver_id = resolver.id
-
     def add_child(self, child):
+        assert child.resolver_id == self.attack_id
         self.children.append(child)
+        child.resolver = self
 
     @classmethod
     def create(cls, action, attacker_id, target_id, resolve_time=None, resolver_id=None, connection=None):
-        cursor = connection.execute('''INSERT INTO attacks (action, attacker_id, target_id, resolve_time, resolver)
-                                                VALUES (:action, :attacker_id, :target_id, :resolve_time, :resolver)''',
+        cursor = connection.execute('''INSERT INTO attacks (action, attacker_id, target_id, resolve_time, resolver_id)
+                                    VALUES (:action, :attacker_id, :target_id, :resolve_time, :resolver_id)''',
                                     {"action": action, "attacker_id": attacker_id, "target_id": target_id,
                                      "resolve_time": resolve_time, "resolver_id": resolver_id}
                                     )
@@ -255,14 +253,14 @@ class Attack(object):
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
-        connection.execute("""create table if not exists attacks,
+        connection.execute("""create table if not exists attacks
                         (attack_id      integer   PRIMARY KEY NOT NULL,
                         action          text      NOT NULL,
                         attacker_id     integer   NOT NULL,
                         target_id       integer,
                         resolve_time    timestamp,
                         resolver_id     integer,
-                         FOREIGN KEY (resolver_id)  REFERENCES attacks(attack_id)
+                         FOREIGN KEY (resolver_id)  REFERENCES attacks(attack_id),
                          FOREIGN KEY (attacker_id)  REFERENCES characters (character_id),
                          FOREIGN KEY (target_id)    REFERENCES characters (character_id)
                         );""")
@@ -279,6 +277,11 @@ class Trait(StaticData):
                 name            text  UNIQUE
                 );""")
 
+    @classmethod
+    def load_traits(cls, connection):
+        # TODO: implement
+        pass
+
 
 class Special(StaticData):
     """The specials self are static, the join-table won't be"""
@@ -293,7 +296,7 @@ class Special(StaticData):
         connection.execute("""create table if not exists specials
             (orig_name      text PRIMARY KEY   NOT NULL,
             name            text NOT NULL,
-            identifier      char, UNIQUE,
+            identifier      char UNIQUE,
             cooldown_time   integer NOT NULL
             );""")
 
