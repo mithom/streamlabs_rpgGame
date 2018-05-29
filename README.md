@@ -149,6 +149,7 @@ shopping only in towns
 upon death: lose everything except coins
 Persist ability: get best weapon for lvl until you reach your persisted weapon
 
+self addition: while being attacked, cannot attack someone who isn't in your combat already -> for each combat group, only 1 person can defend/counter/flee
 default currency
 
 
