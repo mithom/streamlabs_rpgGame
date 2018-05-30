@@ -1,5 +1,5 @@
 from StaticData import Location, Weapon, Armor, StaticData
-
+import random
 
 class Character(object):
     """
@@ -16,7 +16,7 @@ class Character(object):
             specials = []
         self.__char_id = char_id
         self.name = name
-        self.user_id = user_id,
+        self.user_id = user_id
         self.experience = experience
         self.lvl = lvl
         self.exp_gain_time = exp_gain_time
@@ -99,12 +99,13 @@ class Character(object):
         self.connection.commit()
 
     @classmethod
-    def create(cls, name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id, exp_gain_time,
+    def create(cls, name, user_id, experience, lvl, location_id, weapon_id, armor_id, exp_gain_time,
                connection):
+        trait_id = random.choice(Trait.data_by_id).id
         cursor = connection.execute(
             '''INSERT INTO characters (name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
             exp_gain_time)
-            VALUES (:name, :experience, :lvl, :user_id, :location_id, :weapon_id, :armor_id, :trait_id,
+            VALUES (:name, :user_id, :experience, :lvl, :location_id, :weapon_id, :armor_id, :trait_id,
             :exp_gain_time)''',
             {"name": name, "user_id": user_id, "location_id": location_id, "lvl": lvl, "weapon_id": weapon_id,
              "armor_id": armor_id, "experience": experience, "trait_id": trait_id, "exp_gain_time": exp_gain_time}
@@ -140,6 +141,19 @@ class Character(object):
         return cls(*row, connection=connection)
 
     @classmethod
+    def find_by_name(cls, name, connection):
+        cursor = connection.execute(
+            """SELECT character_id, name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
+            exp_gain_time from characters
+            WHERE name = :name""",
+            {"name": name}
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return cls(*row, connection=connection)
+
+    @classmethod
     def create_table_if_not_exists(cls, connection):
         """timestamp can be null, if stream goes offline for example"""
         Trait.create_table_if_not_exists(connection)
@@ -148,13 +162,13 @@ class Character(object):
         connection.execute(
             """create table if not exists characters
             (character_id integer PRIMARY KEY   NOT NULL,
-            name            text    NOT NULL,
-            user_id         text    UNIQUE ,
+            name            text    UNIQUE,
+            user_id         text    UNIQUE,
             experience      integer NOT NULL,
             lvl             integer NOT NULL,
             location_id     integer NOT NULL,
-            weapon_id       integer NOT NULL,
-            armor_id        integer NOT NULL,
+            weapon_id       integer,
+            armor_id        integer,
             trait_id        text    NOT NULL,
             exp_gain_time   timestamp,
               FOREIGN KEY (location_id) REFERENCES locations(location_id),
@@ -200,7 +214,7 @@ class Attack(object):
     @property
     def attacker(self):
         if self._attacker is None:
-            self._attacker = Character.find(self.attack_id, Character.game.get_connection())
+                self._attacker = Character.find(self.attack_id, self.connection)
         return self._attacker
 
     @attacker.setter
@@ -211,7 +225,7 @@ class Attack(object):
     @property
     def target(self):
         if self._target is None:
-            self._target = Character.find(self.target_id, Character.game.get_connection())
+            self._target = Character.find(self.target_id, self.connection)
         return self._target
 
     @target.setter
@@ -250,6 +264,21 @@ class Attack(object):
                 child = cls(*row[5:9], resolver_id=row[9], connection=connection)
                 fights[row[0]] = cls(*row[:5], connection=connection, children=[child, ])
         return fights
+
+    @classmethod
+    def find_by_attacker(cls, attacker, connection):
+        if type(attacker) is Character:
+            attacker = attacker.char_id
+        cursor = connection.execute(
+            """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id
+            FROM attacks
+            WHERE attacker_id = :attacker_id""",
+            {"attacker_id": attacker}
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return cls(*row, connection=connection)
 
     @classmethod
     def create_table_if_not_exists(cls, connection):

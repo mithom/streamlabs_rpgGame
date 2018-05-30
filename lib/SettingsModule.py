@@ -19,8 +19,12 @@ class Settings(object):
         except:
             # Config
             self.test_offline = False
-            self.update_interval = 60
+            self.update_interval = 5
             self.only_active = True
+            self.add_me = True
+
+            # Gameplay
+            self.fight_resolve_time = 20
 
             # command names
             # 0 args

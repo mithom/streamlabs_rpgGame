@@ -35,7 +35,7 @@ next_update = 0
 # ---------------------------------------
 # noinspection PyPep8Naming
 def Init():
-    global ScriptSettings, game
+    global ScriptSettings, game, next_update
     # Insert Parent in submodules
     RpgGame.Parent = Parent
     SettingsModule.Parent = Parent
@@ -56,7 +56,7 @@ def Init():
     game = RpgGame.RpgGame(ScriptSettings, ScriptName, db_directory)
 
     # Prepare Tick()
-    set_next_update()
+    next_update = time.time()
 
 
 # noinspection PyPep8Naming
@@ -83,7 +83,7 @@ def ScriptToggle(state):
 # noinspection PyPep8Naming
 def Tick():
     if Parent.IsLive() or ScriptSettings.test_offline:
-        if time.time() > next_update:
+        if time.time() >= next_update:
             set_next_update()
             game.tick()
 

@@ -9,7 +9,7 @@
   },
   "update_interval":{
     "type":"numberbox",
-    "value":60,
+    "value":5,
     "label":"game interval",
     "tooltip":"Time in between gaining experience/dieing, this is the game's tick rate.",
     "group":"config"
@@ -19,6 +19,20 @@
     "value":true,
     "label":"only reward active users exp",
     "tooltip":"when enabled, lurking people will not gain experience",
+    "group":"config"
+  },
+  "add_me":{
+    "type":"checkbox",
+    "value":true,
+    "label":"add /me before messages",
+    "tooltip":"on twitch, this shows the messages in the color from the chatbot",
+    "group":"config"
+  },
+  "fight_resolve_time":{
+    "type":"numberbox",
+    "value":20,
+    "label":"time to resolve a fight",
+    "tooltip":"time after initial attack for a fight to resolve\nin this time, other the attacker character can defend or new people can join",
     "group":"config"
   },
   "info_command": {
