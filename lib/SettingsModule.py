@@ -22,6 +22,7 @@ class Settings(object):
             self.update_interval = 5
             self.only_active = True
             self.add_me = True
+            self.piebank_name = "piebank"
 
             # Gameplay
             self.fight_resolve_time = 20
@@ -51,6 +52,9 @@ class Settings(object):
             # 2 args
             self.give_command = "!give"
             self.bounty_command = "!bounty"
+
+            # responses, TODO: add to ui_config
+            self.no_character_yet = "{0}, you don't have a character yet"
 
     def reload(self, json_data):
         """ Reload settings from Chatbot user interface by given json data. """

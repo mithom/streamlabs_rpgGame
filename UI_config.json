@@ -28,6 +28,13 @@
     "tooltip":"on twitch, this shows the messages in the color from the chatbot",
     "group":"config"
   },
+  "piebank_name": {
+    "type": "textbox",
+    "value": "piebank",
+    "label": "piebank name",
+    "tooltip": "name people have to give to to remove bounty from thyself",
+    "group": "config"
+  },
   "fight_resolve_time":{
     "type":"numberbox",
     "value":20,

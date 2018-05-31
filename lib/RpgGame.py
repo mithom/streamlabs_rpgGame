@@ -1,5 +1,7 @@
 from StaticData import Location, Weapon, Armor
-from characters import Character, Attack
+from characters import Character
+from Attack import Attack
+
 import os
 import datetime as dt
 
@@ -52,19 +54,8 @@ class RpgGame(object):
         pass
 
     def tick(self):
-        if self.scriptSettings.only_active:
-            result = Parent.GetActiveUsers()
-        else:
-            result = Parent.GetViewerList()
+
         with self.get_connection() as conn:
-            # for user_id in result:
-            #     char = Character.find_by_user(user_id, conn)
-            #     if char is None:
-            #         town = Location.find_by_name("Town")
-            #         char = Character.create(Parent.GetDisplayName(user_id), user_id, 0, 1, town.id, None, None, None,
-            #                                 conn)
-            #     Parent.SendStreamMessage(self.format_message("{0} zijn char {1} met id {2} zit in de zone: {3}",
-            #                                                char.user_id, char.name, char.char_id, char.location.name))
             for fight in Attack.find_fights(conn):
                 self.resolve_fight(fight)
             # TODO: retrieve user who deserve xp
@@ -73,6 +64,7 @@ class RpgGame(object):
         pass  # TODO: implement
 
     def commands(self):
+        # TODO: create or join command (with name param)
         return [{
             self.scriptSettings.info_command: self.info,
             self.scriptSettings.condensed_info_command: self.condensed_info,
@@ -123,6 +115,9 @@ class RpgGame(object):
         with self.get_connection() as conn:
             location = Location.find_by_name(location_name)
             character = Character.find_by_user(user_id, conn)
+            if character is None:
+                Parent.SendStreamMessage(self.format_message(self.scriptSettings.no_character_yet, username))
+                return
             if character.location_id != character.location_id:
                 character.location = location
                 character.save()
@@ -137,6 +132,9 @@ class RpgGame(object):
     def buy(self, user_id, username, item_name):
         with self.get_connection() as conn:
             character = Character.find_by_user(user_id, conn)
+            if character is None:
+                Parent.SendStreamMessage(self.format_message(self.scriptSettings.no_character_yet, username))
+                return
             weapon = Weapon.find_by_name(item_name)
             if weapon is not None:
                 if character.lvl >= weapon.min_lvl and Parent.RemovePoints(user_id, username, weapon.price):
@@ -159,6 +157,13 @@ class RpgGame(object):
         with self.get_connection() as conn:
             target = Character.find_by_name(target_name, conn)
             attacker = Character.find_by_user(user_id, conn)
+            if attacker is None:
+                Parent.SendStreamMessage(self.format_message(self.scriptSettings.no_character_yet, username))
+                return
+            if target is None:
+                Parent.SendStreamMessage(
+                    self.format_message("{0}, no target exists with that character name", username))
+                return
             if target.location_id == attacker.location_id:
                 fight = Attack.find_by_attacker(target, conn)
                 if fight is None:
@@ -173,22 +178,86 @@ class RpgGame(object):
                                   connection=conn)
 
     def defend(self, user_id, username):
-        pass
+        with self.get_connection() as conn:
+            defender = Character.find_by_user(user_id, conn)
+            if defender is None:
+                Parent.SendStreamMessage(self.format_message(self.scriptSettings.no_character_yet, username))
+                return
+            fight = Attack.find_by_target(defender, conn)
+            if fight is None:
+                Parent.SendStreamMessage("you are currently not being attacked")
+                return
+            else:
+                if fight.resolver_id is None:
+                    resolver_id = fight.attack_id
+                else:
+                    resolver_id = fight.resolver_id
+                Attack.create(self.DEFEND_ACTION, defender.char_id, resolver_id=resolver_id, connection=conn)
 
     def counter(self, user_id, username):
-        pass
+        with self.get_connection() as conn:
+            counterer = Character.find_by_user(user_id, conn)
+            if counterer is None:
+                Parent.SendStreamMessage(self.format_message(self.scriptSettings.no_character_yet, username))
+                return
+            fight = Attack.find_by_target(counterer, conn)
+            if fight is None:
+                Parent.SendStreamMessage("you are currently not being attacked")
+                return
+            else:
+                if fight.resolver_id is None:
+                    resolver_id = fight.attack_id
+                else:
+                    resolver_id = fight.resolver_id
+                Attack.create(self.COUNTER_ACTION, counterer.char_id, resolver_id=resolver_id, connection=conn)
 
     def flee(self, user_id, username):
-        pass
+        with self.get_connection() as conn:
+            flee_char = Character.find_by_user(user_id, conn)
+            if flee_char is None:
+                Parent.SendStreamMessage(self.format_message(self.scriptSettings.no_character_yet, username))
+                return
+            fight = Attack.find_by_target(flee_char, conn)
+            if fight is None:
+                Parent.SendStreamMessage("you are currently not being attacked")
+                return
+            else:
+                if fight.resolver_id is None:
+                    resolver_id = fight.attack_id
+                else:
+                    resolver_id = fight.resolver_id
+                Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=resolver_id, connection=conn)
 
     def look(self, user_id, username, target_name):
-        pass
+        target_char = Character.find_by_name(target_name)
+        user_char = Character.find_by_user(user_id)
+        # TODO: compare
 
     def dough(self, user_id, username):
-        pass
+        Parent.SendStreamMessage(self.format_message("{0}, your current piecoin balance is {1} {2}",
+                                                     username,
+                                                     Parent.GetPoints(user_id),
+                                                     Parent.GetCurrencyName()
+                                                     ))
 
     def give(self, user_id, username, amount, recipient_name):
-        pass
+        if recipient_name == self.scriptSettings.piebank_name:
+            if Parent.RemovePoints(user_id, username, amount):
+                # TODO: check bounty (and create bounties)
+                pass
+            else:
+                recipient = Character.find_by_name(recipient_name)
+                if Parent.RemovePoints(user_id, username, amount):
+                    recipient_user_name = Parent.GetDisplayName(recipient.user_id)
+                    if Parent.AddPoints(recipient.user_id, recipient_user_name, amount):
+                        Parent.SendStreamMessage(self.format_message("{0} just gave {1} {2} {3}",
+                                                                     username,
+                                                                     recipient_user_name,
+                                                                     amount,
+                                                                     Parent.GetCurrencyName()
+                                                                     ))
+                    else:
+                        Parent.AddPoints(user_id, username, amount)
 
     def bounty(self, user_id, username, amount, target_name):
         pass

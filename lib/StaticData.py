@@ -32,8 +32,8 @@ class Location(StaticData):
     @classmethod
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists locations
-            (location_id integer PRIMARY KEY   NOT NULL,
-            name            text  UNIQUE ,
+            (location_id integer PRIMARY KEY    NOT NULL,
+            name            text  UNIQUE        NOT NULL,
             difficulty      integer  NOT NULL
             );""")
 
@@ -75,8 +75,8 @@ class Weapon(Item):
     @classmethod
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists weapons
-                (weapon_id integer PRIMARY KEY   NOT NULL,
-                name            text  UNIQUE,
+                (weapon_id integer PRIMARY KEY    NOT NULL,
+                name            text  UNIQUE      NOT NULL ,
                 price      integer  NOT NULL,
                 min_lvl     integer NOT NULL 
                 );""")
@@ -109,9 +109,9 @@ class Armor(Item):
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists armors
                 (armor_id integer PRIMARY KEY   NOT NULL,
-                name            text  UNIQUE ,
-                price      integer  NOT NULL,
-                min_lvl     integer NOT NULL 
+                name      text    UNIQUE        NOT NULL,
+                price     integer NOT NULL,
+                min_lvl   integer NOT NULL 
                 );""")
 
     @classmethod
