@@ -40,7 +40,21 @@
     "value":20,
     "label":"time to resolve a fight",
     "tooltip":"time after initial attack for a fight to resolve\nin this time, other the attacker character can defend or new people can join",
-    "group":"config"
+    "group":"gameplay"
+  },
+  "xp_farm_time":{
+    "type":"numberbox",
+    "value":90,
+    "label":"time to stay in an area before getting exp",
+    "tooltip":"the time you need to stay in an area to gain exp. Being in a fight delays this",
+    "group":"gameplay"
+  },
+  "starting_location": {
+    "type": "textbox",
+    "value": "Town",
+    "label": "starting location",
+    "tooltip": "location name where every newly created hero will start",
+    "group": "Command Names"
   },
   "info_command": {
     "type": "textbox",
@@ -103,6 +117,13 @@
     "value": "!king",
     "label": "king command",
     "tooltip": "This command adjust some messages for gender.",
+    "group": "Command Names"
+  },
+  "create_command": {
+    "type": "textbox",
+    "value": "!create",
+    "label": "create command",
+    "tooltip": "create a new hero if you don't already have one",
     "group": "Command Names"
   },
   "move_command": {

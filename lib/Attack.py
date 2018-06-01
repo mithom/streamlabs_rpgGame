@@ -72,7 +72,7 @@ class Attack(object):
             """SELECT Resolver.attack_id, Resolver.action, Resolver.attacker_id, Resolver.target_id,
             Resolver.resolve_time, Child.attack_id, Child.action, Child.attacker_id, Child.target_id, Child.resolver_id
             FROM attacks Resolver JOIN attacks Child on Child.resolver_id = Resolver.attack_id
-            WHERE Resolver.resolve_time <= DATETIME('now')"""
+            WHERE Resolver.resolve_time <= DATETIME('now', 'utc')"""
         )
         fights = {}
         for row in cursor:

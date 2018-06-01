@@ -1,5 +1,8 @@
 from StaticData import Location, Weapon, Armor, StaticData
 import random
+from enum import Enum
+from pytz import utc
+import datetime as dt
 
 
 class Character(object):
@@ -87,6 +90,23 @@ class Character(object):
         self._trait = trait
         self.trait_id = trait.id
 
+    def exp_for_current_location(self):
+        return int(25 * (2 ** (0.6 * (self.location.difficulty - self.lvl) + 1)))
+
+    def exp_for_next_lvl(self):
+        return int(100 + ((2.8 * self.lvl) ** 2))
+
+    def gain_experience(self):
+        """gain experience, auto lvl-up
+        :return True if lvl'ed up, False otherwise"""
+        self.experience += self.exp_for_current_location()
+        next_lvl_exp = self.exp_for_next_lvl()
+        if self.experience >= next_lvl_exp:
+            self.experience -= next_lvl_exp
+            self.lvl += 1
+            return True
+        return False
+
     def save(self):
         self.connection.execute(
             """UPDATE characters set location_id = :location_id, name = :name, user_id = :user_id,
@@ -102,7 +122,7 @@ class Character(object):
     @classmethod
     def create(cls, name, user_id, experience, lvl, location_id, weapon_id, armor_id, exp_gain_time,
                connection):
-        trait_id = random.choice(Trait.data_by_id).id
+        trait_id = random.choice(Trait.data_by_id.values()).id
         cursor = connection.execute(
             '''INSERT INTO characters (name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
             exp_gain_time)
@@ -155,6 +175,19 @@ class Character(object):
         return cls(*row, connection=connection)
 
     @classmethod
+    def find_by_past_exp_time(cls, connection):
+        cursor = connection.execute(
+            """ SELECT character_id, name, user_id, experience, lvl, location_id, weapon_id, armor_id,trait_id,
+            exp_gain_time from characters
+            WHERE exp_gain_time < ? """,
+            (dt.datetime.now(utc),)
+        )
+        characters = []
+        for row in cursor:
+            characters.append(cls(*row, connection=connection))
+        return characters
+
+    @classmethod
     def create_table_if_not_exists(cls, connection):
         """timestamp can be null, if stream goes offline for example"""
         Trait.create_table_if_not_exists(connection)
@@ -185,6 +218,16 @@ class Character(object):
 
 
 class Trait(StaticData):
+    class Traits(Enum):
+        DURABLE = "Durable"
+        STRONG = "Strong"
+        WISE = "Wise"
+        GREEDY = "Greedy"
+        ALERT = "Alert"
+        LUCKY = "Lucky"
+        VIOLENT = "Violent"
+        PACIFIST = "Pacifist"
+
     def __init__(self, orig_name, name, connection):
         super(Trait, self).__init__(orig_name, name, connection)
 
@@ -194,6 +237,18 @@ class Trait(StaticData):
                 (orig_name      text  PRIMARY KEY   NOT NULL,
                 name            text  UNIQUE        NOT NULL
                 );""")
+
+    @classmethod
+    def create_traits(cls, script_settings, connection):
+        """creates weapons into the database"""
+        # TODO: button to dynamically add zones/weapons/armors
+        traits = []
+        # noinspection PyTypeChecker
+        for trait in cls.Traits:
+            if getattr(script_settings, trait.name.lower()+"_enabled"):
+                traits.append((trait.value, getattr(script_settings, trait.name.lower()+"_name")))
+        connection.executemany('INSERT OR IGNORE INTO traits(orig_name, name) VALUES (?, ?)', traits)
+        connection.commit()
 
     @classmethod
     def load_traits(cls, connection):
