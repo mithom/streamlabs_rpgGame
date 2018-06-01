@@ -4,6 +4,7 @@ To start your journey just type: !move fields
 
 COMMANDS
 
+!create - Creates a new hero if you don't already have one.
 !info - Show your level, eq, damage/defense, location, and specials/effects.
 !move [location] - Moves to the location and starts leveling if there are monsters.
 !buy [item] - Attempts to purchase and equip the desired weapon or armor.
@@ -151,6 +152,9 @@ Persist ability: get best weapon for lvl until you reach your persisted weapon
 
 self addition: while being attacked, cannot attack someone who isn't in your combat already -> for each combat group, only 1 person can defend/counter/flee
 default currency
+
+addition: add friends, being in same zone as a friend reduces death chance.
+Friends duel for fun (or piecoins) not until death
 
 
 idea for new minigame: the family game werewolfs

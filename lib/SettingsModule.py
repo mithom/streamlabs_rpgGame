@@ -19,14 +19,14 @@ class Settings(object):
         except:
             # Config
             self.test_offline = False
-            self.update_interval = 1
+            self.update_interval = 5
             self.only_active = True
             self.add_me = True
             self.piebank_name = "piebank"
 
             # Gameplay
             self.fight_resolve_time = 20
-            self.xp_farm_time = 5
+            self.xp_farm_time = 90
             self.starting_location = "Town"
 
             # traits
