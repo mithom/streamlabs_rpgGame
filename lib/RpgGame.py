@@ -112,13 +112,16 @@ class RpgGame(object):
                 return
             location = character.location
             Parent.SendStreamMessage(self.format_message(
-                "{0}, your character {1} is located in {2} with difficulty {3}. Your current lvl is {4} and xp {5}",
+                "{0}, your character {1} is located in {2} with difficulty {3}. Your current lvl is {4} and xp {5}. " +
+                "Your current are currently wearing {6} and use {7} as weapon",
                 username,
                 character.name,
                 location.name,
                 location.difficulty,
                 character.lvl,
-                character.experience
+                character.experience,
+                getattr(character.armor, "name", "rags"),
+                getattr(character.weapon, "name", "bare hands")
             ))
 
     def condensed_info(self, user_id, username):

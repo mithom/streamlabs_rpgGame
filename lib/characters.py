@@ -59,7 +59,7 @@ class Character(object):
 
     @property
     def weapon(self):
-        if self._weapon is None:
+        if self._weapon is None and self.weapon_id is not None:
             self._weapon = Weapon.find(self.weapon_id)
         return self._weapon
 
@@ -70,7 +70,7 @@ class Character(object):
 
     @property
     def armor(self):
-        if self._armor is None:
+        if self._armor is None and self.armor_id is not None:
             self._armor = Armor.find(self.armor_id)
         return self._armor
 
