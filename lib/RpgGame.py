@@ -62,7 +62,7 @@ class RpgGame(object):
             lvl_up = []
             for character in Character.find_by_past_exp_time(conn):
                 character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
-                if character.gain_experience():
+                if character.gain_experience(character.exp_for_difficulty(character.location.difficulty)):
                     lvl_up.append(character)
                 character.save()  # TODO: batch update
             if len(lvl_up) > 0:
@@ -70,8 +70,41 @@ class RpgGame(object):
                     "some characters just lvl'ed up: " + ", ".join(map(lambda char: char.name, lvl_up))
                 ))
 
-    def resolve_fight(self, fight):
-        pass  # TODO: implement
+    def resolve_fight(self, fight):  # TODO: kill count + bounties
+        # resolve initial fight
+        attacker = fight.attacker
+        target = fight.target
+        assert fight.action == self.ATTACK_ACTION
+        reaction = next((attack for attack in fight.children if target.char_id == attack.attacker_id), None)
+        defense = reaction is not None and reaction.action == self.DEFEND_ACTION
+        flee = reaction is not None and reaction.action == self.FLEE_ACTION
+        success1, flee = attacker.attack(target, defense_bonus=defense, flee=flee)
+        success2 = False
+        if reaction.action == self.COUNTER_ACTION:
+            success2 = target.attack(attacker, attack_bonus=True)[0]
+            if success2:
+                attacker.delete()
+                if not success1:
+                    target.gain_experience(2 * target.exp_for_difficulty(attacker.lvl))
+                    target.save()
+        if success1:
+            target.delete()
+            if not success2:
+                attacker.gain_experience(2 * target.exp_for_difficulty(target.lvl))
+                attacker.save()
+        # resolve additional attacks
+        for child in fight.children:
+            if child is not reaction:
+                assert child.action == self.ATTACK_ACTION
+                defense = False
+                if child.target_id == target.char_id and reaction.action == self.DEFEND_ACTION:
+                    defense = True
+                # sorted on time of making, so attacker still lives, if target is dead, too bad, can't kill dead dudes
+                if child.attacker.attack(child.target, defense_bonus=defense)[0]:
+                    child.target.delete()
+                    child.attacker.gain_experience(2 * target.exp_for_difficulty(child.target.lvl))
+                    child.attacker.save()
+        fight.delete()
 
     def commands(self):
         # TODO: create or join command (with name param)
@@ -239,10 +272,12 @@ class RpgGame(object):
                 else:
                     if fight.resolver_id is None:
                         resolver_id = fight.attack_id
+                        Attack.create(self.COUNTER_ACTION, attacker.char_id, target.char_id, resolver_id=resolver_id,
+                                      connection=conn)
                     else:
                         resolver_id = fight.resolver_id
-                    Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolver_id=resolver_id,
-                                  connection=conn)
+                        Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolver_id=resolver_id,
+                                      connection=conn)
 
     def defend(self, user_id, username):
         with self.get_connection() as conn:

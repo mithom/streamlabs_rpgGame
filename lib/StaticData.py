@@ -1,7 +1,4 @@
 class StaticData(object):
-    data_by_name = {}
-    data_by_id = {}
-
     def __init__(self, data_id, name, connection):
         self.connection = connection
         self.__data_id = data_id
@@ -24,6 +21,8 @@ class StaticData(object):
 
 
 class Location(StaticData):
+    data_by_name = {}
+    data_by_id = {}
 
     def __init__(self, location_id, name, difficulty, connection):
         super(Location, self).__init__(location_id, name, connection)
@@ -69,6 +68,9 @@ class Item(StaticData):
 
 
 class Weapon(Item):
+    data_by_name = {}
+    data_by_id = {}
+
     def __init__(self, weapon_id, name, price, min_lvl, connection):
         super(Weapon, self).__init__(weapon_id, name, price, min_lvl, connection)
 
@@ -102,6 +104,9 @@ class Weapon(Item):
 
 
 class Armor(Item):
+    data_by_name = {}
+    data_by_id = {}
+
     def __init__(self, weapon_id, name, price, min_lvl, connection):
         super(Armor, self).__init__(weapon_id, name, price, min_lvl, connection)
 

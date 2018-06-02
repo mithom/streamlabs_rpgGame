@@ -10,7 +10,7 @@ COMMANDS
 !buy [item] - Attempts to purchase and equip the desired weapon or armor.
 !i - condensed version of info including experience progress.
 
-!attack [player] - This will start an attack on a nearby player which will resolve in 20 seconds.
+!attack [player] - This will start an attack on a nearby player which will resolve in 20 seconds. (will counter if you are attacked)
 !defend - This will give you a defense bonus and prevent looting during an attack. Will not kill attacker.
 !counter - This will attack your attacker giving you a small damage bonus.
 !flee - This will give you a large defense bonus and but you may still be looted. You go to a random location. !move will also initiate a flee to the specified location.

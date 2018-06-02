@@ -1,4 +1,6 @@
 from characters import Character
+import datetime as dt
+from pytz import utc
 
 
 class Attack(object):
@@ -32,7 +34,7 @@ class Attack(object):
     @property
     def attacker(self):
         if self._attacker is None:
-                self._attacker = Character.find(self.attack_id, self.connection)
+                self._attacker = Character.find(self.attacker_id, self.connection)
         return self._attacker
 
     @attacker.setter
@@ -56,6 +58,19 @@ class Attack(object):
         self.children.append(child)
         child.resolver = self
 
+    def delete(self):
+        self.connection.execute(
+            """DELETE FROM attacks
+            WHERE resolver_id = ?""",
+            (self.attack_id,)
+         )
+        self.connection.execute(
+            """DELETE FROM attacks
+            WHERE attack_id = ?""",
+            (self.attack_id,)
+        )
+        self.connection.commit()
+
     @classmethod
     def create(cls, action, attacker_id, target_id=None, resolve_time=None, resolver_id=None, connection=None):
         cursor = connection.execute('''INSERT INTO attacks (action, attacker_id, target_id, resolve_time, resolver_id)
@@ -72,7 +87,9 @@ class Attack(object):
             """SELECT Resolver.attack_id, Resolver.action, Resolver.attacker_id, Resolver.target_id,
             Resolver.resolve_time, Child.attack_id, Child.action, Child.attacker_id, Child.target_id, Child.resolver_id
             FROM attacks Resolver JOIN attacks Child on Child.resolver_id = Resolver.attack_id
-            WHERE Resolver.resolve_time <= DATETIME('now', 'utc')"""
+            WHERE Resolver.resolve_time <= ?
+            ORDER BY Resolver.attack_id ASC, Child.attack_id;""",
+            (dt.datetime.now(utc),)
         )
         fights = {}
         for row in cursor:
@@ -81,7 +98,7 @@ class Attack(object):
             else:
                 child = cls(*row[5:9], resolver_id=row[9], connection=connection)
                 fights[row[0]] = cls(*row[:5], connection=connection, children=[child, ])
-        return fights
+        return fights.values()
 
     @classmethod
     def find_by_attacker(cls, attacker, connection):

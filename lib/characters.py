@@ -90,16 +90,16 @@ class Character(object):
         self._trait = trait
         self.trait_id = trait.id
 
-    def exp_for_current_location(self):
-        return int(25 * (2 ** (0.6 * (self.location.difficulty - self.lvl) + 1)))
+    def exp_for_difficulty(self, difficulty):
+        return int(25 * (2 ** (0.6 * (difficulty - self.lvl) + 1)))
 
     def exp_for_next_lvl(self):
         return int(100 + ((2.8 * self.lvl) ** 2))
 
-    def gain_experience(self):
+    def gain_experience(self, xp):
         """gain experience, auto lvl-up
         :return True if lvl'ed up, False otherwise"""
-        self.experience += self.exp_for_current_location()
+        self.experience += xp
         next_lvl_exp = self.exp_for_next_lvl()
         if self.experience >= next_lvl_exp:
             self.experience -= next_lvl_exp
@@ -107,15 +107,36 @@ class Character(object):
             return True
         return False
 
+    def attack(self, defender, defense_bonus=False, attack_bonus=False, flee=False):
+        if flee:
+            if random.randint(1, 20) > 11:  # 45%
+                return False, True
+        roll = random.randint(1, 40)
+        weapon_bonus = 0
+        armor_bonus = 0
+        if self.weapon is not None:
+            weapon_bonus = self.weapon.min_lvl
+        if defender.armor is not None:
+            armor_bonus = defender.armor.min_lvl
+        return (roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) >
+                defender.lvl * 2 + armor_bonus + 20 + (defense_bonus * 2), False)
+
     def save(self):
         self.connection.execute(
             """UPDATE characters set location_id = :location_id, name = :name, user_id = :user_id,
             weapon_id = :weapon_id, armor_id = :armor_id, experience = :experience, lvl = :lvl,
-            exp_gain_time = :exp_gain_time
+            exp_gain_time = :exp_gain_time, trait_id = :trait_id
             where character_id = :character_id""",
             {"location_id": self.location_id, "name": self.name, "user_id": self.user_id, "character_id": self.char_id,
              "weapon_id": self.weapon_id, "armor_id": self.armor_id, "experience": self.experience,
-             "lvl": self.lvl, "exp_gain_time": self.exp_gain_time}
+             "lvl": self.lvl, "exp_gain_time": self.exp_gain_time, "trait_id": self.trait_id}
+        )
+        self.connection.commit()
+
+    def delete(self):
+        self.connection.execute(
+            """DELETE FROM characters WHERE character_id = ?""",
+            (self.char_id,)
         )
         self.connection.commit()
 
@@ -179,7 +200,7 @@ class Character(object):
         cursor = connection.execute(
             """ SELECT character_id, name, user_id, experience, lvl, location_id, weapon_id, armor_id,trait_id,
             exp_gain_time from characters
-            WHERE exp_gain_time < ? """,
+            WHERE exp_gain_time <= ? """,
             (dt.datetime.now(utc),)
         )
         characters = []
@@ -218,6 +239,9 @@ class Character(object):
 
 
 class Trait(StaticData):
+    data_by_name = {}
+    data_by_id = {}
+
     class Traits(Enum):
         DURABLE = "Durable"
         STRONG = "Strong"
@@ -245,8 +269,8 @@ class Trait(StaticData):
         traits = []
         # noinspection PyTypeChecker
         for trait in cls.Traits:
-            if getattr(script_settings, trait.name.lower()+"_enabled"):
-                traits.append((trait.value, getattr(script_settings, trait.name.lower()+"_name")))
+            if getattr(script_settings, trait.name.lower() + "_enabled"):
+                traits.append((trait.value, getattr(script_settings, trait.name.lower() + "_name")))
         connection.executemany('INSERT OR IGNORE INTO traits(orig_name, name) VALUES (?, ?)', traits)
         connection.commit()
 
@@ -262,6 +286,8 @@ class Trait(StaticData):
 
 class Special(StaticData):
     """The specials self are static, the join-table won't be"""
+    data_by_name = {}
+    data_by_id = {}
 
     def __init__(self, orig_name, name, identifier, cooldown_time, connection):
         super(Special, self).__init__(orig_name, name, connection)
