@@ -91,7 +91,10 @@ class Character(object):
         self.trait_id = trait.id
 
     def exp_for_difficulty(self, difficulty):
-        return int(25 * (2 ** (0.7 * (difficulty - self.lvl) + 1)))
+        weapon_bonus = 0
+        if self.weapon is not None:
+            weapon_bonus = self.weapon.min_lvl*10
+        return int(25 * (2 ** (0.7 * (difficulty - self.lvl) + 1))*(100+weapon_bonus)/100.0)
 
     def exp_for_next_lvl(self):
         return int(100 + ((2.8 * self.lvl) ** 2))
@@ -114,7 +117,7 @@ class Character(object):
             armor_bonus = self.armor.min_lvl*5
         if self.location.difficulty < self.lvl:
             return rand > 100 * (4 + 0.5 * (self.location.difficulty - self.lvl)) / (100 + armor_bonus)
-        return rand > 100*(4 + 1.5*(self.location.difficulty - self.lvl))/(100+armor_bonus)
+        return rand > 100*(4 + 1.5*(self.location.difficulty - self.lvl))/(100.0+armor_bonus)
 
     def attack(self, defender, defense_bonus=False, attack_bonus=False, flee=False):
         if defender is None:
