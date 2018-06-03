@@ -114,7 +114,7 @@ class Character(object):
         rand = random.random()*100
         armor_bonus = 0
         if self.armor is not None:
-            armor_bonus = self.armor.min_lvl*5
+            armor_bonus = self.armor.min_lvl*10
         if self.location.difficulty < self.lvl:
             return rand > 100 * (4 + 0.5 * (self.location.difficulty - self.lvl)) / (100 + armor_bonus)
         return rand > 100*(4 + 1.5*(self.location.difficulty - self.lvl))/(100.0+armor_bonus)
