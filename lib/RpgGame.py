@@ -5,6 +5,7 @@ from Attack import Attack
 import os
 import datetime as dt
 from pytz import utc
+import time
 
 import clr
 
@@ -58,19 +59,32 @@ class RpgGame(object):
     def tick(self):
         with self.get_connection() as conn:
             for fight in Attack.find_fights(conn):
-                self.resolve_fight(fight)
+                self.resolve_fight(fight, conn)
             lvl_up = []
-            for character in Character.find_by_past_exp_time(conn):
-                character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
-                if character.gain_experience(character.exp_for_difficulty(character.location.difficulty)):
-                    lvl_up.append(character)
-                character.save()  # TODO: batch update
+            deaths = []
+            characters = Character.find_by_past_exp_time(conn)
+            for character in characters:
+                if character.check_survival():
+                    character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(
+                        seconds=self.scriptSettings.xp_farm_time)
+                    if character.gain_experience(character.exp_for_difficulty(character.location.difficulty)):
+                        lvl_up.append(character)
+                    character.save()  # TODO: batch update
+                else:
+                    deaths.append(character)
+                    character.delete()
+            conn.commit()
             if len(lvl_up) > 0:
                 Parent.SendStreamMessage(self.format_message(
                     "some characters just lvl'ed up: " + ", ".join(map(lambda char: char.name, lvl_up))
                 ))
+            if len(deaths) > 0:
+                Parent.SendStreamMessage(self.format_message(
+                    "some characters died while roaming the dangerous lands or pieland: " +
+                    ", ".join(map(lambda char: char.name, deaths))
+                ))
 
-    def resolve_fight(self, fight):  # TODO: kill count + bounties
+    def resolve_fight(self, fight, conn):  # TODO: kill count + bounties
         # resolve initial fight
         attacker = fight.attacker
         target = fight.target
@@ -92,6 +106,18 @@ class RpgGame(object):
             if not success2:
                 attacker.gain_experience(2 * target.exp_for_difficulty(target.lvl))
                 attacker.save()
+        msg = ""
+        if success1:
+            if success2:
+                msg = "{0} killed {1} but died by blood loss from hes wounds."
+            else:
+                msg = "{0} succesfully killed {2}."
+        else:
+            if success2:
+                msg = "The tables got turned and {0} was killed whilst trying to kill {1}."
+            else:
+                msg = "The blade has been dodged, no blood sheds today."
+        Parent.SendStreamMessag(self.format_message(msg, attacker.name, target.name))
         # resolve additional attacks
         for child in fight.children:
             if child is not reaction:
@@ -104,6 +130,16 @@ class RpgGame(object):
                     child.target.delete()
                     child.attacker.gain_experience(2 * target.exp_for_difficulty(child.target.lvl))
                     child.attacker.save()
+                    if child.target_id == attacker.char_id:
+                        msg = self.format_message("{0} got ambushed by {1} whilst walking away from the fight",
+                                                  attacker.name, child.attacker.name)
+                    elif child.target_id == target.char_id:
+                        msg = self.format_message("{0} got ambushed by {1} whilst walking away from the fight",
+                                                  target.name, child.attacker.name)
+                    else:
+                        msg = self.format_message("{0} got assassinated by {1} whilst watching the fight",
+                                                  child.target.name, child.attacker.name)
+                    Parent.SendStreamMessage(msg)
         fight.delete()
 
     def commands(self):

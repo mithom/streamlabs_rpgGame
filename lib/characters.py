@@ -91,7 +91,7 @@ class Character(object):
         self.trait_id = trait.id
 
     def exp_for_difficulty(self, difficulty):
-        return int(25 * (2 ** (0.6 * (difficulty - self.lvl) + 1)))
+        return int(25 * (2 ** (0.7 * (difficulty - self.lvl) + 1)))
 
     def exp_for_next_lvl(self):
         return int(100 + ((2.8 * self.lvl) ** 2))
@@ -107,7 +107,18 @@ class Character(object):
             return True
         return False
 
+    def check_survival(self):
+        rand = random.random()*100
+        armor_bonus = 0
+        if self.armor is not None:
+            armor_bonus = self.armor.min_lvl*5
+        if self.location.difficulty < self.lvl:
+            return rand > 100 * (4 + 0.5 * (self.location.difficulty - self.lvl)) / (100 + armor_bonus)
+        return rand > 100*(4 + 1.5*(self.location.difficulty - self.lvl))/(100+armor_bonus)
+
     def attack(self, defender, defense_bonus=False, attack_bonus=False, flee=False):
+        if defender is None:
+            return False, False
         if flee:
             if random.randint(1, 20) > 11:  # 45%
                 return False, True
@@ -131,14 +142,12 @@ class Character(object):
              "weapon_id": self.weapon_id, "armor_id": self.armor_id, "experience": self.experience,
              "lvl": self.lvl, "exp_gain_time": self.exp_gain_time, "trait_id": self.trait_id}
         )
-        self.connection.commit()
 
     def delete(self):
         self.connection.execute(
             """DELETE FROM characters WHERE character_id = ?""",
             (self.char_id,)
         )
-        self.connection.commit()
 
     @classmethod
     def create(cls, name, user_id, experience, lvl, location_id, weapon_id, armor_id, exp_gain_time,

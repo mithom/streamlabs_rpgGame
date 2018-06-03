@@ -69,7 +69,6 @@ class Attack(object):
             WHERE attack_id = ?""",
             (self.attack_id,)
         )
-        self.connection.commit()
 
     @classmethod
     def create(cls, action, attacker_id, target_id=None, resolve_time=None, resolver_id=None, connection=None):
