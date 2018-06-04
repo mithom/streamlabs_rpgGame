@@ -97,7 +97,7 @@ class RpgGame(object):
         flee = reaction is not None and reaction.action == self.FLEE_ACTION
         success1, flee = attacker.attack(target, defense_bonus=defense, flee=flee)
         success2 = False
-        if reaction.action == self.COUNTER_ACTION:
+        if reaction is not None and reaction.action == self.COUNTER_ACTION:
             success2 = target.attack(attacker, attack_bonus=True)[0]
             if success2:
                 attacker.delete()
@@ -114,19 +114,19 @@ class RpgGame(object):
             if success2:
                 msg = "{0} killed {1} but died by blood loss from hes wounds."
             else:
-                msg = "{0} succesfully killed {2}."
+                msg = "{0} succesfully killed {1}."
         else:
             if success2:
                 msg = "The tables got turned and {0} was killed whilst trying to kill {1}."
             else:
                 msg = "The blade has been dodged, no blood sheds today."
-        Parent.SendStreamMessag(self.format_message(msg, attacker.name, target.name))
+        Parent.SendStreamMessage(self.format_message(msg, attacker.name, target.name))
         # resolve additional attacks
         for child in fight.children:
             if child is not reaction:
                 assert child.action == self.ATTACK_ACTION
                 defense = False
-                if child.target_id == target.char_id and reaction.action == self.DEFEND_ACTION:
+                if child.target_id == target.char_id and reaction is not None and reaction.action == self.DEFEND_ACTION:
                     defense = True
                 # sorted on time of making, so attacker still lives, if target is dead, too bad, can't kill dead dudes
                 if child.attacker.attack(child.target, defense_bonus=defense)[0]:
@@ -312,23 +312,34 @@ class RpgGame(object):
                     self.format_message("{0}, no target exists with that character name", username))
                 return
             if target.location_id == attacker.location_id:
-                fight = Attack.find_by_attacker(target, conn)
+                fight = Attack.find_by_attacker_or_target(target, conn)
                 attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
                 attacker.save()
                 if fight is None:
                     resolve_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
                     Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time, connection=conn)
-                    target.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                    target.save()
+                    if target.exp_gain_time < resolve_time:
+                        # TODO: solve https://stackoverflow.com/questions/9217411/python-datetimes-in-sqlite3
+                        target.exp_gain_time = resolve_time
+                        target.save()
+                    if attacker.exp_gain_time < resolve_time:
+                        attacker.exp_gain_time = resolve_time
+                        attacker.save()
                 else:
-                    if fight.resolver_id is None:
+                    if fight.target_id == attacker.char_id:
                         resolver_id = fight.attack_id
                         Attack.create(self.COUNTER_ACTION, attacker.char_id, target.char_id, resolver_id=resolver_id,
                                       connection=conn)
                     else:
-                        resolver_id = fight.resolver_id
-                        Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolver_id=resolver_id,
+                        if fight.resolver_id is None:
+                            resolver = fight
+                        else:
+                            resolver = Attack.find(fight.resolver_id)
+                        Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolver_id=resolver.attack_id,
                                       connection=conn)
+                        if attacker.exp_gain_time < resolver.resolve_time:
+                            attacker.exp_gain_time = resolver.resolve_time
+                            attacker.save()
 
     def defend(self, user_id, username):
         with self.get_connection() as conn:

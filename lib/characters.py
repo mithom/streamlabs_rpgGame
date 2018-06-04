@@ -23,6 +23,8 @@ class Character(object):
         self.user_id = user_id
         self.experience = experience
         self.lvl = lvl
+        if exp_gain_time.tzinfo is None:
+            exp_gain_time = utc.localize(exp_gain_time)
         self.exp_gain_time = exp_gain_time
 
         self.location_id = location_id
@@ -248,6 +250,7 @@ class Character(object):
     @classmethod
     def load_static_data(cls, connection):
         Trait.load_traits(connection)
+
 
 class Trait(StaticData):
     data_by_name = {}

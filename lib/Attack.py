@@ -11,6 +11,8 @@ class Attack(object):
         if children is None:
             children = []
         self.__attack_id = attack_id
+        if resolve_time is not None and resolve_time.tzinfo is None:
+            resolve_time = utc.localize(resolve_time)
         self.resolve_time = resolve_time
         self.connection = connection
         self.action = action
@@ -85,7 +87,7 @@ class Attack(object):
         cursor = connection.execute(
             """SELECT Resolver.attack_id, Resolver.action, Resolver.attacker_id, Resolver.target_id,
             Resolver.resolve_time, Child.attack_id, Child.action, Child.attacker_id, Child.target_id, Child.resolver_id
-            FROM attacks Resolver JOIN attacks Child on Child.resolver_id = Resolver.attack_id
+            FROM attacks Resolver LEFT OUTER JOIN attacks Child on Child.resolver_id = Resolver.attack_id
             WHERE Resolver.resolve_time <= ?
             ORDER BY Resolver.attack_id ASC, Child.attack_id;""",
             (dt.datetime.now(utc),)
@@ -95,18 +97,34 @@ class Attack(object):
             if row[0] in fights:
                 fights[row[0]].add_child(cls(*row[5:9], resolver_id=row[9], connection=connection))
             else:
-                child = cls(*row[5:9], resolver_id=row[9], connection=connection)
-                fights[row[0]] = cls(*row[:5], connection=connection, children=[child, ])
+                if row[5] is None:
+                    fights[row[0]] = cls(*row[:5], connection=connection)
+                else:
+                    child = cls(*row[5:9], resolver_id=row[9], connection=connection)
+                    fights[row[0]] = cls(*row[:5], connection=connection, children=[child])
         return fights.values()
 
     @classmethod
-    def find_by_attacker(cls, attacker, connection):
+    def find(cls, attack_id, connection):
+        cursor = connection.execute(
+            """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id
+            FROM attacks
+            WHERE attack_id = :attack_id """,
+            {"attack_id": attack_id}
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return cls(*row, connection=connection)
+
+    @classmethod
+    def find_by_attacker_or_target(cls, attacker, connection):
         if type(attacker) is Character:
             attacker = attacker.char_id
         cursor = connection.execute(
             """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id
             FROM attacks
-            WHERE attacker_id = :attacker_id""",
+            WHERE attacker_id = :attacker_id or target_id = :attacker_id""",
             {"attacker_id": attacker}
         )
         row = cursor.fetchone()
