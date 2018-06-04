@@ -63,8 +63,10 @@ class RpgGame(object):
             lvl_up = []
             deaths = []
             characters = Character.find_by_past_exp_time(conn)
+            coin_rewards = {}
             for character in characters:
                 if character.check_survival():
+                    coin_rewards[character.user_id] = character.location.difficulty
                     character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(
                         seconds=self.scriptSettings.xp_farm_time)
                     if character.gain_experience(character.exp_for_difficulty(character.location.difficulty)):
@@ -73,6 +75,7 @@ class RpgGame(object):
                 else:
                     deaths.append(character)
                     character.delete()
+            Parent.AddPointsAll(coin_rewards)
             conn.commit()
             if len(lvl_up) > 0:
                 Parent.SendStreamMessage(self.format_message(
@@ -241,7 +244,13 @@ class RpgGame(object):
                     self.scriptSettings.create_command
                 ))
                 return
-            if character.location_id != character.location_id:
+            if location is None:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0} the location {1} does not exists",
+                    username,
+                    location_name
+                ))
+            if character.location_id != location.id:
                 character.location = location
                 character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
                 character.save()
@@ -251,6 +260,12 @@ class RpgGame(object):
                     character.name,
                     location.name,
                     location.difficulty
+                ))
+                conn.commit()
+            else:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you are already in that location",
+                    username
                 ))
 
     def buy(self, user_id, username, item_name):

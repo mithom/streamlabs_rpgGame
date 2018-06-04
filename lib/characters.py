@@ -249,7 +249,6 @@ class Character(object):
     def load_static_data(cls, connection):
         Trait.load_traits(connection)
 
-
 class Trait(StaticData):
     data_by_name = {}
     data_by_id = {}

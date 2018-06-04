@@ -13,11 +13,11 @@ class StaticData(object):
 
     @classmethod
     def find(cls, data_id):
-        return cls.data_by_id[data_id]
+        return cls.data_by_id.get(data_id, None)
 
     @classmethod
     def find_by_name(cls, name):
-        return cls.data_by_name[name]
+        return cls.data_by_name.get(name, None)
 
 
 class Location(StaticData):
