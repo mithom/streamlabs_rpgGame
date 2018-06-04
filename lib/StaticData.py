@@ -40,7 +40,8 @@ class Location(StaticData):
     def create_locations(cls, script_settings, connection):
         """creates weapons into the database"""
         # TODO: button to dynamically add zones/weapons/armors
-        locations = [("Town", 1), ("Castle", 0), ("Forest", 3), ("Fields", 2)]
+        locations = [("Castle", 0), ("Town", 1), ("Fields", 2), ("Forest", 3), ("River", 3), ("Swamps", 4),
+                     ("Mountains", 5), ("Ruins", 5), ("Dessert", 6), ("Caves", 6), ("Crypt", 8), ("Abyss", 10)]
         connection.executemany('INSERT OR IGNORE INTO locations(name, difficulty) VALUES (?, ?)', locations)
         connection.commit()
 
@@ -84,9 +85,13 @@ class Weapon(Item):
                 );""")
 
     @classmethod
-    def create_weapons(cls, script_settings):
+    def create_weapons(cls, connection):
         """creates weapons into the database"""
-        pass
+        weapons = [("Dagger", 5, 1), ("WoodenClub", 10, 3), ("ShortSword", 25, 6), ("Spear", 50, 9),
+                   ("LongSword", 100, 12), ("SteelAxe", 250, 15), ("Katana", 400, 18), ("SpiritLance", 800, 21),
+                   ("EnchantedBow", 2000, 24), ("Demon Edge", 5000, 27)]
+        connection.executemany("""INSERT OR IGNORE INTO weapons(name, price, min_lvl) VALUES (?, ?, ?)""", weapons)
+        connection.commit()
 
     @classmethod
     def load_weapons(cls, connection):
@@ -120,9 +125,13 @@ class Armor(Item):
                 );""")
 
     @classmethod
-    def create_armors(cls, script_settings):
+    def create_armors(cls, connection):
         """creates armors into the database"""
-        pass
+        armors = [("ClothRobe", 5, 1), ("FurArmor", 10, 2), ("LeatherArmor", 25, 4), ("CopperArmor", 50, 6),
+                  ("Chainmail", 100, 8), ("Platemail", 250, 10), ("SilverPlatemail", 400, 12),
+                  ("AssaultCuirase", 800, 14), ("DragonScalemail", 2000, 16), ("Divine Aura", 5000, 18)]
+        connection.executemany("""INSERT OR IGNORE INTO armors(name, price, min_lvl) VALUES (?, ?, ?)""", armors)
+        connection.commit()
 
     @classmethod
     def load_armors(cls, connection):
