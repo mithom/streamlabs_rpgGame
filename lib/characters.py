@@ -143,9 +143,10 @@ class Character(object):
             weapon_id = :weapon_id, armor_id = :armor_id, experience = :experience, lvl = :lvl,
             exp_gain_time = :exp_gain_time, trait_id = :trait_id
             where character_id = :character_id""",
-            {"location_id": self.location_id, "name": self.name, "user_id": self.user_id, "character_id": self.char_id,
-             "weapon_id": self.weapon_id, "armor_id": self.armor_id, "experience": self.experience,
-             "lvl": self.lvl, "exp_gain_time": self.exp_gain_time, "trait_id": self.trait_id}
+            {"location_id": self.location_id, "name": self.name, "user_id": self.user_id,
+             "character_id": self.char_id, "weapon_id": self.weapon_id, "armor_id": self.armor_id,
+             "experience": self.experience, "lvl": self.lvl, "exp_gain_time": self.exp_gain_time,
+             "trait_id": self.trait_id}
         )
 
     def delete(self):
@@ -173,8 +174,7 @@ class Character(object):
     @classmethod
     def find(cls, character_id, connection):
         cursor = connection.execute(
-            """SELECT character_id, name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
-            exp_gain_time from characters
+            """SELECT * from characters
             WHERE character_id = :character_id""",
             {"character_id": character_id}
         )
@@ -186,8 +186,7 @@ class Character(object):
     @classmethod
     def find_by_user(cls, user_id, connection):
         cursor = connection.execute(
-            """SELECT character_id, name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
-            exp_gain_time from characters
+            """SELECT * from characters
             WHERE user_id = :user_id""",
             {"user_id": user_id}
         )
@@ -199,8 +198,7 @@ class Character(object):
     @classmethod
     def find_by_name(cls, name, connection):
         cursor = connection.execute(
-            """SELECT character_id, name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
-            exp_gain_time from characters
+            """SELECT * from characters
             WHERE name = :name""",
             {"name": name}
         )
@@ -212,8 +210,7 @@ class Character(object):
     @classmethod
     def find_by_past_exp_time(cls, connection):
         cursor = connection.execute(
-            """ SELECT character_id, name, user_id, experience, lvl, location_id, weapon_id, armor_id,trait_id,
-            exp_gain_time from characters
+            """ SELECT * from characters
             WHERE exp_gain_time <= ? """,
             (dt.datetime.now(utc),)
         )

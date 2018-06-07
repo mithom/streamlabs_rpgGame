@@ -25,8 +25,8 @@ class Settings(object):
             self.piebank_name = "piebank"
 
             # Gameplay
-            self.fight_resolve_time = 10
-            self.xp_farm_time = 2
+            self.fight_resolve_time = 20
+            self.xp_farm_time = 60
             self.starting_location = "Town"
 
             # traits

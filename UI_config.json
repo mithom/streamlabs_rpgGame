@@ -9,7 +9,7 @@
   },
   "update_interval":{
     "type":"numberbox",
-    "value":5,
+    "value":1,
     "label":"game interval",
     "tooltip":"Time in between gaining experience/dieing, this is the game's tick rate.",
     "group":"config"
@@ -44,7 +44,7 @@
   },
   "xp_farm_time":{
     "type":"numberbox",
-    "value":90,
+    "value":60,
     "label":"time to stay in an area before getting exp",
     "tooltip":"the time you need to stay in an area to gain exp. Being in a fight delays this",
     "group":"gameplay"

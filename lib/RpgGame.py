@@ -1,11 +1,12 @@
 from StaticData import Location, Weapon, Armor
 from characters import Character, Trait
 from Attack import Attack
+from Bounty import Bounty
 
 import os
 import datetime as dt
 from pytz import utc
-import time
+
 
 import clr
 
@@ -15,6 +16,7 @@ import sqlite3
 Parent = None
 
 
+# TODO: remove all commits out of create
 class RpgGame(object):
     ATTACK_ACTION = "attack"
     COUNTER_ACTION = "counter"
@@ -43,15 +45,19 @@ class RpgGame(object):
             Armor.create_table_if_not_exists(conn)
             Character.create_table_if_not_exists(conn)
             Attack.create_table_if_not_exists(conn)
+            Bounty.create_table_if_not_exists(conn)
 
     def create_and_load_static_data(self):
         with self.get_connection() as conn:
             Location.create_locations(self.scriptSettings, conn)
             Location.load_locations(conn)
+            Armor.create_armors(conn)
             Armor.load_armors(conn)
+            Weapon.create_weapons(conn)
             Weapon.load_weapons(conn)
             Trait.create_traits(self.scriptSettings, conn)
             Character.load_static_data(conn)
+            conn.commit()
 
     def apply_reload(self):
         pass
@@ -74,6 +80,8 @@ class RpgGame(object):
                     character.save()  # TODO: batch update
                 else:
                     deaths.append(character)
+                    for bounty in Bounty.find_all_by_character(character, conn):
+                        bounty.delete()
                     character.delete()
             Parent.AddPointsAll(coin_rewards)
             conn.commit()
@@ -100,11 +108,13 @@ class RpgGame(object):
         if reaction is not None and reaction.action == self.COUNTER_ACTION:
             success2 = target.attack(attacker, attack_bonus=True)[0]
             if success2:
+                self.pay_bounties(Bounty.find_all_by_character(attacker, conn), target.user_id)
                 attacker.delete()
                 if not success1:
                     target.gain_experience(2 * target.exp_for_difficulty(attacker.lvl))
                     target.save()
         if success1:
+            self.pay_bounties(Bounty.find_all_by_character(target, conn), attacker.user_id)
             target.delete()
             if not success2:
                 attacker.gain_experience(2 * target.exp_for_difficulty(target.lvl))
@@ -133,6 +143,7 @@ class RpgGame(object):
                     child.target.delete()
                     child.attacker.gain_experience(2 * target.exp_for_difficulty(child.target.lvl))
                     child.attacker.save()
+                    self.pay_bounties(Bounty.find_all_by_character(child.target, conn), child.attacker.user_id)
                     if child.target_id == attacker.char_id:
                         msg = self.format_message("{0} got ambushed by {1} whilst walking away from the fight",
                                                   attacker.name, child.attacker.name)
@@ -144,6 +155,15 @@ class RpgGame(object):
                                                   child.target.name, child.attacker.name)
                     Parent.SendStreamMessage(msg)
         fight.delete()
+
+    @staticmethod
+    def pay_bounties(bounties, killer_user_id):
+        to_pay = 0
+        for bounty in bounties:
+            to_pay += bounty.reward
+            bounty.delete()
+        if to_pay > 0:
+            Parent.AddPoints(killer_user_id, Parent.GetDisplayName(killer_user_id), to_pay)
 
     def commands(self):
         # TODO: create or join command (with name param)
@@ -286,7 +306,7 @@ class RpgGame(object):
             else:
                 armor = Armor.find_by_name(item_name)
                 if armor is not None:
-                    if character.lvl >= weapon.min_lvl and Parent.RemovePoints(user_id, username, armor.price):
+                    if character.lvl >= armor.min_lvl and Parent.RemovePoints(user_id, username, armor.price):
                         character.armor = armor
                         character.save()
                 else:
@@ -334,7 +354,7 @@ class RpgGame(object):
                         if fight.resolver_id is None:
                             resolver = fight
                         else:
-                            resolver = Attack.find(fight.resolver_id)
+                            resolver = Attack.find(fight.resolver_id, conn)
                         Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolver_id=resolver.attack_id,
                                       connection=conn)
                         if attacker.exp_gain_time < resolver.resolve_time:
@@ -437,8 +457,43 @@ class RpgGame(object):
                         else:
                             Parent.AddPoints(user_id, username, amount)
 
-    def bounty(self, user_id, username, amount, target_name):
-        pass
+    def bounty(self, user_id, username, target_name, amount):
+        amount = int(amount)
+        with self.get_connection() as conn:
+            benefactor = Character.find_by_user(user_id, conn)
+            if benefactor is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet, username, self.scriptSettings.create_command
+                ))
+                return
+            bounty = Bounty.find_by_character_name_and_benefactor(target_name, benefactor.char_id, conn)
+            if bounty is None:
+                target = Character.find_by_name(target_name, conn)
+                if target is None:
+                    Parent.SendStreamMessage(
+                        self.format_message("{0}, no target exists with that character name", username))
+                    return
+                if Parent.RemovePoints(user_id, username, amount):
+                    Bounty.create(target, benefactor, amount, None, conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, bounty on {1} has been created for {2}",
+                        username, target_name, amount
+                    ))
+            else:
+                if bounty.reward >= amount:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, your current bounty for {1} is larger then your new offer: {2}",
+                        username, target_name, bounty.reward
+                    ))
+                else:
+                    if Parent.RemovePoints(user_id, username, amount - bounty.reward):
+                        bounty.reward = amount
+                        bounty.save()
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, your bounty on {1} has been updated",
+                            username, target_name
+                        ))
+            conn.commit()
 
     def tax(self, user_id, username, amount):
         pass
