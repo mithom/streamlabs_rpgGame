@@ -40,6 +40,11 @@ class Bounty(object):
         self._benefactor = value
         self.benefactor_id = value.char_id
 
+    def get_reward(self):
+        if self.benefactor is None:
+            return max(0, (self.kill_count - 2) * 100)
+        return self.reward
+
     def delete(self):
         self.connection.execute(
             """DELETE FROM bounties WHERE
@@ -66,7 +71,6 @@ class Bounty(object):
         if row is None:
             return None
         return cls(*row, connection=connection)
-
 
     @classmethod
     def find_by_character_name_from_piebank(cls, char_name, connection):

@@ -105,9 +105,12 @@ class RpgGame(object):
         flee = reaction is not None and reaction.action == self.FLEE_ACTION
         success1, flee = attacker.attack(target, defense_bonus=defense, flee=flee)
         success2 = False
+        if success1:
+            attacker.add_kill()
         if reaction is not None and reaction.action == self.COUNTER_ACTION:
             success2 = target.attack(attacker, attack_bonus=True)[0]
             if success2:
+                target.add_kill()
                 self.pay_bounties(Bounty.find_all_by_character(attacker, conn), target.user_id)
                 attacker.delete()
                 if not success1:
@@ -119,7 +122,6 @@ class RpgGame(object):
             if not success2:
                 attacker.gain_experience(2 * target.exp_for_difficulty(target.lvl))
                 attacker.save()
-        msg = ""
         if success1:
             if success2:
                 msg = "{0} killed {1} but died by blood loss from hes wounds."
@@ -143,6 +145,7 @@ class RpgGame(object):
                     child.target.delete()
                     child.attacker.gain_experience(2 * target.exp_for_difficulty(child.target.lvl))
                     child.attacker.save()
+                    child.attacker.add_kill()
                     self.pay_bounties(Bounty.find_all_by_character(child.target, conn), child.attacker.user_id)
                     if child.target_id == attacker.char_id:
                         msg = self.format_message("{0} got ambushed by {1} whilst walking away from the fight",
@@ -160,7 +163,7 @@ class RpgGame(object):
     def pay_bounties(bounties, killer_user_id):
         to_pay = 0
         for bounty in bounties:
-            to_pay += bounty.reward
+            to_pay += bounty.get_reward()
             bounty.delete()
         if to_pay > 0:
             Parent.AddPoints(killer_user_id, Parent.GetDisplayName(killer_user_id), to_pay)
@@ -355,8 +358,8 @@ class RpgGame(object):
                             resolver = fight
                         else:
                             resolver = Attack.find(fight.resolver_id, conn)
-                        Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolver_id=resolver.attack_id,
-                                      connection=conn)
+                        Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id,
+                                      resolver_id=resolver.attack_id, connection=conn)
                         if attacker.exp_gain_time < resolver.resolve_time:
                             attacker.exp_gain_time = resolver.resolve_time
                             attacker.save()

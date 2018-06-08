@@ -1,4 +1,5 @@
 from StaticData import Location, Weapon, Armor, StaticData
+from Bounty import Bounty
 import random
 from enum import Enum
 from pytz import utc
@@ -136,6 +137,13 @@ class Character(object):
             armor_bonus = defender.armor.min_lvl
         return (roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) >
                 defender.lvl * 2 + armor_bonus + 20 + (defense_bonus * 2), False)
+
+    def add_kill(self):
+        pie_bounty = Bounty.find_by_character_name_from_piebank(self.name, self.connection)
+        if pie_bounty is None:
+            Bounty.create(self, None, 0, 1, self.connection)
+        else:
+            pie_bounty.kill_count += 1
 
     def save(self):
         self.connection.execute(
