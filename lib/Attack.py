@@ -26,7 +26,7 @@ class Attack(object):
         self.target_id = target_id
         self._target = None
 
-        self.resolver_id = resolver_id
+        self._resolver_id = resolver_id
         self.resolver = None
 
     @property
@@ -54,6 +54,14 @@ class Attack(object):
     def target(self, target):
         self._target = target
         self.target_id = target.id
+
+    @property
+    def resolver_id(self):
+        return self._resolver_id or self.attack_id
+
+    @resolver_id.setter
+    def resolver_id(self, resolver_id):
+        self._resolver_id = resolver_id
 
     def add_child(self, child):
         assert child.resolver_id == self.attack_id
@@ -124,7 +132,8 @@ class Attack(object):
         cursor = connection.execute(
             """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id
             FROM attacks
-            WHERE attacker_id = :attacker_id or target_id = :attacker_id""",
+            WHERE attacker_id = :attacker_id or target_id = :attacker_id
+            ORDER BY attacker_id = :attacker_id DESC """,
             {"attacker_id": attacker}
         )
         row = cursor.fetchone()

@@ -93,6 +93,11 @@ class Character(object):
         self._trait = trait
         self.trait_id = trait.id
 
+    def attempt_flee(self):
+        if random.random()*100 <= 45:
+            self.location = Location.find_by_name("Town")  # TODO: random locatie
+            self.save()
+
     def exp_for_difficulty(self, difficulty):
         weapon_bonus = 0
         if self.weapon is not None:
@@ -122,12 +127,7 @@ class Character(object):
             return rand > 100 * (4 + 0.5 * (self.location.difficulty - self.lvl)) / (100 + armor_bonus)
         return rand > 100*(4 + 1.5*(self.location.difficulty - self.lvl))/(100.0+armor_bonus)
 
-    def attack(self, defender, defense_bonus=False, attack_bonus=False, flee=False):
-        if defender is None:
-            return False, False
-        if flee:
-            if random.randint(1, 20) > 11:  # 45%
-                return False, True
+    def attack(self, defender, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
         weapon_bonus = 0
         armor_bonus = 0
@@ -135,8 +135,8 @@ class Character(object):
             weapon_bonus = self.weapon.min_lvl
         if defender.armor is not None:
             armor_bonus = defender.armor.min_lvl
-        return (roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) >
-                defender.lvl * 2 + armor_bonus + 20 + (defense_bonus * 2), False)
+        return roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) >\
+               defender.lvl * 2 + armor_bonus + 20 + (defense_bonus * 2)
 
     def add_kill(self):
         pie_bounty = Bounty.find_by_character_name_from_piebank(self.name, self.connection)
@@ -158,6 +158,8 @@ class Character(object):
         )
 
     def delete(self):
+        for bounty in Bounty.find_all_by_character(self, self.connection):
+            bounty.delete()
         self.connection.execute(
             """DELETE FROM characters WHERE character_id = ?""",
             (self.char_id,)

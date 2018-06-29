@@ -2,6 +2,7 @@ from StaticData import Location, Weapon, Armor
 from characters import Character, Trait
 from Attack import Attack
 from Bounty import Bounty
+import random
 
 import os
 import datetime as dt
@@ -16,7 +17,6 @@ import sqlite3
 Parent = None
 
 
-# TODO: remove all commits out of create
 class RpgGame(object):
     ATTACK_ACTION = "attack"
     COUNTER_ACTION = "counter"
@@ -80,8 +80,6 @@ class RpgGame(object):
                     character.save()  # TODO: batch update
                 else:
                     deaths.append(character)
-                    for bounty in Bounty.find_all_by_character(character, conn):
-                        bounty.delete()
                     character.delete()
             Parent.AddPointsAll(coin_rewards)
             conn.commit()
@@ -95,81 +93,63 @@ class RpgGame(object):
                     ", ".join(map(lambda char: char.name, deaths))
                 ))
 
-    def resolve_fight(self, fight, conn):  # TODO: kill count + bounties
-        # resolve initial fight
+    def resolve_fight(self, fight, conn):
+        kills = {}
+        defenders = [attack.attacker_id for attack in fight.children if attack.action == self.DEFEND_ACTION]
+        for attack in filter(lambda x: x.action == self.FLEE_ACTION, fight.children):
+            attack.attacker.attempt_flee()
+
+        result = self.resolve_attack(fight, kills, defenders, conn)
+        if result is not None:
+            kills.update(result)
+        for attack in fight.children:
+            result = self.resolve_attack(attack, kills, defenders, conn)
+            if result is not None:
+                kills.update(result)
+        fight.delete()
+        for dead, killer in kills.iteritems():
+            dead_char = Character.find(dead, conn)
+            killer_char = Character.find(killer, conn)
+            Parent.SendStreamMessage(self.format_message(
+                "{0} has been killed by {1} and died at lvl {2}",
+                dead_char.name,
+                killer_char.name,
+                dead_char.lvl
+            ))
+            if killer not in kills:
+                killer_char.gain_experience(2 * killer_char.exp_for_difficulty(dead_char.lvl))
+                killer_char.add_kill()
+                self.pay_bounties(Bounty.find_all_by_character(dead, conn), killer_char.user_id)
+                killer_char.save()
+            dead_char.delete()
+
+    def resolve_attack(self, fight, kills, defenders, conn):
         attacker = fight.attacker
         target = fight.target
-        assert fight.action == self.ATTACK_ACTION
-        reaction = next((attack for attack in fight.children if target.char_id == attack.attacker_id), None)
-        defense = reaction is not None and reaction.action == self.DEFEND_ACTION
-        flee = reaction is not None and reaction.action == self.FLEE_ACTION
-        success1, flee = attacker.attack(target, defense_bonus=defense, flee=flee)
-        success2 = False
-        if success1:
-            attacker.add_kill()
-        if reaction is not None and reaction.action == self.COUNTER_ACTION:
-            success2 = target.attack(attacker, attack_bonus=True)[0]
-            if success2:
-                target.add_kill()
-                self.pay_bounties(Bounty.find_all_by_character(attacker, conn), target.user_id)
-                attacker.delete()
-                if not success1:
-                    target.gain_experience(2 * target.exp_for_difficulty(attacker.lvl))
-                    target.save()
-        if success1:
-            self.pay_bounties(Bounty.find_all_by_character(target, conn), attacker.user_id)
-            target.delete()
-            if not success2:
-                attacker.gain_experience(2 * target.exp_for_difficulty(target.lvl))
-                attacker.save()
-        if success1:
-            if success2:
-                msg = "{0} killed {1} but died by blood loss from hes wounds."
-            else:
-                msg = "{0} succesfully killed {1}."
+        if (attacker.char_id in kills and fight.action != self.COUNTER_ACTION) or \
+                target is None or target.char_id in kills:
+            return None
+        if attacker.attack(target, defense_bonus=attacker.char_id in defenders,
+                           attack_bonus=fight.action == self.COUNTER_ACTION):
+            return {target.char_id: attacker.char_id}
         else:
-            if success2:
-                msg = "The tables got turned and {0} was killed whilst trying to kill {1}."
-            else:
-                msg = "The blade has been dodged, no blood sheds today."
-        Parent.SendStreamMessage(self.format_message(msg, attacker.name, target.name))
-        # resolve additional attacks
-        for child in fight.children:
-            if child is not reaction:
-                assert child.action == self.ATTACK_ACTION
-                defense = False
-                if child.target_id == target.char_id and reaction is not None and reaction.action == self.DEFEND_ACTION:
-                    defense = True
-                # sorted on time of making, so attacker still lives, if target is dead, too bad, can't kill dead dudes
-                if child.attacker.attack(child.target, defense_bonus=defense)[0]:
-                    child.target.delete()
-                    child.attacker.gain_experience(2 * target.exp_for_difficulty(child.target.lvl))
-                    child.attacker.save()
-                    child.attacker.add_kill()
-                    self.pay_bounties(Bounty.find_all_by_character(child.target, conn), child.attacker.user_id)
-                    if child.target_id == attacker.char_id:
-                        msg = self.format_message("{0} got ambushed by {1} whilst walking away from the fight",
-                                                  attacker.name, child.attacker.name)
-                    elif child.target_id == target.char_id:
-                        msg = self.format_message("{0} got ambushed by {1} whilst walking away from the fight",
-                                                  target.name, child.attacker.name)
-                    else:
-                        msg = self.format_message("{0} got assassinated by {1} whilst watching the fight",
-                                                  child.target.name, child.attacker.name)
-                    Parent.SendStreamMessage(msg)
-        fight.delete()
+            return None
 
-    @staticmethod
-    def pay_bounties(bounties, killer_user_id):
+    def pay_bounties(self, bounties, killer_user_id):
         to_pay = 0
         for bounty in bounties:
-            to_pay += bounty.get_reward()
+            to_pay += bounty.reward
             bounty.delete()
         if to_pay > 0:
             Parent.AddPoints(killer_user_id, Parent.GetDisplayName(killer_user_id), to_pay)
+            if to_pay > 1000:  # TODO: setting for min_announcement_amount
+                Parent.SendStreamMessage(self.format_message(
+                    "{0} has claimed a huge amount of {1} in bounties!",
+                    Parent.GetDisplayName(killer_user_id),
+                    to_pay
+                ))
 
     def commands(self):
-        # TODO: create or join command (with name param)
         return [{
             self.scriptSettings.info_command: self.info,
             self.scriptSettings.condensed_info_command: self.condensed_info,
@@ -273,18 +253,35 @@ class RpgGame(object):
                     username,
                     location_name
                 ))
+                return
             if character.location_id != location.id:
-                character.location = location
-                character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
-                character.save()
-                Parent.SendStreamMessage(self.format_message(
-                    "{0}, {1} moved to location {2} with difficulty {3}",
-                    username,
-                    character.name,
-                    location.name,
-                    location.difficulty
-                ))
-                conn.commit()
+                fight = Attack.find_by_attacker_or_target(character, conn)
+                if fight is None:
+                    character.location = location
+                    character.exp_gain_time = dt.datetime.now(utc) +\
+                                              dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
+                    character.save()
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, {1} moved to location {2} with difficulty {3}",
+                        username,
+                        character.name,
+                        location.name,
+                        location.difficulty
+                    ))
+                else:
+                    if fight.attacker_id == character.char_id:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you cannot move during a fight, your action for this fight has already been set.",
+                            username
+                        ))
+                    else:
+                        Attack.create(self.FLEE_ACTION, character.char_id, resolver_id=fight.resolver_id,
+                                      connection=conn)
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you cannot move during a fight, a flee attempt will be made.",
+                            username
+                        ))
+
             else:
                 Parent.SendStreamMessage(self.format_message(
                     "{0}, you are already in that location",
@@ -336,33 +333,33 @@ class RpgGame(object):
                 return
             if target.location_id == attacker.location_id:
                 fight = Attack.find_by_attacker_or_target(target, conn)
-                attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                attacker.save()
                 if fight is None:
+                    # delay xp time for attacker
+                    attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                    attacker.save()
+
+                    # delay xp time for target
+                    target.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                    target.save()
+
                     resolve_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
                     Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time, connection=conn)
-                    if target.exp_gain_time < resolve_time:
-                        # TODO: solve https://stackoverflow.com/questions/9217411/python-datetimes-in-sqlite3
-                        target.exp_gain_time = resolve_time
-                        target.save()
-                    if attacker.exp_gain_time < resolve_time:
-                        attacker.exp_gain_time = resolve_time
-                        attacker.save()
                 else:
                     if fight.target_id == attacker.char_id:
-                        resolver_id = fight.attack_id
+                        # my xp has already been delayed, i just react only now
+                        resolver_id = fight.resolver_id
                         Attack.create(self.COUNTER_ACTION, attacker.char_id, target.char_id, resolver_id=resolver_id,
                                       connection=conn)
                     else:
-                        if fight.resolver_id is None:
-                            resolver = fight
-                        else:
-                            resolver = Attack.find(fight.resolver_id, conn)
+                        attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                        attacker.save()
+
                         Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id,
-                                      resolver_id=resolver.attack_id, connection=conn)
-                        if attacker.exp_gain_time < resolver.resolve_time:
-                            attacker.exp_gain_time = resolver.resolve_time
-                            attacker.save()
+                                      resolver_id=fight.resolver_id, connection=conn)
+            else:
+                Parent.SendStreamMessage(
+                    self.format_message("{0}, your target is not in the same area is you are.", username))
+                return
 
     def defend(self, user_id, username):
         with self.get_connection() as conn:
@@ -379,32 +376,24 @@ class RpgGame(object):
                 Parent.SendStreamMessage("you are currently not being attacked")
                 return
             else:
-                if fight.resolver_id is None:
-                    resolver_id = fight.attack_id
-                else:
-                    resolver_id = fight.resolver_id
-                Attack.create(self.DEFEND_ACTION, defender.char_id, resolver_id=resolver_id, connection=conn)
+                Attack.create(self.DEFEND_ACTION, defender.char_id, resolver_id=fight.resolver_id, connection=conn)
 
     def counter(self, user_id, username):
         with self.get_connection() as conn:
-            counterer = Character.find_by_user(user_id, conn)
-            if counterer is None:
+            countermen = Character.find_by_user(user_id, conn)
+            if countermen is None:
                 Parent.SendStreamMessage(self.format_message(
                     self.scriptSettings.no_character_yet,
                     username,
                     self.scriptSettings.create_command
                 ))
                 return
-            fight = Attack.find_by_target(counterer, conn)
+            fight = Attack.find_by_target(countermen, conn)
             if fight is None:
                 Parent.SendStreamMessage("you are currently not being attacked")
                 return
             else:
-                if fight.resolver_id is None:
-                    resolver_id = fight.attack_id
-                else:
-                    resolver_id = fight.resolver_id
-                Attack.create(self.COUNTER_ACTION, counterer.char_id, resolver_id=resolver_id, connection=conn)
+                Attack.create(self.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id, connection=conn)
 
     def flee(self, user_id, username):
         with self.get_connection() as conn:
@@ -418,14 +407,13 @@ class RpgGame(object):
                 return
             fight = Attack.find_by_target(flee_char, conn)
             if fight is None:
-                Parent.SendStreamMessage("you are currently not being attacked")
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you are currently not being attacked",
+                    username
+                ))
                 return
             else:
-                if fight.resolver_id is None:
-                    resolver_id = fight.attack_id
-                else:
-                    resolver_id = fight.resolver_id
-                Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=resolver_id, connection=conn)
+                Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
 
     def look(self, user_id, username, target_name):
         with self.get_connection() as conn:
@@ -441,12 +429,17 @@ class RpgGame(object):
                                                      ))
 
     def give(self, user_id, username, amount, recipient_name):
-        if recipient_name == self.scriptSettings.piebank_name:
-            if Parent.RemovePoints(user_id, username, amount):
-                # TODO: check bounty (and create bounties)
-                pass
-            else:
-                with self.get_connection() as conn:
+        with self.get_connection() as conn:
+            if recipient_name == self.scriptSettings.piebank_name:
+                if Parent.RemovePoints(user_id, username, amount):
+                    bounty = Bounty.find_by_user_id_from_piebank(user_id, conn)
+                    if amount > 2 * bounty.reward:
+                        bounty.delete()
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, Your bounty has been cleared",
+                            username
+                        ))
+                else:
                     recipient = Character.find_by_name(recipient_name, conn)
                     if Parent.RemovePoints(user_id, username, amount):
                         recipient_user_name = Parent.GetDisplayName(recipient.user_id)
@@ -496,7 +489,6 @@ class RpgGame(object):
                             "{0}, your bounty on {1} has been updated",
                             username, target_name
                         ))
-            conn.commit()
 
     def tax(self, user_id, username, amount):
         pass

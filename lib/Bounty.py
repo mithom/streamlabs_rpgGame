@@ -1,11 +1,11 @@
-from characters import Character
+import characters
 
 
 class Bounty(object):
     def __init__(self, bounty_id, character_id, benefactor_id, reward, kill_count, connection):
         self.connection = connection
         self.__bounty_id = bounty_id
-        self.reward = reward
+        self._reward = reward
         self.kill_count = kill_count
 
         self.character_id = character_id
@@ -21,7 +21,7 @@ class Bounty(object):
     @property
     def character(self):
         if self._character is None:
-            self._character = Character.find(self.character_id, self.connection)
+            self._character = characters.Character.find(self.character_id, self.connection)
         return self._character
 
     @character.setter
@@ -32,7 +32,7 @@ class Bounty(object):
     @property
     def benefactor(self):
         if self._benefactor is None and self.benefactor_id is not None:
-            self._benefactor = Character.find(self.benefactor_id, self.connection)
+            self._benefactor = characters.Character.find(self.benefactor_id, self.connection)
         return self._benefactor
 
     @benefactor.setter
@@ -40,10 +40,15 @@ class Bounty(object):
         self._benefactor = value
         self.benefactor_id = value.char_id
 
-    def get_reward(self):
+    @property
+    def reward(self):
         if self.benefactor is None:
-            return max(0, (self.kill_count - 2) * 100)
-        return self.reward
+            return max(0, (self.kill_count - 2) * 100) + max(500*2**(max(self.kill_count-1, 0)/5)-500, 0)
+        return self._reward
+
+    @reward.setter
+    def reward(self, reward):
+        self._reward = reward
 
     def delete(self):
         self.connection.execute(
@@ -57,7 +62,7 @@ class Bounty(object):
             """UPDATE bounties set
             character_id = :character_id, benefactor_id = :benefactor_id, reward = :reward, kill_count = :kill_count
             WHERE bounty_id = :bounty_id""",
-            {"character_id": self.character_id, "benefactor_id": self.benefactor_id, "reward": self.reward,
+            {"character_id": self.character_id, "benefactor_id": self.benefactor_id, "reward": self._reward,
                 "kill_count": self.kill_count, "bounty_id": self.id}
         )
 
@@ -85,8 +90,20 @@ class Bounty(object):
         return cls(*row, connection=connection)
 
     @classmethod
+    def find_by_user_id_from_piebank(cls, user_id, connection):
+        cursor = connection.execute(
+            """SELECT b.* from bounties b natural join characters c
+            WHERE  c.user_id = :user_id and b.benefactor_id is NULL """,
+            {"user_id": user_id}
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return cls(*row, connection=connection)
+
+    @classmethod
     def find_by_character_name_and_benefactor(cls, char_name, benefactor_id, connection):
-        if type(benefactor_id) is Character:
+        if type(benefactor_id) is characters.Character:
             benefactor_id = benefactor_id.char_id
         cursor = connection.execute(
             """SELECT b.* from bounties b natural join characters c
@@ -100,7 +117,7 @@ class Bounty(object):
 
     @classmethod
     def find_all_by_character(cls, character, conn):
-        if type(character) is Character:
+        if type(character) is characters.Character:
             character = character.char_id
         cursor = conn.execute("""SELECT * FROM bounties WHERE character_id = :character_id""",
                               {"character_id": character})
@@ -108,9 +125,9 @@ class Bounty(object):
 
     @classmethod
     def create(cls, character, benefactor, reward, kill_count, connection):
-        if type(character) is Character:
+        if type(character) is characters.Character:
             character = character.char_id
-        if type(benefactor) is Character:
+        if type(benefactor) is characters.Character:
             benefactor = benefactor.char_id
         cursor = connection.execute(
             """INSERT INTO bounties (character_id, benefactor_id, reward, kill_count) VALUES 
