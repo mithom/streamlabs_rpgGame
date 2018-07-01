@@ -82,6 +82,7 @@ class RpgGame(object):
 
     def tick(self):
         with self.get_connection() as conn:
+            # TODO: check if thread increases efficiency or not for small amounts of fights
             for fight in Attack.find_fights(conn):
                 self.resolve_fight(fight, conn)
             lvl_up = []
@@ -89,6 +90,7 @@ class RpgGame(object):
             characters = Character.find_by_past_exp_time(conn)
             coin_rewards = {}
             for character in characters:
+                # TODO: almost certainly add paging + threading/page to support crowds.
                 if character.check_survival():
                     coin_rewards[character.user_id] = character.position.location.difficulty
                     character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(
