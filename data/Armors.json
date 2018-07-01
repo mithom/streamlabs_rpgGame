@@ -1,0 +1,12 @@
+[
+  ["ClothRobe", 5, 1],
+  ["FurArmor", 10, 2],
+  ["LeatherArmor", 25, 4],
+  ["CopperArmor", 50, 6],
+  ["Chainmail", 100, 8],
+  ["Platemail", 250, 10],
+  ["SilverPlatemail", 400, 12],
+  ["AssaultCuirase", 800, 14],
+  ["DragonScalemail", 2000, 16],
+  ["DivineAura", 5000, 18]
+]

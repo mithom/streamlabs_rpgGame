@@ -1,0 +1,12 @@
+[
+  ["Dagger", 5, 1],
+  ["WoodenClub", 10, 3],
+  ["ShortSword", 25, 6],
+  ["Spear", 50, 9],
+  ["LongSword", 100, 12],
+  ["SteelAxe", 250, 15],
+  ["Katana", 400, 18],
+  ["SpiritLance", 800, 21],
+  ["EnchantedBow", 2000, 24],
+  ["DemonEdge", 5000, 27]
+]

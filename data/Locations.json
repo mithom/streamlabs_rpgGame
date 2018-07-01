@@ -1,0 +1,14 @@
+[
+  ["Castle", 0],
+  ["Town", 1],
+  ["Fields", 2],
+  ["Forest", 3],
+  ["River", 3],
+  ["Swamps", 4],
+  ["Mountains", 5],
+  ["Ruins", 5],
+  ["Dessert", 6],
+  ["Caves", 6],
+  ["Crypt", 8],
+  ["Abyss", 10]
+]

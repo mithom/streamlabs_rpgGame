@@ -1,0 +1,8 @@
+{
+  "starting_coordinates":[1, 0],
+  "map":[
+    ["Fields","Town",   "Forest", "Forest", "Mountains",  "Ruins",  "Dessert", "Abyss"],
+    [null,    "Castle", null,     "River",  null,         "Caves",  null],
+    [null,    null,     null,     "Swamps", null,         "Crypt",  null]
+  ]
+}

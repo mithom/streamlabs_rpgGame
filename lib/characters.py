@@ -1,9 +1,10 @@
-from StaticData import Location, Weapon, Armor, StaticData
+from StaticData import Weapon, Armor, NamedData, Map
 from Bounty import Bounty
 import random
 from enum import Enum
 from pytz import utc
 import datetime as dt
+from Position import Position
 
 
 class Character(object):
@@ -12,8 +13,8 @@ class Character(object):
     """
     game = None
 
-    def __init__(self, char_id, name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
-                 exp_gain_time, connection, location=None, weapon=None, armor=None, trait=None, special_ids=None,
+    def __init__(self, char_id, name, user_id, experience, lvl, weapon_id, armor_id, trait_id,
+                 exp_gain_time, x, y, connection, weapon=None, armor=None, trait=None, special_ids=None,
                  specials=None):
         if special_ids is None:
             special_ids = []
@@ -28,9 +29,6 @@ class Character(object):
             exp_gain_time = utc.localize(exp_gain_time)
         self.exp_gain_time = exp_gain_time
 
-        self.location_id = location_id
-        self._location = location
-
         self.weapon_id = weapon_id
         self._weapon = weapon
 
@@ -43,22 +41,13 @@ class Character(object):
         self.special_ids = special_ids  # This is a string
         self._specials = specials
 
+        self.position = Position(x, y)
+
         self.connection = connection
 
     @property
     def char_id(self):
         return self.__char_id
-
-    @property
-    def location(self):
-        if self._location is None:
-            self._location = Location.find(self.location_id)
-        return self._location
-
-    @location.setter
-    def location(self, location):
-        self._location = location
-        self.location_id = location.id
 
     @property
     def weapon(self):
@@ -95,8 +84,10 @@ class Character(object):
 
     def attempt_flee(self):
         if random.random()*100 <= 45:
-            self.location = Location.find_by_name("Town")  # TODO: random locatie
+            self.position.coord = random.choice(self.position.flee_options())
             self.save()
+            return True
+        return False
 
     def exp_for_difficulty(self, difficulty):
         weapon_bonus = 0
@@ -123,9 +114,9 @@ class Character(object):
         armor_bonus = 0
         if self.armor is not None:
             armor_bonus = self.armor.min_lvl*10
-        if self.location.difficulty < self.lvl:
-            return rand > 100 * (4 + 0.5 * (self.location.difficulty - self.lvl)) / (100 + armor_bonus)
-        return rand > 100*(4 + 1.5*(self.location.difficulty - self.lvl))/(100.0+armor_bonus)
+        if self.position.location.difficulty < self.lvl:
+            return rand > 100 * (4 + 0.5 * (self.position.location.difficulty - self.lvl)) / (100 + armor_bonus)
+        return rand > 100*(4 + 1.5*(self.position.location.difficulty - self.lvl))/(100.0+armor_bonus)
 
     def attack(self, defender, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
@@ -147,14 +138,14 @@ class Character(object):
 
     def save(self):
         self.connection.execute(
-            """UPDATE characters set location_id = :location_id, name = :name, user_id = :user_id,
+            """UPDATE characters set name = :name, user_id = :user_id,
             weapon_id = :weapon_id, armor_id = :armor_id, experience = :experience, lvl = :lvl,
-            exp_gain_time = :exp_gain_time, trait_id = :trait_id
+            exp_gain_time = :exp_gain_time, trait_id = :trait_id, x = :x, y = :y
             where character_id = :character_id""",
-            {"location_id": self.location_id, "name": self.name, "user_id": self.user_id,
+            { "name": self.name, "user_id": self.user_id,
              "character_id": self.char_id, "weapon_id": self.weapon_id, "armor_id": self.armor_id,
              "experience": self.experience, "lvl": self.lvl, "exp_gain_time": self.exp_gain_time,
-             "trait_id": self.trait_id}
+             "trait_id": self.trait_id, "x": self.position.x, "y": self.position.y}
         )
 
     def delete(self):
@@ -166,20 +157,19 @@ class Character(object):
         )
 
     @classmethod
-    def create(cls, name, user_id, experience, lvl, location_id, weapon_id, armor_id, exp_gain_time,
+    def create(cls, name, user_id, experience, lvl, weapon_id, armor_id, exp_gain_time, x, y,
                connection):
         trait_id = random.choice(Trait.data_by_id.values()).id
         cursor = connection.execute(
-            '''INSERT INTO characters (name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
-            exp_gain_time)
-            VALUES (:name, :user_id, :experience, :lvl, :location_id, :weapon_id, :armor_id, :trait_id,
-            :exp_gain_time)''',
-            {"name": name, "user_id": user_id, "location_id": location_id, "lvl": lvl, "weapon_id": weapon_id,
-             "armor_id": armor_id, "experience": experience, "trait_id": trait_id, "exp_gain_time": exp_gain_time}
+            '''INSERT INTO characters (name, user_id, experience, lvl, weapon_id, armor_id, trait_id, exp_gain_time,
+            x, y)
+            VALUES (:name, :user_id, :experience, :lvl, :weapon_id, :armor_id, :trait_id, :exp_gain_time, :x, :y)''',
+            {"name": name, "user_id": user_id, "lvl": lvl, "weapon_id": weapon_id,"armor_id": armor_id,
+             "experience": experience, "trait_id": trait_id, "exp_gain_time": exp_gain_time, "x": x, "y": y}
         )
         connection.commit()
-        return cls(cursor.lastrowid, name, user_id, experience, lvl, location_id, weapon_id, armor_id, trait_id,
-                   exp_gain_time, connection=connection)
+        return cls(cursor.lastrowid, name, user_id, experience, lvl, weapon_id, armor_id, trait_id,
+                   exp_gain_time, x, y, connection=connection)
 
     @classmethod
     def find(cls, character_id, connection):
@@ -242,12 +232,12 @@ class Character(object):
             user_id         text    UNIQUE    NOT NULL,
             experience      integer NOT NULL,
             lvl             integer NOT NULL,
-            location_id     integer NOT NULL,
             weapon_id       integer,
             armor_id        integer,
             trait_id        text    NOT NULL,
             exp_gain_time   timestamp,
-              FOREIGN KEY (location_id) REFERENCES locations(location_id),
+            x               integer NOT NULL,
+            y               integer NOT NULL,
               FOREIGN KEY (weapon_id)   REFERENCES weapons(weapon_id),
               FOREIGN KEY (armor_id)    REFERENCES armors(armor_id),
               FOREIGN KEY (trait_id)    REFERENCES traits(orig_name)
@@ -259,7 +249,7 @@ class Character(object):
         Trait.load_traits(connection)
 
 
-class Trait(StaticData):
+class Trait(NamedData):
     data_by_name = {}
     data_by_id = {}
 
@@ -286,7 +276,6 @@ class Trait(StaticData):
     @classmethod
     def create_traits(cls, script_settings, connection):
         """creates weapons into the database"""
-        # TODO: button to dynamically add zones/weapons/armors
         traits = []
         # noinspection PyTypeChecker
         for trait in cls.Traits:
@@ -305,7 +294,7 @@ class Trait(StaticData):
             cls.data_by_name[trait.name] = trait
 
 
-class Special(StaticData):
+class Special(NamedData):
     """The specials self are static, the join-table won't be"""
     data_by_name = {}
     data_by_id = {}

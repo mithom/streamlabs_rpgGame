@@ -46,6 +46,7 @@ class Settings(object):
             self.violent_name = "Violent"
             self.pacifist_enabled = True
             self.pacifist_name = "Pacifist"
+            # TODO: add button to open data folder
 
             # command names
             # 0 args

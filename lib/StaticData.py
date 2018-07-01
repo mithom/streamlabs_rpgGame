@@ -1,6 +1,46 @@
+import json
+import codecs
+import os
+
+
 class StaticData(object):
-    def __init__(self, data_id, name, connection):
+    def __init__(self, connection):
         self.connection = connection
+
+
+class Map(object):
+    _map = None
+    y_max = 0
+    x_max = 0
+    _starting_position = None
+
+    @staticmethod
+    def read_map():
+        path = os.path.join(os.path.split(os.path.dirname(__file__))[0], "data\Map.json")
+        with codecs.open(path, encoding="utf-8-sig", mode="r") as f:
+            return json.load(f, encoding="utf-8")
+
+    @classmethod
+    def starting_position(cls):
+        if cls._starting_position is None:
+            cls.get_map()
+        return cls._starting_position
+
+    @classmethod
+    def get_map(cls):
+        if cls._map is None:
+            map_dict = cls.read_map()
+            lmap = map_dict["map"]
+            cls._starting_position = map_dict["starting_coordinates"]
+            cls.x_max = max([len(x) for x in lmap])
+            cls.y_max = len(lmap)
+            cls._map = [[Location.find_by_name(name) for name in (row + (cls.x_max - len(row)) * [None])] for row in lmap]
+        return cls._map
+
+
+class NamedData(StaticData):
+    def __init__(self, data_id, name, connection):
+        super(NamedData, self).__init__(connection)
         self.__data_id = data_id
         self.name = name
 
@@ -20,7 +60,7 @@ class StaticData(object):
         return cls.data_by_name.get(name, None)
 
 
-class Location(StaticData):
+class Location(NamedData):
     data_by_name = {}
     data_by_id = {}
 
@@ -37,13 +77,17 @@ class Location(StaticData):
             );""")
 
     @classmethod
-    def create_locations(cls, script_settings, connection):
+    def create_locations(cls, connection):
         """creates weapons into the database"""
-        # TODO: button to dynamically add zones/weapons/armors
-        locations = [("Castle", 0), ("Town", 1), ("Fields", 2), ("Forest", 3), ("River", 3), ("Swamps", 4),
-                     ("Mountains", 5), ("Ruins", 5), ("Dessert", 6), ("Caves", 6), ("Crypt", 8), ("Abyss", 10)]
+        locations = cls.read_locations()
         connection.executemany('INSERT OR IGNORE INTO locations(name, difficulty) VALUES (?, ?)', locations)
         connection.commit()
+
+    @staticmethod
+    def read_locations():
+        path = os.path.join(os.path.split(os.path.dirname(__file__))[0], "data\Locations.json")
+        with codecs.open(path, encoding="utf-8-sig", mode="r") as f:
+            return json.load(f, encoding="utf-8")
 
     @classmethod
     def load_locations(cls, connection):
@@ -60,7 +104,7 @@ class Location(StaticData):
         pass
 
 
-class Item(StaticData):
+class Item(NamedData):
 
     def __init__(self, item_id, name, price, min_lvl, connection):
         super(Item, self).__init__(item_id, name, connection)
@@ -87,11 +131,15 @@ class Weapon(Item):
     @classmethod
     def create_weapons(cls, connection):
         """creates weapons into the database"""
-        weapons = [("Dagger", 5, 1), ("WoodenClub", 10, 3), ("ShortSword", 25, 6), ("Spear", 50, 9),
-                   ("LongSword", 100, 12), ("SteelAxe", 250, 15), ("Katana", 400, 18), ("SpiritLance", 800, 21),
-                   ("EnchantedBow", 2000, 24), ("Demon Edge", 5000, 27)]
+        weapons = cls.read_weapons()
         connection.executemany("""INSERT OR IGNORE INTO weapons(name, price, min_lvl) VALUES (?, ?, ?)""", weapons)
         connection.commit()
+
+    @staticmethod
+    def read_weapons():
+        path = os.path.join(os.path.split(os.path.dirname(__file__))[0], "data\Weapons.json")
+        with codecs.open(path, encoding="utf-8-sig", mode="r") as f:
+            return json.load(f, encoding="utf-8")
 
     @classmethod
     def load_weapons(cls, connection):
@@ -127,11 +175,15 @@ class Armor(Item):
     @classmethod
     def create_armors(cls, connection):
         """creates armors into the database"""
-        armors = [("ClothRobe", 5, 1), ("FurArmor", 10, 2), ("LeatherArmor", 25, 4), ("CopperArmor", 50, 6),
-                  ("Chainmail", 100, 8), ("Platemail", 250, 10), ("SilverPlatemail", 400, 12),
-                  ("AssaultCuirase", 800, 14), ("DragonScalemail", 2000, 16), ("Divine Aura", 5000, 18)]
+        armors = cls.read_armors()
         connection.executemany("""INSERT OR IGNORE INTO armors(name, price, min_lvl) VALUES (?, ?, ?)""", armors)
         connection.commit()
+
+    @staticmethod
+    def read_armors():
+        path = os.path.join(os.path.split(os.path.dirname(__file__))[0], "data\Armors.json")
+        with codecs.open(path, encoding="utf-8-sig", mode="r") as f:
+            return json.load(f, encoding="utf-8")
 
     @classmethod
     def load_armors(cls, connection):

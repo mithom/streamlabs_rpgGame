@@ -1,8 +1,8 @@
-from StaticData import Location, Weapon, Armor
+from StaticData import Location, Weapon, Armor, Map
 from characters import Character, Trait
 from Attack import Attack
 from Bounty import Bounty
-import random
+import operator
 
 import os
 import datetime as dt
@@ -15,6 +15,23 @@ clr.AddReference("IronPython.SQLite.dll")
 import sqlite3
 
 Parent = None
+
+LEFT = ["left", "east"]
+RIGHT = ["right", "west"]
+UP = ["up", "north"]
+DOWN = ["down", "south"]
+
+
+def get_coords_change(orientation):
+    if orientation in LEFT:
+        return -1, 0
+    if orientation in RIGHT:
+        return 1, 0
+    if orientation in UP:
+        return 0, 1
+    if orientation in DOWN:
+        return 0, -1
+    assert False
 
 
 class RpgGame(object):
@@ -33,6 +50,7 @@ class RpgGame(object):
         self.create_and_load_static_data()
 
         Character.game = self
+        Map.get_map()  # init map variables
 
     def get_connection(self):
         return sqlite3.connect(os.path.join(self.db_directory, "database.db"), detect_types=sqlite3.PARSE_DECLTYPES)
@@ -49,7 +67,7 @@ class RpgGame(object):
 
     def create_and_load_static_data(self):
         with self.get_connection() as conn:
-            Location.create_locations(self.scriptSettings, conn)
+            Location.create_locations(conn)
             Location.load_locations(conn)
             Armor.create_armors(conn)
             Armor.load_armors(conn)
@@ -72,10 +90,10 @@ class RpgGame(object):
             coin_rewards = {}
             for character in characters:
                 if character.check_survival():
-                    coin_rewards[character.user_id] = character.location.difficulty
+                    coin_rewards[character.user_id] = character.position.location.difficulty
                     character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(
                         seconds=self.scriptSettings.xp_farm_time)
-                    if character.gain_experience(character.exp_for_difficulty(character.location.difficulty)):
+                    if character.gain_experience(character.exp_for_difficulty(character.position.location.difficulty)):
                         lvl_up.append(character)
                     character.save()  # TODO: batch update
                 else:
@@ -97,13 +115,16 @@ class RpgGame(object):
         kills = {}
         defenders = [attack.attacker_id for attack in fight.children if attack.action == self.DEFEND_ACTION]
         for attack in filter(lambda x: x.action == self.FLEE_ACTION, fight.children):
-            attack.attacker.attempt_flee()
-
-        result = self.resolve_attack(fight, kills, defenders, conn)
+            if attack.attacker.attempt_flee():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0} has successfully fled from the fight",
+                    attack.attacker.name
+                ))
+        result = self.resolve_attack(fight, kills, defenders)
         if result is not None:
             kills.update(result)
         for attack in fight.children:
-            result = self.resolve_attack(attack, kills, defenders, conn)
+            result = self.resolve_attack(attack, kills, defenders)
             if result is not None:
                 kills.update(result)
         fight.delete()
@@ -123,11 +144,11 @@ class RpgGame(object):
                 killer_char.save()
             dead_char.delete()
 
-    def resolve_attack(self, fight, kills, defenders, conn):
+    def resolve_attack(self, fight, kills, defenders):
         attacker = fight.attacker
         target = fight.target
         if (attacker.char_id in kills and fight.action != self.COUNTER_ACTION) or \
-                target is None or target.char_id in kills:
+                target is None or target.char_id in kills or attacker.position != target.position:
             return None
         if attacker.attack(target, defense_bonus=attacker.char_id in defenders,
                            attack_bonus=fight.action == self.COUNTER_ACTION):
@@ -185,9 +206,9 @@ class RpgGame(object):
                     self.scriptSettings.create_command
                 ))
                 return
-            location = character.location
+            location = character.position.location
             Parent.SendStreamMessage(self.format_message(
-                "{0}, your character {1} is located in {2} with difficulty {3}. Your current lvl is {4} and xp {5}. " +
+                "{0}, your character {1} is located at {8}, which is a {2} with difficulty {3}. Your current lvl is {4} and xp {5}. " +
                 "Your current are currently wearing {6} and use {7} as weapon",
                 username,
                 character.name,
@@ -196,7 +217,8 @@ class RpgGame(object):
                 character.lvl,
                 character.experience,
                 getattr(character.armor, "name", "rags"),
-                getattr(character.weapon, "name", "bare hands")
+                getattr(character.weapon, "name", "bare hands"),
+                str(character.position.coord)
             ))
 
     def condensed_info(self, user_id, username):
@@ -213,16 +235,16 @@ class RpgGame(object):
                 "{0}, name: {1}, location {2}, lvl: {3}",
                 username,
                 character.name,
-                character.location.name,
+                character.position.location.name,
                 character.lvl
             ))
 
     def create(self, user_id, username, character_name):
         with self.get_connection() as conn:
             if Character.find_by_user(user_id, conn) is None and Character.find_by_name(character_name, conn) is None:
-                town = Location.find_by_name(self.scriptSettings.starting_location)
                 exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
-                Character.create(character_name, user_id, 0, 1, town.id, None, None, exp_gain_time, conn)
+                x, y = Map.starting_position()
+                Character.create(character_name, user_id, 0, 1, None, None, exp_gain_time, x, y, conn)
                 Parent.SendStreamMessage(self.format_message(
                     "{0}, you just created a new hero who listens to the mighty name of {1}. For more info about this" +
                     " hero, type " + self.scriptSettings.info_command,
@@ -236,9 +258,13 @@ class RpgGame(object):
                     character_name
                 ))
 
-    def move(self, user_id, username, location_name):
+    def move(self, user_id, username, direction):
         with self.get_connection() as conn:
-            location = Location.find_by_name(location_name)
+            if direction not in LEFT + RIGHT + UP + DOWN:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, that is no valid direction",
+                    username
+                ))
             character = Character.find_by_user(user_id, conn)
             if character is None:
                 Parent.SendStreamMessage(self.format_message(
@@ -247,17 +273,10 @@ class RpgGame(object):
                     self.scriptSettings.create_command
                 ))
                 return
-            if location is None:
-                Parent.SendStreamMessage(self.format_message(
-                    "{0} the location {1} does not exists",
-                    username,
-                    location_name
-                ))
-                return
-            if character.location_id != location.id:
+            if character.position.can_move_to(*get_coords_change(direction)):
                 fight = Attack.find_by_attacker_or_target(character, conn)
                 if fight is None:
-                    character.location = location
+                    character.position.coord = tuple(map(operator.add, character.position.coord, get_coords_change(direction)))
                     character.exp_gain_time = dt.datetime.now(utc) +\
                                               dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
                     character.save()
@@ -265,8 +284,8 @@ class RpgGame(object):
                         "{0}, {1} moved to location {2} with difficulty {3}",
                         username,
                         character.name,
-                        location.name,
-                        location.difficulty
+                        character.position.location.name,
+                        character.position.location.difficulty
                     ))
                 else:
                     if fight.attacker_id == character.char_id:
@@ -284,7 +303,7 @@ class RpgGame(object):
 
             else:
                 Parent.SendStreamMessage(self.format_message(
-                    "{0}, you are already in that location",
+                    "{0}, there is no location on that side",
                     username
                 ))
 
@@ -331,7 +350,7 @@ class RpgGame(object):
                 Parent.SendStreamMessage(
                     self.format_message("{0}, no target exists with that character name", username))
                 return
-            if target.location_id == attacker.location_id:
+            if target.position == attacker.position:
                 fight = Attack.find_by_attacker_or_target(target, conn)
                 if fight is None:
                     # delay xp time for attacker
