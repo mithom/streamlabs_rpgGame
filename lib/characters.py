@@ -14,7 +14,7 @@ class Character(object):
     game = None
 
     def __init__(self, char_id, name, user_id, experience, lvl, weapon_id, armor_id, trait_id,
-                 exp_gain_time, x, y, connection, weapon=None, armor=None, trait=None, special_ids=None,
+                 exp_gain_time, x, y, trait_bonus, connection, weapon=None, armor=None, trait=None, special_ids=None,
                  specials=None):
         if special_ids is None:
             special_ids = []
@@ -37,6 +37,7 @@ class Character(object):
 
         self.trait_id = trait_id  # This is a string
         self._trait = trait
+        self.trait_bonus = trait_bonus
 
         self.special_ids = special_ids  # This is a string
         self._specials = specials
@@ -74,16 +75,17 @@ class Character(object):
     @property
     def trait(self):
         if self._trait is None:
-            self._trait = Trait.find(self.trait_id)
+            self._trait = TraitStrength(self.trait_id, self.trait_bonus, self.lvl)
         return self._trait
 
     @trait.setter
     def trait(self, trait):
         self._trait = trait
-        self.trait_id = trait.id
+        self.trait_id = trait.trait.id
+        self.trait_bonus = trait.strength
 
     def attempt_flee(self):
-        if random.random()*100 <= 45:
+        if random.random() * 100 <= 45:
             self.position.coord = random.choice(self.position.flee_options())
             self.save()
             return True
@@ -92,8 +94,8 @@ class Character(object):
     def exp_for_difficulty(self, difficulty):
         weapon_bonus = 0
         if self.weapon is not None:
-            weapon_bonus = self.weapon.min_lvl*10
-        return int(25 * (2 ** (0.7 * (difficulty - self.lvl) + 1))*(100+weapon_bonus)/100.0)
+            weapon_bonus = self.weapon.min_lvl * 10
+        return int(25 * (2 ** (0.7 * (difficulty - self.lvl) + 1)) * (100 + weapon_bonus) / 100.0)
 
     def exp_for_next_lvl(self):
         return int(100 + ((2.8 * self.lvl) ** 2))
@@ -101,7 +103,7 @@ class Character(object):
     def gain_experience(self, xp):
         """gain experience, auto lvl-up
         :return True if lvl'ed up, False otherwise"""
-        self.experience += xp
+        self.experience += xp * self.trait.experience_factor
         next_lvl_exp = self.exp_for_next_lvl()
         if self.experience >= next_lvl_exp:
             self.experience -= next_lvl_exp
@@ -110,26 +112,30 @@ class Character(object):
         return False
 
     def check_survival(self):
-        rand = random.random()*100
+        rand = random.random() * 100
         armor_bonus = 0
         if self.armor is not None:
-            armor_bonus = self.armor.min_lvl*10
+            armor_bonus = self.armor.min_lvl * 10
         if self.position.location.difficulty < self.lvl:
             return rand > 100 * (4 + 0.5 * (self.position.location.difficulty - self.lvl)) / (100 + armor_bonus)
-        return rand > 100*(4 + 1.5*(self.position.location.difficulty - self.lvl))/(100.0+armor_bonus)
+        return rand > 100 * (4 + 1.5 * (self.position.location.difficulty - self.lvl)) / (100.0 + armor_bonus)
 
     def attack(self, defender, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
-        weapon_bonus = 0
-        armor_bonus = 0
+        weapon_bonus = self.trait.attack_bonus
+        armor_bonus = self.trait.defense_bonus
         if self.weapon is not None:
-            weapon_bonus = self.weapon.min_lvl
+            weapon_bonus += self.weapon.min_lvl
         if defender.armor is not None:
-            armor_bonus = defender.armor.min_lvl
-        return roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) >\
+            armor_bonus += defender.armor.min_lvl
+        return roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) > \
                defender.lvl * 2 + armor_bonus + 20 + (defense_bonus * 2)
 
     def add_kill(self):
+        if self.trait.trait.id == Trait.Traits.PACIFIST:
+            self.trait_bonus = 0
+        elif self.trait.trait.id == Trait.Traits.VIOLENT:
+            self.trait_bonus += 1
         pie_bounty = Bounty.find_by_character_name_from_piebank(self.name, self.connection)
         if pie_bounty is None:
             Bounty.create(self, None, 0, 1, self.connection)
@@ -140,12 +146,12 @@ class Character(object):
         self.connection.execute(
             """UPDATE characters set name = :name, user_id = :user_id,
             weapon_id = :weapon_id, armor_id = :armor_id, experience = :experience, lvl = :lvl,
-            exp_gain_time = :exp_gain_time, trait_id = :trait_id, x = :x, y = :y
+            exp_gain_time = :exp_gain_time, trait_id = :trait_id, x = :x, y = :y, trait_bonus = :trait_bonus
             where character_id = :character_id""",
-            { "name": self.name, "user_id": self.user_id,
+            {"name": self.name, "user_id": self.user_id,
              "character_id": self.char_id, "weapon_id": self.weapon_id, "armor_id": self.armor_id,
              "experience": self.experience, "lvl": self.lvl, "exp_gain_time": self.exp_gain_time,
-             "trait_id": self.trait_id, "x": self.position.x, "y": self.position.y}
+             "trait_id": self.trait_id, "x": self.position.x, "y": self.position.y, "trait_bonus": self.trait_bonus}
         )
 
     def delete(self):
@@ -159,17 +165,21 @@ class Character(object):
     @classmethod
     def create(cls, name, user_id, experience, lvl, weapon_id, armor_id, exp_gain_time, x, y,
                connection):
-        trait_id = random.choice(Trait.data_by_id.values()).id
+        trait = random.choice(Trait.data_by_id.values())
+        trait_bonus = trait.get_random_strength()
+        trait_id = trait.id
         cursor = connection.execute(
             '''INSERT INTO characters (name, user_id, experience, lvl, weapon_id, armor_id, trait_id, exp_gain_time,
-            x, y)
-            VALUES (:name, :user_id, :experience, :lvl, :weapon_id, :armor_id, :trait_id, :exp_gain_time, :x, :y)''',
-            {"name": name, "user_id": user_id, "lvl": lvl, "weapon_id": weapon_id,"armor_id": armor_id,
-             "experience": experience, "trait_id": trait_id, "exp_gain_time": exp_gain_time, "x": x, "y": y}
+            x, y, trait_bonus)
+            VALUES (:name, :user_id, :experience, :lvl, :weapon_id, :armor_id, :trait_id, :exp_gain_time, :x, :y,
+             :trait_bonus)''',
+            {"name": name, "user_id": user_id, "lvl": lvl, "weapon_id": weapon_id, "armor_id": armor_id,
+             "experience": experience, "trait_id": trait_id, "exp_gain_time": exp_gain_time, "x": x, "y": y,
+             "trait_bonus": trait_bonus}
         )
         connection.commit()
         return cls(cursor.lastrowid, name, user_id, experience, lvl, weapon_id, armor_id, trait_id,
-                   exp_gain_time, x, y, connection=connection)
+                   exp_gain_time, x, y, trait_bonus, connection=connection)
 
     @classmethod
     def find(cls, character_id, connection):
@@ -238,6 +248,7 @@ class Character(object):
             exp_gain_time   timestamp,
             x               integer NOT NULL,
             y               integer NOT NULL,
+            trait_bonus     integer,
               FOREIGN KEY (weapon_id)   REFERENCES weapons(weapon_id),
               FOREIGN KEY (armor_id)    REFERENCES armors(armor_id),
               FOREIGN KEY (trait_id)    REFERENCES traits(orig_name)
@@ -266,6 +277,38 @@ class Trait(NamedData):
     def __init__(self, orig_name, name, connection):
         super(Trait, self).__init__(orig_name, name, connection)
 
+    def get_random_strength(self):
+        if self.id in [self.Traits.DURABLE, self.Traits.STRONG]:
+            return random.randint(1, 3)
+        elif self.id in [self.Traits.WISE, self.Traits.GREEDY]:
+            return random.randrange(1.05, 1.15, 0.1)
+        elif self.id == self.Traits.ALERT:
+            return None
+        elif self.id == self.Traits.LUCKY:
+            return random.randrange(0.80, 0.95, 0.1)
+        elif self.id == self.Traits.VIOLENT:
+            return -1
+        elif self.id == self.Traits.PACIFIST:
+            return 0
+
+    def defense_bonus(self, strength):
+        return strength if self.id == self.Traits.DURABLE else 0
+
+    def attack_bonus(self, strength):
+        return strength if self.id in (self.Traits.STRONG, self.Traits.VIOLENT) else 0
+
+    def experience_factor(self, strength):
+        return strength if self.id == self.Traits.WISE else 1
+
+    def loot_factor(self, strength):
+        return strength if self.id == self.Traits.GREEDY else 1
+
+    def sneak_penalty_factor(self):
+        return 0 if self.id == self.Traits.ALERT else 1
+
+    def death_chance_factor(self, strength):
+        return strength if self.id == self.Traits.LUCKY else 1
+
     @classmethod
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists traits
@@ -292,6 +335,37 @@ class Trait(NamedData):
             trait = cls(*row, connection=connection)
             cls.data_by_id[trait.id] = trait
             cls.data_by_name[trait.name] = trait
+
+
+class TraitStrength(object):
+    def __init__(self, orig_name, strength, lvl):
+        self.trait = Trait.find(orig_name)
+        self.strength = strength
+        self.lvl = lvl
+
+    @property
+    def defense_bonus(self):
+        return self.trait.defense_bonus(self.strength)
+
+    @property
+    def attack_bonus(self):
+        return self.trait.attack_bonus(self.strength)
+
+    @property
+    def experience_factor(self):
+        return self.trait.experience_factor(self.strength)
+
+    @property
+    def loot_factor(self):
+        return self.trait.loot_factor(self.strength)
+
+    @property
+    def sneak_penalty_factor(self):
+        return self.trait.sneak_penalty_factor()
+
+    @property
+    def death_chance_factor(self):
+        return self.trait.death_chance_factor(self.strength)
 
 
 class Special(NamedData):
