@@ -116,13 +116,13 @@ class Character(object):
         armor_bonus = 0
         if self.armor is not None:
             armor_bonus = self.armor.min_lvl * 10
-        if self.position.location.difficulty < self.lvl:
-            return rand > 100 * (4 + 0.5 * (self.position.location.difficulty - self.lvl)) / (100 + armor_bonus)
-        return rand > 100 * (4 + 1.5 * (self.position.location.difficulty - self.lvl)) / (100.0 + armor_bonus)
+        if self.position.location.difficulty*2 < self.lvl:
+            return rand > 100 * self.trait.death_chance_factor * (4 + 0.5 * (self.position.location.difficulty*3 - self.lvl)) / (100 + armor_bonus)
+        return rand > 100 * self.trait.death_chance_factor * (4 + 1.5 * (self.position.location.difficulty*3 - self.lvl)) / (100.0 + armor_bonus)
 
-    def attack(self, defender, defense_bonus=False, attack_bonus=False):
+    def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
-        weapon_bonus = self.trait.attack_bonus
+        weapon_bonus = self.trait.attack_bonus + sneak * 2 * defender.trait.sneak_penalty_factor()
         armor_bonus = self.trait.defense_bonus
         if self.weapon is not None:
             weapon_bonus += self.weapon.min_lvl
@@ -135,7 +135,7 @@ class Character(object):
         if self.trait.trait.id == Trait.Traits.PACIFIST:
             self.trait_bonus = 0
         elif self.trait.trait.id == Trait.Traits.VIOLENT:
-            self.trait_bonus += 1
+            self.trait_bonus += 2
         pie_bounty = Bounty.find_by_character_name_from_piebank(self.name, self.connection)
         if pie_bounty is None:
             Bounty.create(self, None, 0, 1, self.connection)
@@ -278,10 +278,14 @@ class Trait(NamedData):
         super(Trait, self).__init__(orig_name, name, connection)
 
     def get_random_strength(self):
-        if self.id in [self.Traits.DURABLE, self.Traits.STRONG]:
+        if self.id == self.Traits.DURABLE:
             return random.randint(1, 3)
-        elif self.id in [self.Traits.WISE, self.Traits.GREEDY]:
+        if self.id == self.Traits.STRONG:
+            return random.randint(2, 4)
+        elif self.id == self.Traits.WISE:
             return random.randrange(1.05, 1.15, 0.1)
+        elif self.id == self.Traits.GREEDY:
+            return random.randrange(1.5, 2, 0.25)
         elif self.id == self.Traits.ALERT:
             return None
         elif self.id == self.Traits.LUCKY:
@@ -306,8 +310,12 @@ class Trait(NamedData):
     def sneak_penalty_factor(self):
         return 0 if self.id == self.Traits.ALERT else 1
 
-    def death_chance_factor(self, strength):
-        return strength if self.id == self.Traits.LUCKY else 1
+    def death_chance_factor(self, strength, lvl):
+        if self.id == self.Traits.LUCKY:
+            return strength
+        elif self.id in [self.Traits.DURABLE or self.Traits.STRONG]:
+            return 1-max((8-lvl)*0.01, 0)
+        return 1
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
@@ -365,7 +373,7 @@ class TraitStrength(object):
 
     @property
     def death_chance_factor(self):
-        return self.trait.death_chance_factor(self.strength)
+        return self.trait.death_chance_factor(self.strength, self.lvl)
 
 
 class Special(NamedData):

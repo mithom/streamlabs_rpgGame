@@ -8,7 +8,6 @@ import os
 import datetime as dt
 from pytz import utc
 
-
 import clr
 
 clr.AddReference("IronPython.SQLite.dll")
@@ -92,7 +91,8 @@ class RpgGame(object):
             for character in characters:
                 # TODO: almost certainly add paging + threading/page to support crowds.
                 if character.check_survival():
-                    coin_rewards[character.user_id] = character.position.location.difficulty
+                    coin_rewards[
+                        character.user_id] = round(character.position.location.difficulty * character.trait.loot_factor)
                     character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(
                         seconds=self.scriptSettings.xp_farm_time)
                     if character.gain_experience(character.exp_for_difficulty(character.position.location.difficulty)):
@@ -126,7 +126,7 @@ class RpgGame(object):
         if result is not None:
             kills.update(result)
         for attack in fight.children:
-            result = self.resolve_attack(attack, kills, defenders)
+            result = self.resolve_attack(attack, kills, defenders, sneak=True)
             if result is not None:
                 kills.update(result)
         fight.delete()
@@ -146,14 +146,15 @@ class RpgGame(object):
                 killer_char.save()
             dead_char.delete()
 
-    def resolve_attack(self, fight, kills, defenders):
+    def resolve_attack(self, fight, kills, defenders, sneak=False):
         attacker = fight.attacker
         target = fight.target
+        sneak = sneak and self.COUNTER_ACTION != fight.action
         if (attacker.char_id in kills and fight.action != self.COUNTER_ACTION) or \
                 target is None or target.char_id in kills or attacker.position != target.position:
             return None
         if attacker.attack(target, defense_bonus=attacker.char_id in defenders,
-                           attack_bonus=fight.action == self.COUNTER_ACTION):
+                           attack_bonus=fight.action == self.COUNTER_ACTION, sneak=sneak):
             return {target.char_id: attacker.char_id}
         else:
             return None
@@ -278,8 +279,9 @@ class RpgGame(object):
             if character.position.can_move_to(*get_coords_change(direction)):
                 fight = Attack.find_by_attacker_or_target(character, conn)
                 if fight is None:
-                    character.position.coord = tuple(map(operator.add, character.position.coord, get_coords_change(direction)))
-                    character.exp_gain_time = dt.datetime.now(utc) +\
+                    character.position.coord = tuple(
+                        map(operator.add, character.position.coord, get_coords_change(direction)))
+                    character.exp_gain_time = dt.datetime.now(utc) + \
                                               dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
                     character.save()
                     Parent.SendStreamMessage(self.format_message(
