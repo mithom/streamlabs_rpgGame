@@ -1,4 +1,4 @@
-from StaticData import Weapon, Armor, NamedData, Map
+from StaticData import Weapon, Armor, NamedData
 from Bounty import Bounty
 import random
 from enum import Enum
@@ -35,7 +35,7 @@ class Character(object):
         self.armor_id = armor_id
         self._armor = armor
 
-        self.trait_id = trait_id  # This is a string
+        self.trait_id = Trait.Traits(trait_id)  # This is an enum
         self._trait = trait
         self.trait_bonus = trait_bonus
 
@@ -116,14 +116,16 @@ class Character(object):
         armor_bonus = 0
         if self.armor is not None:
             armor_bonus = self.armor.min_lvl * 10
-        if self.position.location.difficulty*2 < self.lvl:
-            return rand > 100 * self.trait.death_chance_factor * (4 + 0.5 * (self.position.location.difficulty*3 - self.lvl)) / (100 + armor_bonus)
-        return rand > 100 * self.trait.death_chance_factor * (4 + 1.5 * (self.position.location.difficulty*3 - self.lvl)) / (100.0 + armor_bonus)
+        if self.position.location.difficulty * 2 < self.lvl:
+            return rand > 100 * self.trait.death_chance_factor * (
+                        4 + 0.5 * (self.position.location.difficulty * 3 - self.lvl)) / (100 + armor_bonus)
+        return rand > 100 * self.trait.death_chance_factor * (
+                    4 + 1.5 * (self.position.location.difficulty * 3 - self.lvl)) / (100.0 + armor_bonus)
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
-        weapon_bonus = self.trait.attack_bonus + sneak * 2 * defender.trait.sneak_penalty_factor()
-        armor_bonus = self.trait.defense_bonus
+        weapon_bonus = self.trait.attack_bonus + sneak * 2 * defender.trait.sneak_penalty_factor
+        armor_bonus = defender.trait.defense_bonus
         if self.weapon is not None:
             weapon_bonus += self.weapon.min_lvl
         if defender.armor is not None:
@@ -141,6 +143,7 @@ class Character(object):
             Bounty.create(self, None, 0, 1, self.connection)
         else:
             pie_bounty.kill_count += 1
+            pie_bounty.save()
 
     def save(self):
         self.connection.execute(
@@ -151,7 +154,7 @@ class Character(object):
             {"name": self.name, "user_id": self.user_id,
              "character_id": self.char_id, "weapon_id": self.weapon_id, "armor_id": self.armor_id,
              "experience": self.experience, "lvl": self.lvl, "exp_gain_time": self.exp_gain_time,
-             "trait_id": self.trait_id, "x": self.position.x, "y": self.position.y, "trait_bonus": self.trait_bonus}
+             "trait_id": self.trait_id.value, "x": self.position.x, "y": self.position.y, "trait_bonus": self.trait_bonus}
         )
 
     def delete(self):
@@ -167,7 +170,7 @@ class Character(object):
                connection):
         trait = random.choice(Trait.data_by_id.values())
         trait_bonus = trait.get_random_strength()
-        trait_id = trait.id
+        trait_id = trait.id.value
         cursor = connection.execute(
             '''INSERT INTO characters (name, user_id, experience, lvl, weapon_id, armor_id, trait_id, exp_gain_time,
             x, y, trait_bonus)
@@ -224,10 +227,20 @@ class Character(object):
             WHERE exp_gain_time <= ? """,
             (dt.datetime.now(utc),)
         )
-        characters = []
-        for row in cursor:
-            characters.append(cls(*row, connection=connection))
-        return characters
+        # characters = []
+        # for row in cursor:
+        #     characters.append(cls(*row, connection=connection))
+        # return characters
+        return map(lambda row: cls(*row, connection=connection), cursor)
+
+    @classmethod
+    def find_by_location(cls, connection, x, y):
+        cursor = connection.execute(
+            """ SELECT * from characters
+            WHERE x = :x and y = :y""",
+            {"x": x, "y": y}
+        )
+        return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
@@ -261,6 +274,9 @@ class Character(object):
 
 
 class Trait(NamedData):
+    """
+    TODO: auto flee, recovery from dead
+    """
     data_by_name = {}
     data_by_id = {}
 
@@ -272,27 +288,28 @@ class Trait(NamedData):
         ALERT = "Alert"
         LUCKY = "Lucky"
         VIOLENT = "Violent"
-        PACIFIST = "Pacifist"
+        PACIFIST = "Pacifist"  # TODO: implement gain
 
     def __init__(self, orig_name, name, connection):
         super(Trait, self).__init__(orig_name, name, connection)
+        self._NamedData__data_id = self.Traits(orig_name)
 
     def get_random_strength(self):
         if self.id == self.Traits.DURABLE:
             return random.randint(1, 3)
         if self.id == self.Traits.STRONG:
             return random.randint(2, 4)
-        elif self.id == self.Traits.WISE:
-            return random.randrange(1.05, 1.15, 0.1)
-        elif self.id == self.Traits.GREEDY:
-            return random.randrange(1.5, 2, 0.25)
-        elif self.id == self.Traits.ALERT:
+        if self.id == self.Traits.WISE:
+            return 1 + random.randint(5, 15)*0.1
+        if self.id == self.Traits.GREEDY:
+            return 1.5 + random.randint(0, 6)*0.25
+        if self.id == self.Traits.ALERT:
             return None
-        elif self.id == self.Traits.LUCKY:
-            return random.randrange(0.80, 0.95, 0.1)
-        elif self.id == self.Traits.VIOLENT:
+        if self.id == self.Traits.LUCKY:
+            return 0.8 + random.randint(0, 3)*0.05
+        if self.id == self.Traits.VIOLENT:
             return -1
-        elif self.id == self.Traits.PACIFIST:
+        if self.id == self.Traits.PACIFIST:
             return 0
 
     def defense_bonus(self, strength):
@@ -314,7 +331,7 @@ class Trait(NamedData):
         if self.id == self.Traits.LUCKY:
             return strength
         elif self.id in [self.Traits.DURABLE or self.Traits.STRONG]:
-            return 1-max((8-lvl)*0.01, 0)
+            return 1 - max((8 - lvl) * 0.01, 0)
         return 1
 
     @classmethod

@@ -1,5 +1,5 @@
 {
-  "output_file": "Settings/settings.json",
+  "output_file": "Settings/rpg_settings.json",
   "test_offline":{
     "type":"checkbox",
     "value":false,
@@ -48,6 +48,118 @@
     "label":"time to stay in an area before getting exp",
     "tooltip":"the time you need to stay in an area to gain exp. Being in a fight delays this",
     "group":"gameplay"
+  },
+  "durable_name":{
+    "type":"textbox",
+    "value":"Durable",
+    "label":"durable name",
+    "tooltip":"name of the durable trait if enabled",
+    "group":"traits"
+  },
+  "durable_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"durable enabled",
+    "tooltip":"when checked, durable is available as a trait",
+    "group":"traits"
+  },
+  "strong_name":{
+    "type":"textbox",
+    "value":"Strong",
+    "label":"strong name",
+    "tooltip":"name of the strong trait if enabled",
+    "group":"traits"
+  },
+  "strong_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"durable enabled",
+    "tooltip":"when checked, strong is available as a trait",
+    "group":"traits"
+  },
+  "wise_name":{
+    "type":"textbox",
+    "value":"Wise",
+    "label":"wise name",
+    "tooltip":"name of the wise trait if enabled",
+    "group":"traits"
+  },
+  "wise_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"wise enabled",
+    "tooltip":"when checked, wise is available as a trait",
+    "group":"traits"
+  },
+  "greedy_name":{
+    "type":"textbox",
+    "value":"Greedy",
+    "label":"greedy name",
+    "tooltip":"name of the greedy trait if enabled",
+    "group":"traits"
+  },
+  "greedy_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"greedy enabled",
+    "tooltip":"when checked, greedy is available as a trait",
+    "group":"traits"
+  },
+  "alert_name":{
+    "type":"textbox",
+    "value":"Alert",
+    "label":"alert name",
+    "tooltip":"name of the alert trait if enabled",
+    "group":"traits"
+  },
+  "alert_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"alert enabled",
+    "tooltip":"when checked, alert is available as a trait",
+    "group":"traits"
+  },
+  "lucky_name":{
+    "type":"textbox",
+    "value":"Lucky",
+    "label":"lucky name",
+    "tooltip":"name of the lucky trait if enabled",
+    "group":"traits"
+  },
+  "lucky_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"lucky enabled",
+    "tooltip":"when checked, lucky is available as a trait",
+    "group":"traits"
+  },
+  "violent_name":{
+    "type":"textbox",
+    "value":"Violent",
+    "label":"violent name",
+    "tooltip":"name of the violent trait if enabled",
+    "group":"traits"
+  },
+  "violent_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"violent enabled",
+    "tooltip":"when checked, violent is available as a trait",
+    "group":"traits"
+  },
+  "pacifist_name":{
+    "type":"textbox",
+    "value":"Pacifist",
+    "label":"pacifist name",
+    "tooltip":"name of the pacifist trait if enabled",
+    "group":"traits"
+  },
+  "pacifist_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"pacifist enabled",
+    "tooltip":"when checked, pacifist is available as a trait",
+    "group":"traits"
   },
   "starting_location": {
     "type": "textbox",
@@ -195,5 +307,12 @@
     "label": "bounty command",
     "tooltip": "place piecoins on a player's head (loot reward).",
     "group": "Command Names"
+  },
+  "no_character_yet": {
+    "type": "textbox",
+    "value": "{0}, you don't have a character yet, create one by typing {1} {{name}}",
+    "label": "no character yet response",
+    "tooltip": "command response when user has currently no available character",
+    "group": "Responses"
   }
 }

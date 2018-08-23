@@ -24,7 +24,7 @@ Version = "0.0.1"
 # ---------------------------------------
 #   Global Variables
 # ---------------------------------------
-m_settings_file = os.path.join(os.path.dirname(__file__), "Settings\settings.json")
+m_settings_file = os.path.join(os.path.dirname(__file__), "Settings", "rpg_settings.json")
 ScriptSettings = None
 game = None
 next_update = 0
@@ -51,6 +51,8 @@ def Init():
 
     #   Load settings
     ScriptSettings = SettingsModule.Settings(m_settings_file, ScriptName)
+    Parent.Log(ScriptName, str(ScriptSettings.__dict__))
+    Parent.Log(ScriptName, m_settings_file)
 
     # Create game
     game = RpgGame.RpgGame(ScriptSettings, ScriptName, db_directory)

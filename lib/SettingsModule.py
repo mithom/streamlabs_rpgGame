@@ -75,7 +75,7 @@ class Settings(object):
             self.give_command = "!give"
             self.bounty_command = "!bounty"
 
-            # responses, TODO: add to ui_config
+            # responses
             self.no_character_yet = "{0}, you don't have a character yet, create one by typing {1} {{name}}"
 
     def reload(self, json_data):

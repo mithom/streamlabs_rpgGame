@@ -1,6 +1,6 @@
 This is a minigame in development for the Kaylovespie Twitch chat. You can level up, collect piecoin loot, buy equipment, and hunt down other players. This game has permanent death, when you die you lose all levels and equipment and return to town. Subscribers trigger 4x experience bonus for a time.
 
-To start your journey just type: !move fields
+To start your journey just type: !create charactername
 
 COMMANDS
 

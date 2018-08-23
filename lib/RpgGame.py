@@ -2,6 +2,7 @@ from StaticData import Location, Weapon, Armor, Map
 from characters import Character, Trait
 from Attack import Attack
 from Bounty import Bounty
+from Boss import Boss
 import operator
 
 import os
@@ -63,6 +64,7 @@ class RpgGame(object):
             Character.create_table_if_not_exists(conn)
             Attack.create_table_if_not_exists(conn)
             Bounty.create_table_if_not_exists(conn)
+            Boss.create_table_if_not_exists(conn)
 
     def create_and_load_static_data(self):
         with self.get_connection() as conn:
@@ -74,6 +76,7 @@ class RpgGame(object):
             Weapon.load_weapons(conn)
             Trait.create_traits(self.scriptSettings, conn)
             Character.load_static_data(conn)
+            Boss.create_bosses(conn)
             conn.commit()
 
     def apply_reload(self):
@@ -211,17 +214,22 @@ class RpgGame(object):
                 return
             location = character.position.location
             Parent.SendStreamMessage(self.format_message(
-                "{0}, your character {1} is located at {8}, which is a {2} with difficulty {3}. Your current lvl is {4} and xp {5}. " +
-                "Your current are currently wearing {6} and use {7} as weapon",
-                username,
-                character.name,
-                location.name,
-                location.difficulty,
-                character.lvl,
-                character.experience,
-                getattr(character.armor, "name", "rags"),
-                getattr(character.weapon, "name", "bare hands"),
-                str(character.position.coord)
+                "{username}, your character {char_name} is located at {coords}, which is a {loc_name} with difficulty" +
+                " {difficulty}. Your current lvl is {lvl} and xp {xp}/{needed_xp}. " +
+                "Your current are currently wearing {armor} and use {weapon} as weapon." +
+                " Your trait is {trait_name} with strength {trait_strength}.",
+                username=username,
+                char_name=character.name,
+                loc_name=location.name,
+                difficulty=location.difficulty,
+                lvl=character.lvl,
+                xp=character.experience,
+                needed_xp=character.exp_for_next_lvl(),
+                weapon=getattr(character.armor, "name", "rags"),
+                armor=getattr(character.weapon, "name", "bare hands"),
+                coords=str(character.position.coord),
+                trait_name=character.trait.trait.name,
+                trait_strength=character.trait.strength
             ))
 
     def condensed_info(self, user_id, username):
@@ -244,7 +252,9 @@ class RpgGame(object):
 
     def create(self, user_id, username, character_name):
         with self.get_connection() as conn:
-            if Character.find_by_user(user_id, conn) is None and Character.find_by_name(character_name, conn) is None:
+            if Character.find_by_user(user_id, conn) is None and\
+                    Character.find_by_name(character_name, conn) is None and \
+                    Boss.find_by_name(character_name, conn) is None:
                 exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
                 x, y = Map.starting_position()
                 Character.create(character_name, user_id, 0, 1, None, None, exp_gain_time, x, y, conn)
@@ -537,7 +547,7 @@ class RpgGame(object):
     # ---------------------------------------
     #   auxiliary functions
     # ---------------------------------------
-    def format_message(self, msg, *args):
+    def format_message(self, msg, *args, **kwargs):
         if self.scriptSettings.add_me:
             msg = "/me " + msg
-        return msg.format(*args)
+        return msg.format(*args, **kwargs)

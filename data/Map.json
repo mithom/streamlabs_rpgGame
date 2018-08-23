@@ -1,5 +1,6 @@
 {
   "starting_coordinates":[1, 0],
+  "boss_coordinates":[7, 0],
   "map":[
     ["Fields","Town",   "Forest", "Forest", "Mountains",  "Ruins",  "Dessert", "Abyss"],
     [null,    "Castle", null,     "River",  null,         "Caves",  null],
