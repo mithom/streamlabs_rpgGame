@@ -51,8 +51,6 @@ def Init():
 
     #   Load settings
     ScriptSettings = SettingsModule.Settings(m_settings_file, ScriptName)
-    Parent.Log(ScriptName, str(ScriptSettings.__dict__))
-    Parent.Log(ScriptName, m_settings_file)
 
     # Create game
     game = RpgGame.RpgGame(ScriptSettings, ScriptName, db_directory)

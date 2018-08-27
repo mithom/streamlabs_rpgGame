@@ -1,11 +1,11 @@
-from characters import Character
+import characters
 import datetime as dt
 from pytz import utc
 
 
 class Attack(object):
-    def __init__(self, attack_id, action, attacker_id, target_id, resolve_time=None, resolver_id=None, connection=None,
-                 children=None):
+    def __init__(self, attack_id, action, attacker_id, target_id, resolve_time=None, resolver_id=None, boss_id=None,
+                 connection=None, children=None):
         if connection is None:
             raise ValueError("connection cannot be None")
         if children is None:
@@ -29,6 +29,8 @@ class Attack(object):
         self._resolver_id = resolver_id
         self.resolver = None
 
+        self.boss_id = boss_id
+
     @property
     def attack_id(self):
         return self.__attack_id
@@ -36,7 +38,7 @@ class Attack(object):
     @property
     def attacker(self):
         if self._attacker is None:
-                self._attacker = Character.find(self.attacker_id, self.connection)
+                self._attacker = characters.Character.find(self.attacker_id, self.connection)
         return self._attacker
 
     @attacker.setter
@@ -47,7 +49,7 @@ class Attack(object):
     @property
     def target(self):
         if self._target is None:
-            self._target = Character.find(self.target_id, self.connection)
+            self._target = characters.Character.find(self.target_id, self.connection)
         return self._target
 
     @target.setter
@@ -81,11 +83,13 @@ class Attack(object):
         )
 
     @classmethod
-    def create(cls, action, attacker_id, target_id=None, resolve_time=None, resolver_id=None, connection=None):
-        cursor = connection.execute('''INSERT INTO attacks (action, attacker_id, target_id, resolve_time, resolver_id)
-                                    VALUES (:action, :attacker_id, :target_id, :resolve_time, :resolver_id)''',
+    def create(cls, action, attacker_id, target_id=None, resolve_time=None, resolver_id=None, boss_id=None,
+               connection=None):
+        cursor = connection.execute('''INSERT INTO attacks (action, attacker_id, target_id, resolve_time, resolver_id,
+                                    boss_id)
+                                  VALUES (:action, :attacker_id, :target_id, :resolve_time, :resolver_id, :boss_id)''',
                                     {"action": action, "attacker_id": attacker_id, "target_id": target_id,
-                                     "resolve_time": resolve_time, "resolver_id": resolver_id}
+                                     "resolve_time": resolve_time, "resolver_id": resolver_id, "boss_id": boss_id}
                                     )
         connection.commit()
         return cls(cursor.lastrowid, action, attacker_id, target_id, resolve_time, resolver_id, connection=connection)
@@ -96,7 +100,7 @@ class Attack(object):
             """SELECT Resolver.attack_id, Resolver.action, Resolver.attacker_id, Resolver.target_id,
             Resolver.resolve_time, Child.attack_id, Child.action, Child.attacker_id, Child.target_id, Child.resolver_id
             FROM attacks Resolver LEFT OUTER JOIN attacks Child on Child.resolver_id = Resolver.attack_id
-            WHERE Resolver.resolve_time <= ?
+            WHERE Resolver.resolve_time <= ? and Resolver.boss_id is null 
             ORDER BY Resolver.attack_id ASC, Child.attack_id;""",
             (dt.datetime.now(utc),)
         )
@@ -115,7 +119,7 @@ class Attack(object):
     @classmethod
     def find(cls, attack_id, connection):
         cursor = connection.execute(
-            """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id
+            """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id, boss_id
             FROM attacks
             WHERE attack_id = :attack_id """,
             {"attack_id": attack_id}
@@ -126,11 +130,21 @@ class Attack(object):
         return cls(*row, connection=connection)
 
     @classmethod
+    def find_boss_attack_past_resolve_time(cls, connection):
+        cursor = connection.execute(
+            """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id, boss_id
+            FROM attacks
+            WHERE boss_id is not null and resolve_time <= :now""",
+            {"now": dt.datetime.now(utc)}
+        )
+        return map(lambda row: cls(*row, connection=connection), cursor)
+
+    @classmethod
     def find_by_attacker_or_target(cls, attacker, connection):
-        if type(attacker) is Character:
+        if type(attacker) is characters.Character:
             attacker = attacker.char_id
         cursor = connection.execute(
-            """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id
+            """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id, boss_id
             FROM attacks
             WHERE attacker_id = :attacker_id or target_id = :attacker_id
             ORDER BY attacker_id = :attacker_id DESC """,
@@ -143,10 +157,10 @@ class Attack(object):
 
     @classmethod
     def find_by_target(cls, target, connection):
-        if type(target) is Character:
+        if type(target) is characters.Character:
             target = target.char_id
         cursor = connection.execute(
-            """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id
+            """SELECT attack_id, action, attacker_id, target_id, resolve_time, resolver_id, boss_id
             FROM attacks
             WHERE target_id = :target_id""",
             {"target_id": target}
@@ -163,9 +177,11 @@ class Attack(object):
                         action          text      NOT NULL,
                         attacker_id     integer   NOT NULL,
                         target_id       integer,
+                        boss_id         integer,
                         resolve_time    timestamp,
                         resolver_id     integer,
                          FOREIGN KEY (resolver_id)  REFERENCES attacks(attack_id),
                          FOREIGN KEY (attacker_id)  REFERENCES characters (character_id),
-                         FOREIGN KEY (target_id)    REFERENCES characters (character_id)
+                         FOREIGN KEY (target_id)    REFERENCES characters (character_id),
+                         FOREIGN KEY (boss_id)      REFERENCES bosses(boss_id)
                         );""")

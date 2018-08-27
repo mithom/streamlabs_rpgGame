@@ -1,9 +1,10 @@
 from StaticData import Location, Weapon, Armor, Map
-from characters import Character, Trait
+from characters import Character, Trait, SpecialCooldown, Special
 from Attack import Attack
 from Bounty import Bounty
 from Boss import Boss
 import operator
+import random
 
 import os
 import datetime as dt
@@ -45,6 +46,9 @@ class RpgGame(object):
         self.script_name = script_name
         self.db_directory = db_directory
 
+        # Pass on Parent object
+        Character.Parent = Parent
+
         # Prepare everything
         self.prepare_database()
         self.create_and_load_static_data()
@@ -75,6 +79,7 @@ class RpgGame(object):
             Weapon.create_weapons(conn)
             Weapon.load_weapons(conn)
             Trait.create_traits(self.scriptSettings, conn)
+            Special.create_specials(self.scriptSettings, conn)
             Character.load_static_data(conn)
             Boss.create_bosses(conn)
             conn.commit()
@@ -85,6 +90,10 @@ class RpgGame(object):
     def tick(self):
         with self.get_connection() as conn:
             # TODO: check if thread increases efficiency or not for small amounts of fights
+            Boss.respawn_bosses(conn)
+            self.do_boss_attacks(conn)
+            for attack in Attack.find_boss_attack_past_resolve_time(conn):
+                self.resolve_boss_attack(attack, conn)
             for fight in Attack.find_fights(conn):
                 self.resolve_fight(fight, conn)
             lvl_up = []
@@ -115,6 +124,46 @@ class RpgGame(object):
                     "some characters died while roaming the dangerous lands or pieland: " +
                     ", ".join(map(lambda char: char.name, deaths))
                 ))
+
+    def do_boss_attacks(self, conn):
+        for boss in Boss.find_by_active_and_past_attack_time(conn):
+            killed_char = boss.do_attack(self.scriptSettings.fight_resolve_time)
+            if killed_char is not None:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, {1} has been killed by boss {2}",
+                    Parent.GetDisplayName(killed_char.user_id),
+                    killed_char.name,
+                    boss.name
+                ))
+                killed_char.delete()
+            boss.save()
+
+    def resolve_boss_attack(self, attack, conn):
+        boss = Boss.find(attack.boss_id, conn)
+        if boss.state != boss.State.DEAD:
+            if attack.attacker.attack_boss(boss):
+                specials = set(Special.data_by_id.keys())
+                character_specials = set(map(lambda x: x.id, attack.attacker.specials))
+                new_specials = specials-character_specials
+                if len(new_specials) > 0:
+                    new_special_id = random.choice(list(new_specials))
+                    special = SpecialCooldown.create(attack.attacker_id, new_special_id, conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, {1} has gained the ability {2} ({3}) on a {4} seconds cooldown.",
+                        Parent.GetDisplayName(attack.attacker.user_id),
+                        attack.attacker.name,
+                        special.special.name,
+                        special.special.identifier,
+                        special.special.cooldown_time
+                    ))
+                else:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, your character {1} already has every available special and cannot get a new one.",
+                        Parent.GetDisplayName(attack.attacker.user_id),
+                        attack.attacker.name
+                    ))
+            boss.save()
+        attack.delete()
 
     def resolve_fight(self, fight, conn):
         kills = {}
@@ -360,11 +409,57 @@ class RpgGame(object):
                     self.scriptSettings.create_command
                 ))
                 return
+            fight1 = Attack.find_by_attacker_or_target(attacker, conn)
+            if fight1 is not None:
+                if fight1.attacker_id == attacker.char_id:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you are already attacking someone", username
+                    ))
+                    return
             if target is None:
-                Parent.SendStreamMessage(
-                    self.format_message("{0}, no target exists with that character name", username))
-                return
+                boss = Boss.find_by_name(target_name, conn)
+                if boss is None:
+                    Parent.SendStreamMessage(
+                        self.format_message("{0}, no target exists with that character name", username))
+                    return
+                else:
+                    if fight1 is not None:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you are being attacked or attacking someone, either way, too hard to focus on the" +
+                            " boss now",
+                            username
+                        ))
+                        return
+                    if boss.position != attacker.position:
+                        Parent.SendStreamMessage(
+                            self.format_message("{0}, your target is not in the same area is you are.", username))
+                        return
+                    else:
+                        if boss.state is Boss.State.DEAD:
+                            Parent.SendStreamMessage(
+                                self.format_message("{0}, this boss is currenlty dead. It will respawn in {1}",
+                                                    username, str(boss.respawn_time - dt.datetime.now(utc))))
+                            return
+                        else:
+                            resolve_time = dt.datetime.now(utc) + dt.timedelta(
+                                seconds=self.scriptSettings.fight_resolve_time)
+                            Attack.create(self.ATTACK_ACTION, attacker.char_id, boss_id=boss.boss_id,
+                                          resolve_time=resolve_time, connection=conn)
+                            return
             if target.position == attacker.position:
+                if fight1 is not None:
+                    if fight1.attacker_id == attacker.char_id:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you are already attacking someone",
+                            username))
+                        return
+                    if fight1.attacker_id != target.char_id:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you are being attacked by {1}, you should fight hem first",
+                            username,
+                            target.name
+                        ))
+                        return
                 fight = Attack.find_by_attacker_or_target(target, conn)
                 if fight is None:
                     # delay xp time for attacker

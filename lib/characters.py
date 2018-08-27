@@ -5,6 +5,7 @@ from enum import Enum
 from pytz import utc
 import datetime as dt
 from Position import Position
+from Attack import Attack
 
 
 class Character(object):
@@ -12,14 +13,10 @@ class Character(object):
     by default lazy load static data, this is in memory anyway
     """
     game = None
+    Parent = None
 
     def __init__(self, char_id, name, user_id, experience, lvl, weapon_id, armor_id, trait_id,
-                 exp_gain_time, x, y, trait_bonus, connection, weapon=None, armor=None, trait=None, special_ids=None,
-                 specials=None):
-        if special_ids is None:
-            special_ids = []
-        if specials is None:
-            specials = []
+                 exp_gain_time, x, y, trait_bonus, connection, weapon=None, armor=None, trait=None):
         self.__char_id = char_id
         self.name = name
         self.user_id = user_id
@@ -39,8 +36,7 @@ class Character(object):
         self._trait = trait
         self.trait_bonus = trait_bonus
 
-        self.special_ids = special_ids  # This is a string
-        self._specials = specials
+        self._specials = None
 
         self.position = Position(x, y)
 
@@ -75,7 +71,7 @@ class Character(object):
     @property
     def trait(self):
         if self._trait is None:
-            self._trait = TraitStrength(self.trait_id, self.trait_bonus, self.lvl)
+            self._trait = TraitStrength(self.trait_id, self.trait_bonus, self.lvl, self)
         return self._trait
 
     @trait.setter
@@ -83,6 +79,13 @@ class Character(object):
         self._trait = trait
         self.trait_id = trait.trait.id
         self.trait_bonus = trait.strength
+        trait.character = self
+
+    @property
+    def specials(self):
+        if self._specials is None:
+            self._specials = SpecialCooldown.find_by_character_id(self.char_id, self.connection)
+        return self._specials
 
     def attempt_flee(self):
         if random.random() * 100 <= 45:
@@ -107,9 +110,15 @@ class Character(object):
         next_lvl_exp = self.exp_for_next_lvl()
         if self.experience >= next_lvl_exp:
             self.experience -= next_lvl_exp
-            self.lvl += 1
+            self.lvl_up()
             return True
         return False
+
+    def lvl_up(self):
+        self.lvl += 1
+        if self.trait.trait.id == Trait.Traits.PACIFIST:
+            if self.lvl % 2 == 1:
+                self.trait.strength += 1
 
     def check_survival(self):
         rand = random.random() * 100
@@ -118,9 +127,9 @@ class Character(object):
             armor_bonus = self.armor.min_lvl * 10
         if self.position.location.difficulty * 2 < self.lvl:
             return rand > 100 * self.trait.death_chance_factor * (
-                        4 + 0.5 * (self.position.location.difficulty * 3 - self.lvl)) / (100 + armor_bonus)
+                    4 + 0.5 * (self.position.location.difficulty * 3 - self.lvl)) / (100 + armor_bonus)
         return rand > 100 * self.trait.death_chance_factor * (
-                    4 + 1.5 * (self.position.location.difficulty * 3 - self.lvl)) / (100.0 + armor_bonus)
+                4 + 1.5 * (self.position.location.difficulty * 3 - self.lvl)) / (100.0 + armor_bonus)
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
@@ -145,6 +154,18 @@ class Character(object):
             pie_bounty.kill_count += 1
             pie_bounty.save()
 
+    def attack_boss(self, boss):
+        roll = random.randint(1, 40)
+        weapon_bonus = self.trait.attack_bonus
+        if self.weapon is not None:
+            weapon_bonus += self.weapon.min_lvl
+        if roll + self.lvl * 2 + weapon_bonus > \
+                boss.lvl * 2 + boss.defense_bonus + 20:
+            success = boss.damage(1)
+            boss.save()
+            return success
+        return False
+
     def save(self):
         self.connection.execute(
             """UPDATE characters set name = :name, user_id = :user_id,
@@ -154,12 +175,20 @@ class Character(object):
             {"name": self.name, "user_id": self.user_id,
              "character_id": self.char_id, "weapon_id": self.weapon_id, "armor_id": self.armor_id,
              "experience": self.experience, "lvl": self.lvl, "exp_gain_time": self.exp_gain_time,
-             "trait_id": self.trait_id.value, "x": self.position.x, "y": self.position.y, "trait_bonus": self.trait_bonus}
+             "trait_id": self.trait_id.value, "x": self.position.x, "y": self.position.y,
+             "trait_bonus": self.trait_bonus}
         )
 
     def delete(self):
+        attack = Attack.find_by_attacker_or_target(self, self.connection)
+        if attack is not None and attack.boss_id is None:  # TODO: fix problem is person is attacked during boss battle and dies by boss.
+            self.Parent.Log("rpgGame", "something is wrong in the code, char got deleted while still in a fight.")
+        elif attack is not None:
+            attack.delete()
         for bounty in Bounty.find_all_by_character(self, self.connection):
             bounty.delete()
+        for special in self.specials:
+            special.delete()
         self.connection.execute(
             """DELETE FROM characters WHERE character_id = ?""",
             (self.char_id,)
@@ -234,7 +263,7 @@ class Character(object):
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
-    def find_by_location(cls, connection, x, y):
+    def find_by_location(cls, x, y, connection):
         cursor = connection.execute(
             """ SELECT * from characters
             WHERE x = :x and y = :y""",
@@ -247,7 +276,6 @@ class Character(object):
         """timestamp can be null, if stream goes offline for example"""
         Trait.create_table_if_not_exists(connection)
         Special.create_table_if_not_exists(connection)
-        # TODO: create specials join table with user_cooldown
         connection.execute(
             """create table if not exists characters
             (character_id integer PRIMARY KEY   NOT NULL,
@@ -267,10 +295,12 @@ class Character(object):
               FOREIGN KEY (trait_id)    REFERENCES traits(orig_name)
             );"""
         )
+        SpecialCooldown.create_table_if_not_exists(connection)
 
     @classmethod
     def load_static_data(cls, connection):
         Trait.load_traits(connection)
+        Special.load_specials(connection)
 
 
 class Trait(NamedData):
@@ -288,7 +318,7 @@ class Trait(NamedData):
         ALERT = "Alert"
         LUCKY = "Lucky"
         VIOLENT = "Violent"
-        PACIFIST = "Pacifist"  # TODO: implement gain
+        PACIFIST = "Pacifist"
 
     def __init__(self, orig_name, name, connection):
         super(Trait, self).__init__(orig_name, name, connection)
@@ -300,20 +330,20 @@ class Trait(NamedData):
         if self.id == self.Traits.STRONG:
             return random.randint(2, 4)
         if self.id == self.Traits.WISE:
-            return 1 + random.randint(5, 15)*0.1
+            return 1 + random.randint(5, 15) * 0.1
         if self.id == self.Traits.GREEDY:
-            return 1.5 + random.randint(0, 6)*0.25
+            return 1.5 + random.randint(0, 6) * 0.25
         if self.id == self.Traits.ALERT:
             return None
         if self.id == self.Traits.LUCKY:
-            return 0.8 + random.randint(0, 3)*0.05
+            return 0.8 + random.randint(0, 3) * 0.05
         if self.id == self.Traits.VIOLENT:
             return -1
         if self.id == self.Traits.PACIFIST:
             return 0
 
     def defense_bonus(self, strength):
-        return strength if self.id == self.Traits.DURABLE else 0
+        return strength if self.id in [self.Traits.DURABLE, self.Traits.PACIFIST] else 0
 
     def attack_bonus(self, strength):
         return strength if self.id in (self.Traits.STRONG, self.Traits.VIOLENT) else 0
@@ -363,10 +393,20 @@ class Trait(NamedData):
 
 
 class TraitStrength(object):
-    def __init__(self, orig_name, strength, lvl):
+    def __init__(self, orig_name, strength, lvl, character=None):
         self.trait = Trait.find(orig_name)
-        self.strength = strength
+        self._strength = strength
         self.lvl = lvl
+        self.character = character
+
+    @property
+    def strength(self):
+        return self._strength
+
+    @strength.setter
+    def strength(self, value):
+        self._strength = value
+        self.character.trait_bonus = value
 
     @property
     def defense_bonus(self):
@@ -393,10 +433,93 @@ class TraitStrength(object):
         return self.trait.death_chance_factor(self.strength, self.lvl)
 
 
+class SpecialCooldown(object):
+    def __init__(self, character_id, specials_orig_name, unavailable_until, connection, character=None, special=None):
+        self.character_id = character_id
+        self._character = character
+
+        self.specials_orig_name = specials_orig_name
+        self._special = special
+
+        self.unavailable_until = unavailable_until
+
+        self.connection = connection
+
+    @property
+    def character(self):
+        if self._character is None:
+            self._character = Character.find(self.character_id, self.connection)
+        return self._character
+
+    @character.setter
+    def character(self, value):
+        self._character = value
+        self.character_id = value.char_id
+
+    @property
+    def special(self):
+        if self._special is None:
+            self._special = Special.find(self.specials_orig_name)
+        return self._special
+
+    @special.setter
+    def special(self, value):
+        self._special = value
+        self.specials_orig_name = value.id
+
+    def delete(self):
+        pass  # TODO: implement
+
+    def save(self):
+        pass  # TODO: implement
+
+    @classmethod
+    def find_by_character_id(cls, character_id, connection):
+        cursor = connection.execute("""SELECT * FROM character_specials
+                              WHERE character_id = :character_id""",
+                                    {"character_id": character_id})
+        return map(lambda row: cls(*row, connection=connection), cursor)
+
+    @classmethod
+    def create(cls, character, special, connection, unavailable_until=None):
+        if type(character) is Character:
+            character = character.char_id
+        if type(special) is Special:
+            special = special.id
+        connection.execute(
+            '''INSERT INTO character_specials (character_id, specials_orig_name, unavailable_until)
+            VALUES (:character_id, :specials_orig_name, :unavailable_until)''',
+            {"character_id": character, "specials_orig_name": special, "unavailable_until": unavailable_until})
+        return cls(character, special, unavailable_until, connection=connection)
+
+    @classmethod
+    def create_table_if_not_exists(cls, connection):
+        connection.execute("""create table if not exists character_specials
+            (character_id       text      NOT NULL,
+            specials_orig_name  text      NOT NULL,
+            unavailable_until  timestamp,
+            FOREIGN KEY (character_id)   REFERENCES characters(character_id),
+            FOREIGN KEY (specials_orig_name)   REFERENCES specials(orig_name),
+            PRIMARY KEY (character_id, specials_orig_name)
+        );""")
+
+
 class Special(NamedData):
     """The specials self are static, the join-table won't be"""
     data_by_name = {}
     data_by_id = {}
+
+    class Specials(Enum):
+        PERSIST = "Persist"
+        STUN = "Stun"
+        TRACK = "Track"
+        GUARDIAN = "Guardian"
+        EMPOWER = "Empower"
+        REPEL = "Repel"
+        BLIND = "Blind"
+        CURSE = "Curse"
+        INVIS = "Invis"
+        STEAL = "Steal"
 
     def __init__(self, orig_name, name, identifier, cooldown_time, connection):
         super(Special, self).__init__(orig_name, name, connection)
@@ -411,6 +534,20 @@ class Special(NamedData):
             identifier      char    UNIQUE       NOT NULL,
             cooldown_time   integer NOT NULL
             );""")
+
+    @classmethod
+    def create_specials(cls, script_settings, connection):
+        """creates weapons into the database"""
+        specials = []
+        # noinspection PyTypeChecker
+        for special in cls.Specials:
+            if getattr(script_settings, special.name.lower() + "_enabled"):
+                specials.append((special.value, getattr(script_settings, special.name.lower() + "_name"),
+                                 getattr(script_settings, special.name.lower() + "_identifier"),
+                                 getattr(script_settings, special.name.lower() + "_cd", 0)))
+        connection.executemany('''INSERT OR IGNORE INTO specials(orig_name, name, identifier, cooldown_time)
+                                VALUES (?, ?, ?, ?)''', specials)
+        connection.commit()
 
     @classmethod
     def load_specials(cls, connection):

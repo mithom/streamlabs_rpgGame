@@ -46,6 +46,47 @@ class Settings(object):
             self.violent_name = "Violent"
             self.pacifist_enabled = True
             self.pacifist_name = "Pacifist"
+
+            # Specials
+            self.persist_enabled = True
+            self.persist_name = "Persist"
+            self.persist_identifier = "P"  # no cd for this one, as it is a passive
+            self.stun_enabled = True
+            self.stun_name = "Stun"
+            self.stun_identifier = "S"
+            self.stun_cd = 180
+            self.track_enabled = True
+            self.track_name = "Trqck"
+            self.track_identifier = "T"
+            self.track_cd = 300
+            self.guardian_enabled = True
+            self.guardian_name = "Guardian"
+            self.guardian_identifier = "G"
+            self.guardian_cd = 180
+            self.empower_enabled = True
+            self.empower_name = "Empower"
+            self.empower_identifier = "E"
+            self.empower_cd = 120
+            self.repel_enabled = True
+            self.repel_name = "Repel"
+            self.repel_identifier = "R"
+            self.repel_cd = 60
+            self.blind_enabled = True
+            self.blind_name = "Blind"
+            self.blind_identifier = "B"
+            self.blind_cd = 90
+            self.curse_enabled = True
+            self.curse_name = "Curse"
+            self.curse_identifier = "C"
+            self.curse_cd = 300
+            self.invis_enabled = True
+            self.invis_name = "Invis"
+            self.invis_identifier = "I"
+            self.invis_cd = 180
+            self.steal_enabled = True
+            self.steal_name = "Steal"
+            self.steal_identifier = "L"
+            self.steal_cd = 60
             # TODO: add button to open data folder
 
             # command names
