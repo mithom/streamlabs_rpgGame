@@ -56,7 +56,7 @@ class Settings(object):
             self.stun_identifier = "S"
             self.stun_cd = 180
             self.track_enabled = True
-            self.track_name = "Trqck"
+            self.track_name = "Track"
             self.track_identifier = "T"
             self.track_cd = 300
             self.guardian_enabled = True

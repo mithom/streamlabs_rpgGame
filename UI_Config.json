@@ -161,6 +161,279 @@
     "tooltip":"when checked, pacifist is available as a trait",
     "group":"traits"
   },
+  "persist_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"persist enabled",
+    "tooltip":"when checked, persist is available as a special",
+    "group":"specials"
+  },
+  "persist_name":{
+    "type":"textbox",
+    "value":"Persist",
+    "label":"persist name",
+    "tooltip":"name of the persist special if enabled",
+    "group":"specials"
+  },
+  "persist_identifier":{
+    "type":"textbox",
+    "value":"P",
+    "label":"persist identifier",
+    "tooltip":"identifier of the persist special if enabled",
+    "group":"specials"
+  },
+  "stun_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"stun enabled",
+    "tooltip":"when checked, stun is available as a special",
+    "group":"specials"
+  },
+  "stun_name":{
+    "type":"textbox",
+    "value":"Stun",
+    "label":"stun name",
+    "tooltip":"name of the stun special if enabled",
+    "group":"specials"
+  },
+  "stun_identifier":{
+    "type":"textbox",
+    "value":"S",
+    "label":"stun identifier",
+    "tooltip":"identifier of the stun special if enabled",
+    "group":"specials"
+  },
+  "stun_cd":{
+    "type":"numberbox",
+    "value":180,
+    "label":"stun cooldown",
+    "tooltip":"cooldown(seconds) of the stun special if enabled",
+    "group":"specials"
+  },
+  "track_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"track enabled",
+    "tooltip":"when checked, track is available as a special",
+    "group":"specials"
+  },
+  "track_name":{
+    "type":"textbox",
+    "value":"Track",
+    "label":"track name",
+    "tooltip":"name of the track special if enabled",
+    "group":"specials"
+  },
+  "track_identifier":{
+    "type":"textbox",
+    "value":"T",
+    "label":"track identifier",
+    "tooltip":"identifier of the track special if enabled",
+    "group":"specials"
+  },
+  "track_cd":{
+    "type":"numberbox",
+    "value":300,
+    "label":"track cooldown",
+    "tooltip":"cooldown(seconds) of the track special if enabled",
+    "group":"specials"
+  },
+  "guardian_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"guardian enabled",
+    "tooltip":"when checked, guardian is available as a special",
+    "group":"specials"
+  },
+  "guardian_name":{
+    "type":"textbox",
+    "value":"Guardian",
+    "label":"guardian name",
+    "tooltip":"name of the guardian special if enabled",
+    "group":"specials"
+  },
+  "guardian_identifier":{
+    "type":"textbox",
+    "value":"G",
+    "label":"guardian identifier",
+    "tooltip":"identifier of the guardian special if enabled",
+    "group":"specials"
+  },
+  "guardian_cd":{
+    "type":"numberbox",
+    "value":180,
+    "label":"guardian cooldown",
+    "tooltip":"cooldown(seconds) of the guardian special if enabled",
+    "group":"specials"
+  },
+  "empower_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"empower enabled",
+    "tooltip":"when checked, empower is available as a special",
+    "group":"specials"
+  },
+  "empower_name":{
+    "type":"textbox",
+    "value":"Empower",
+    "label":"empower name",
+    "tooltip":"name of the empower special if enabled",
+    "group":"specials"
+  },
+  "empower_identifier":{
+    "type":"textbox",
+    "value":"E",
+    "label":"empower identifier",
+    "tooltip":"identifier of the empower special if enabled",
+    "group":"specials"
+  },
+  "empower_cd":{
+    "type":"numberbox",
+    "value":120,
+    "label":"empower cooldown",
+    "tooltip":"cooldown(seconds) of the empower special if enabled",
+    "group":"specials"
+  },
+  "repel_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"repel enabled",
+    "tooltip":"when checked, repel is available as a special",
+    "group":"specials"
+  },
+  "repel_name":{
+    "type":"textbox",
+    "value":"Repel",
+    "label":"repel name",
+    "tooltip":"name of the repel special if enabled",
+    "group":"specials"
+  },
+  "repel_identifier":{
+    "type":"textbox",
+    "value":"R",
+    "label":"repel identifier",
+    "tooltip":"identifier of the repel special if enabled",
+    "group":"specials"
+  },
+  "repel_cd":{
+    "type":"numberbox",
+    "value":60,
+    "label":"repel cooldown",
+    "tooltip":"cooldown(seconds) of the repel special if enabled",
+    "group":"specials"
+  },
+  "blind_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"blind enabled",
+    "tooltip":"when checked, blind is available as a special",
+    "group":"specials"
+  },
+  "blind_name":{
+    "type":"textbox",
+    "value":"Blind",
+    "label":"blind name",
+    "tooltip":"name of the blind special if enabled",
+    "group":"specials"
+  },
+  "blind_identifier":{
+    "type":"textbox",
+    "value":"B",
+    "label":"blind identifier",
+    "tooltip":"identifier of the blind special if enabled",
+    "group":"specials"
+  },
+  "blind_cd":{
+    "type":"numberbox",
+    "value":90,
+    "label":"blind cooldown",
+    "tooltip":"cooldown(seconds) of the blind special if enabled",
+    "group":"specials"
+  },
+  "curse_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"curse enabled",
+    "tooltip":"when checked, curse is available as a special",
+    "group":"specials"
+  },
+  "curse_name":{
+    "type":"textbox",
+    "value":"Curse",
+    "label":"curse name",
+    "tooltip":"name of the curse special if enabled",
+    "group":"specials"
+  },
+  "curse_identifier":{
+    "type":"textbox",
+    "value":"C",
+    "label":"curse identifier",
+    "tooltip":"identifier of the curse special if enabled",
+    "group":"specials"
+  },
+  "curse_cd":{
+    "type":"numberbox",
+    "value":300,
+    "label":"curse cooldown",
+    "tooltip":"cooldown(seconds) of the curse special if enabled",
+    "group":"specials"
+  },
+  "invis_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"invis enabled",
+    "tooltip":"when checked, invis is available as a special",
+    "group":"specials"
+  },
+  "invis_name":{
+    "type":"textbox",
+    "value":"Invis",
+    "label":"invis name",
+    "tooltip":"name of the invis special if enabled",
+    "group":"specials"
+  },
+  "invis_identifier":{
+    "type":"textbox",
+    "value":"I",
+    "label":"invis identifier",
+    "tooltip":"identifier of the invis special if enabled",
+    "group":"specials"
+  },
+  "invis_cd":{
+    "type":"numberbox",
+    "value":180,
+    "label":"invis cooldown",
+    "tooltip":"cooldown(seconds) of the invis special if enabled",
+    "group":"specials"
+  },
+  "steal_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"steal enabled",
+    "tooltip":"when checked, steal is available as a special",
+    "group":"specials"
+  },
+  "steal_name":{
+    "type":"textbox",
+    "value":"Steal",
+    "label":"steal name",
+    "tooltip":"name of the steal special if enabled",
+    "group":"specials"
+  },
+  "steal_identifier":{
+    "type":"textbox",
+    "value":"L",
+    "label":"steal identifier",
+    "tooltip":"identifier of the steal special if enabled",
+    "group":"specials"
+  },
+  "steal_cd":{
+    "type":"numberbox",
+    "value":60,
+    "label":"steal cooldown",
+    "tooltip":"cooldown(seconds) of the steal special if enabled",
+    "group":"specials"
+  },
   "starting_location": {
     "type": "textbox",
     "value": "Town",
