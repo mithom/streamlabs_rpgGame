@@ -23,6 +23,7 @@ class Settings(object):
             self.only_active = True
             self.add_me = True
             self.piebank_name = "piebank"
+            self.max_steal_amount = 100
 
             # Gameplay
             self.fight_resolve_time = 20

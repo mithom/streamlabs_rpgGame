@@ -106,7 +106,7 @@ class Character(object):
         return attack_bonus
 
     def is_stunned(self):
-        return ActiveEffect.find_by_target_and_special(self, Special.Specials.STUN) is not None
+        return ActiveEffect.find_by_target_and_special(self, Special.Specials.STUN, self.connection) is not None
 
     def attempt_flee(self):
         if random.random() * 100 <= 45:
@@ -161,7 +161,7 @@ class Character(object):
         roll = random.randint(1, 40)
         weapon_bonus = self.attack_bonus + sneak * 2 * defender.trait.sneak_penalty_factor
         armor_bonus = defender.armor_bonus
-        if ActiveEffect.find_by_target_and_special(self, Special.Specials.BLIND) is not None:
+        if ActiveEffect.find_by_target_and_special(self, Special.Specials.BLIND, self.connection) is not None:
             if random.random > 0.6:
                 return False
         return roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) > \
@@ -182,7 +182,7 @@ class Character(object):
     def attack_boss(self, boss):
         roll = random.randint(1, 40)
         weapon_bonus = self.attack_bonus
-        if ActiveEffect.find_by_target_and_special(self, Special.Specials.BLIND) is not None:
+        if ActiveEffect.find_by_target_and_special(self, Special.Specials.BLIND, self.connection) is not None:
             if random.random > 0.6:
                 return False
         if roll + self.lvl * 2 + weapon_bonus > \
@@ -197,7 +197,7 @@ class Character(object):
             [special for special in self.specials if special.specials_orig_name == special_enum]
         if len(special_list) > 0:
             special = special_list[0]
-            if special.unavailable_until < dt.datetime.now(utc):
+            if special.unavailable_until is None or special.unavailable_until < dt.datetime.now(utc):
                 special.use(target)
         else:
             self.Parent.SendStreamMessage(self.format_message(

@@ -50,6 +50,7 @@ class RpgGame(object):
 
         SpecialCooldown.Parent = Parent
         SpecialCooldown.format_message = self.format_message
+        SpecialCooldown.max_steal_amount = script_settings.max_steal_amount
 
         # Pass on Parent object
         Character.Parent = Parent
@@ -91,7 +92,7 @@ class RpgGame(object):
             conn.commit()
 
     def apply_reload(self):
-        pass
+        SpecialCooldown.max_steal_amount = self.scriptSettings.max_steal_amount
 
     def tick(self):
         with self.get_connection() as conn:
@@ -150,7 +151,7 @@ class RpgGame(object):
         if boss.state != boss.State.DEAD:
             if attack.attacker.attack_boss(boss):
                 specials = set(Special.data_by_id.keys())
-                character_specials = set(map(lambda x: x.id, attack.attacker.specials))
+                character_specials = set(map(lambda x: x.specials_orig_name, attack.attacker.specials))
                 new_specials = specials-character_specials
                 if len(new_specials) > 0:
                     new_special_id = random.choice(list(new_specials))

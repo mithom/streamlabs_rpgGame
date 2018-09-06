@@ -35,6 +35,13 @@
     "tooltip": "name people have to give to to remove bounty from thyself",
     "group": "config"
   },
+  "max_steal_amount": {
+    "type": "numberbox",
+    "value": 100,
+    "label": "max steal amount",
+    "tooltip": "what is the maximum someone can steal with the Steal special",
+    "group": "config"
+  },
   "fight_resolve_time":{
     "type":"numberbox",
     "value":20,

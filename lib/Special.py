@@ -9,6 +9,7 @@ import random
 class SpecialCooldown(object):
     Parent = None
     format_message = None
+    max_steal_amount = None
 
     def __init__(self, character_id, specials_orig_name, unavailable_until, connection, character=None, special=None):
         self.character_id = character_id
@@ -44,7 +45,7 @@ class SpecialCooldown(object):
         self.specials_orig_name = value.id
 
     def use(self, target):  # target is from the class character, not a string
-        self.unavailable_until = dt.datetime.now(utc) + dt.timedelta(seconds=self.special.cd)
+        self.unavailable_until = dt.datetime.now(utc) + dt.timedelta(seconds=self.special.cooldown_time)
         self.save()
         if self.specials_orig_name is Special.Specials.TRACK:
             self.Parent.SendStreamMessage(self.format_message(
@@ -261,6 +262,8 @@ class ActiveEffect(object):
     def find_by_target_and_special(cls, target, special, connection):
         if type(special) is Special:
             special = special.id.value
+        if type(special) is Special.Specials:
+            special = special.value
         if type(target) is characters.Character:
             target = target.char_id
         cursor = connection.execute("""SELECT * FROM active_effects
@@ -284,7 +287,7 @@ class ActiveEffect(object):
         connection.execute(
             '''INSERT INTO active_effects (target_id, specials_orig_name, expiration_time)
             VALUES (:target_id, :specials_orig_name, :expiration_time)''',
-            {"target_id": target, "specials_orig_name": special_id, "expiration_time": expiration_time})
+            {"target_id": target, "specials_orig_name": special_id.value, "expiration_time": expiration_time})
         return cls(target, special, expiration_time, connection=connection)
 
     @classmethod
