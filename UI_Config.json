@@ -210,6 +210,13 @@
     "tooltip":"cooldown(seconds) of the stun special if enabled",
     "group":"specials"
   },
+  "stun_duration":{
+    "type":"numberbox",
+    "value":15,
+    "label":"stun duration",
+    "tooltip":"duration(seconds) of the stun effect when used",
+    "group":"specials"
+  },
   "track_enabled":{
     "type":"checkbox",
     "value":true,
@@ -266,6 +273,13 @@
     "tooltip":"cooldown(seconds) of the guardian special if enabled",
     "group":"specials"
   },
+  "guardian_duration":{
+    "type":"numberbox",
+    "value":60,
+    "label":"guardian duration",
+    "tooltip":"duration(seconds) of the guardian effect when used",
+    "group":"specials"
+  },
   "empower_enabled":{
     "type":"checkbox",
     "value":true,
@@ -292,6 +306,13 @@
     "value":120,
     "label":"empower cooldown",
     "tooltip":"cooldown(seconds) of the empower special if enabled",
+    "group":"specials"
+  },
+  "empower_duration":{
+    "type":"numberbox",
+    "value":60,
+    "label":"empower duration",
+    "tooltip":"duration(seconds) of the empower effect when used",
     "group":"specials"
   },
   "repel_enabled":{
@@ -322,6 +343,13 @@
     "tooltip":"cooldown(seconds) of the repel special if enabled",
     "group":"specials"
   },
+  "repel_duration":{
+    "type":"numberbox",
+    "value":20,
+    "label":"repel duration",
+    "tooltip":"duration(seconds) of the repel effect when used",
+    "group":"specials"
+  },
   "blind_enabled":{
     "type":"checkbox",
     "value":true,
@@ -348,6 +376,13 @@
     "value":90,
     "label":"blind cooldown",
     "tooltip":"cooldown(seconds) of the blind special if enabled",
+    "group":"specials"
+  },
+  "blind_duration":{
+    "type":"numberbox",
+    "value":20,
+    "label":"blind duration",
+    "tooltip":"duration(seconds) of the blind effect when used",
     "group":"specials"
   },
   "curse_enabled":{
@@ -378,6 +413,13 @@
     "tooltip":"cooldown(seconds) of the curse special if enabled",
     "group":"specials"
   },
+  "curse_duration":{
+    "type":"numberbox",
+    "value":3600,
+    "label":"curse duration",
+    "tooltip":"duration(seconds) of the curse effect when used",
+    "group":"specials"
+  },
   "invis_enabled":{
     "type":"checkbox",
     "value":true,
@@ -404,6 +446,13 @@
     "value":180,
     "label":"invis cooldown",
     "tooltip":"cooldown(seconds) of the invis special if enabled",
+    "group":"specials"
+  },
+  "invis_duration":{
+    "type":"numberbox",
+    "value":600,
+    "label":"invis duration",
+    "tooltip":"duration(seconds) of the invis effect when used",
     "group":"specials"
   },
   "steal_enabled":{
@@ -433,13 +482,6 @@
     "label":"steal cooldown",
     "tooltip":"cooldown(seconds) of the steal special if enabled",
     "group":"specials"
-  },
-  "starting_location": {
-    "type": "textbox",
-    "value": "Town",
-    "label": "starting location",
-    "tooltip": "location name where every newly created hero will start",
-    "group": "Command Names"
   },
   "info_command": {
     "type": "textbox",

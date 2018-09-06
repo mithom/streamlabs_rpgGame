@@ -1,10 +1,12 @@
 from StaticData import Location, Weapon, Armor, Map
-from characters import Character, Trait, SpecialCooldown, Special
+from characters import Character, Trait
 from Attack import Attack
 from Bounty import Bounty
 from Boss import Boss
 import operator
 import random
+from Special import SpecialCooldown, Special, ActiveEffect
+
 
 import os
 import datetime as dt
@@ -46,8 +48,12 @@ class RpgGame(object):
         self.script_name = script_name
         self.db_directory = db_directory
 
+        SpecialCooldown.Parent = Parent
+        SpecialCooldown.format_message = self.format_message
+
         # Pass on Parent object
         Character.Parent = Parent
+        Character.format_message = self.format_message
 
         # Prepare everything
         self.prepare_database()
@@ -91,6 +97,7 @@ class RpgGame(object):
         with self.get_connection() as conn:
             # TODO: check if thread increases efficiency or not for small amounts of fights
             Boss.respawn_bosses(conn)
+            ActiveEffect.delete_all_expired(conn)
             self.do_boss_attacks(conn)
             for attack in Attack.find_boss_attack_past_resolve_time(conn):
                 self.resolve_boss_attack(attack, conn)
@@ -235,7 +242,11 @@ class RpgGame(object):
             self.scriptSettings.flee_command: self.flee,
             self.scriptSettings.dough_command: self.dough,
             self.scriptSettings.queen_command: self.queen,
-            self.scriptSettings.king_command: self.king
+            self.scriptSettings.king_command: self.king,
+            "!" + self.scriptSettings.guardian_name: self.guardian,
+            "!" + self.scriptSettings.empower_name: self.empower,
+            "!" + self.scriptSettings.repel_name: self.repel,
+            "!" + self.scriptSettings.invis_name: self.invis,
         }, {
             self.scriptSettings.create_command: self.create,
             self.scriptSettings.move_command: self.move,
@@ -246,6 +257,15 @@ class RpgGame(object):
             self.scriptSettings.vote_command: self.vote,
             self.scriptSettings.smite_command: self.smite,
             self.scriptSettings.unsmite_command: self.unsmite,
+            "!" + self.scriptSettings.stun_name: self.stun,
+            "!" + self.scriptSettings.track_name: self.track,
+            "!" + self.scriptSettings.blind_name: self.blind,
+            "!" + self.scriptSettings.curse_name: self.curse,
+            "!" + self.scriptSettings.steal_name: self.steal,
+            "!" + self.scriptSettings.guardian_name: self.guardian,  # those last 4 can be both with or without target
+            "!" + self.scriptSettings.empower_name: self.empower,
+            "!" + self.scriptSettings.repel_name: self.repel,
+            "!" + self.scriptSettings.invis_name: self.invis,
         }, {
             self.scriptSettings.give_command: self.give,
             self.scriptSettings.bounty_command: self.bounty,
@@ -265,8 +285,8 @@ class RpgGame(object):
             Parent.SendStreamMessage(self.format_message(
                 "{username}, your character {char_name} is located at {coords}, which is a {loc_name} with difficulty" +
                 " {difficulty}. Your current lvl is {lvl} and xp {xp}/{needed_xp}. " +
-                "Your current are currently wearing {armor} and use {weapon} as weapon." +
-                " Your trait is {trait_name} with strength {trait_strength}.",
+                "You are currently wearing {armor} and use {weapon} as weapon." +
+                " Your trait is {trait_name} with strength {trait_strength} and specials: {specials}",
                 username=username,
                 char_name=character.name,
                 loc_name=location.name,
@@ -274,11 +294,12 @@ class RpgGame(object):
                 lvl=character.lvl,
                 xp=character.experience,
                 needed_xp=character.exp_for_next_lvl(),
-                weapon=getattr(character.armor, "name", "rags"),
-                armor=getattr(character.weapon, "name", "bare hands"),
+                weapon=getattr(character.weapon, "name", "bare hands"),
+                armor=getattr(character.armor, "name", "rags"),
                 coords=str(character.position.coord),
                 trait_name=character.trait.trait.name,
-                trait_strength=character.trait.strength
+                trait_strength=character.trait.strength or 0,
+                specials=", ".join(map(lambda x: x.special.name, character.specials))
             ))
 
     def condensed_info(self, user_id, username):
@@ -292,11 +313,13 @@ class RpgGame(object):
                 ))
                 return
             Parent.SendStreamMessage(self.format_message(
-                "{0}, name: {1}, location {2}, lvl: {3}",
+                "{0}, name: {1}, location {2}, lvl: {3}, trait: {4} specials: {5}",
                 username,
                 character.name,
                 character.position.location.name,
-                character.lvl
+                character.lvl,
+                character.trait.trait.name,
+                ", ".join(map(lambda x: x.special.identifier, character.specials))
             ))
 
     def create(self, user_id, username, character_name):
@@ -338,18 +361,24 @@ class RpgGame(object):
             if character.position.can_move_to(*get_coords_change(direction)):
                 fight = Attack.find_by_attacker_or_target(character, conn)
                 if fight is None:
-                    character.position.coord = tuple(
-                        map(operator.add, character.position.coord, get_coords_change(direction)))
-                    character.exp_gain_time = dt.datetime.now(utc) + \
-                                              dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
-                    character.save()
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, {1} moved to location {2} with difficulty {3}",
-                        username,
-                        character.name,
-                        character.position.location.name,
-                        character.position.location.difficulty
-                    ))
+                    if not character.is_stunned():
+                        character.position.coord = tuple(
+                            map(operator.add, character.position.coord, get_coords_change(direction)))
+                        character.exp_gain_time = dt.datetime.now(utc) + \
+                                                  dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
+                        character.save()
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, {1} moved to location {2} with difficulty {3}",
+                            username,
+                            character.name,
+                            character.position.location.name,
+                            character.position.location.difficulty
+                        ))
+                    else:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you cannot move while stunned!",
+                            username
+                        ))
                 else:
                     if fight.attacker_id == character.char_id:
                         Parent.SendStreamMessage(self.format_message(
@@ -385,12 +414,30 @@ class RpgGame(object):
                 if character.lvl >= weapon.min_lvl and Parent.RemovePoints(user_id, username, weapon.price):
                     character.weapon = weapon
                     character.save()
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, {1} successfully bought {2}",
+                        username, character.name, weapon.name
+                    ))
+                else:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, {1} failed to buy {2}",
+                        username, character.name, weapon.name
+                    ))
             else:
                 armor = Armor.find_by_name(item_name)
                 if armor is not None:
                     if character.lvl >= armor.min_lvl and Parent.RemovePoints(user_id, username, armor.price):
                         character.armor = armor
                         character.save()
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, {1} successfully bought {2}",
+                            username, character.name, armor.name
+                        ))
+                    else:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, {1} failed to buy {2}",
+                            username, character.name, armor.name
+                        ))
                 else:
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, {1} does not exists",
@@ -407,6 +454,12 @@ class RpgGame(object):
                     self.scriptSettings.no_character_yet,
                     username,
                     self.scriptSettings.create_command
+                ))
+                return
+            if attacker.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you cannot move while stunned!",
+                    username
                 ))
                 return
             fight1 = Attack.find_by_attacker_or_target(attacker, conn)
@@ -499,6 +552,12 @@ class RpgGame(object):
                     self.scriptSettings.create_command
                 ))
                 return
+            if defender.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you cannot defend while stunned!",
+                    username
+                ))
+                return
             fight = Attack.find_by_target(defender, conn)
             if fight is None:
                 Parent.SendStreamMessage("you are currently not being attacked")
@@ -514,6 +573,12 @@ class RpgGame(object):
                     self.scriptSettings.no_character_yet,
                     username,
                     self.scriptSettings.create_command
+                ))
+                return
+            if countermen.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you cannot counter while stunned!",
+                    username
                 ))
                 return
             fight = Attack.find_by_target(countermen, conn)
@@ -533,6 +598,12 @@ class RpgGame(object):
                     self.scriptSettings.create_command
                 ))
                 return
+            if flee_char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you cannot flee while stunned!",
+                    username
+                ))
+                return
             fight = Attack.find_by_target(flee_char, conn)
             if fight is None:
                 Parent.SendStreamMessage(self.format_message(
@@ -543,11 +614,36 @@ class RpgGame(object):
             else:
                 Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
 
-    def look(self, user_id, username, target_name):
+    def look(self, _, username, target_name):
         with self.get_connection() as conn:
             target_char = Character.find_by_name(target_name, conn)
-            user_char = Character.find_by_user(user_id, conn)
-            # TODO: compare
+            if target_name is None:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, there is no character with the name {1}",
+                    username,
+                    target_name
+                ))
+                return
+            equipment_str = "badly equipped for hes lvl"
+
+            equipment_lvl = 0
+            if target_char.weapon is not None:
+                equipment_lvl += target_char.weapon.min_lvl
+            if target_char.armor is not None:
+                equipment_lvl += target_char.armor.min_lvl
+
+            if equipment_lvl >= target_char.lvl*1.5:
+                equipment_str = "greatly equipped for hes lvl "
+            elif equipment_lvl >= target_char.lvl:
+                equipment_str = "well equipped for hes lvl "
+
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, {1} is currently lvl {2}. He looks {3}",
+                username,
+                target_name,
+                target_char.lvl,
+                equipment_str
+            ))
 
     def dough(self, user_id, username):
         Parent.SendStreamMessage(self.format_message("{0}, your current piecoin balance is {1} {2}",
@@ -561,7 +657,7 @@ class RpgGame(object):
             if recipient_name == self.scriptSettings.piebank_name:
                 if Parent.RemovePoints(user_id, username, amount):
                     bounty = Bounty.find_by_user_id_from_piebank(user_id, conn)
-                    if amount > 2 * bounty.reward:
+                    if amount >= 2 * bounty.reward and bounty.kill_count > 1:  # TODO: other way around
                         bounty.delete()
                         Parent.SendStreamMessage(self.format_message(
                             "{0}, Your bounty has been cleared",
@@ -638,6 +734,255 @@ class RpgGame(object):
 
     def stat(self, user_id, username):
         pass
+
+    # ---------------------------------------
+    #   specials functions
+    # ---------------------------------------
+    def stun(self, user_id, username, target_name):
+        with self.get_connection() as conn:
+            char = Character.find_by_user(user_id, conn)
+            if char is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet,
+                    username,
+                    self.scriptSettings.create_command
+                ))
+                return
+            if char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you use specials while stunned!",
+                    username
+                ))
+                return
+            target = Character.find_by_name(target_name, conn)
+            if target is None:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, there is no character called {1}",
+                    username,
+                    target_name
+                ))
+                return
+            char.use_special(Special.Specials.STUN, target)
+
+    def track(self, user_id, username, target_name):
+        with self.get_connection() as conn:
+            char = Character.find_by_user(user_id, conn)
+            if char is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet,
+                    username,
+                    self.scriptSettings.create_command
+                ))
+                return
+            if char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you use specials while stunned!",
+                    username
+                ))
+                return
+            target = Character.find_by_name(target_name, conn)
+            if target is None:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, there is no character called {1}",
+                    username,
+                    target_name
+                ))
+                return
+            char.use_special(Special.Specials.TRACK, target)
+
+    def guardian(self, user_id, username, target_name=None):
+        with self.get_connection() as conn:
+            char = Character.find_by_user(user_id, conn)
+            if char is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet,
+                    username,
+                    self.scriptSettings.create_command
+                ))
+                return
+            if char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you use specials while stunned!",
+                    username
+                ))
+                return
+            if target_name is None:
+                target = char
+            else:
+                target = Character.find_by_name(target_name, conn)
+                if target is None:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, there is no character called {1}",
+                        username,
+                        target_name
+                    ))
+                    return
+            char.use_special(Special.Specials.GUARDIAN, target)
+
+    def empower(self, user_id, username, target_name=None):
+        with self.get_connection() as conn:
+            char = Character.find_by_user(user_id, conn)
+            if char is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet,
+                    username,
+                    self.scriptSettings.create_command
+                ))
+                return
+            if char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you use specials while stunned!",
+                    username
+                ))
+                return
+            if target_name is None:
+                target = char
+            else:
+                target = Character.find_by_name(target_name, conn)
+                if target is None:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, there is no character called {1}",
+                        username,
+                        target_name
+                    ))
+                    return
+            char.use_special(Special.Specials.EMPOWER, target)
+
+    def repel(self, user_id, username, target_name=None):
+        with self.get_connection() as conn:
+            char = Character.find_by_user(user_id, conn)
+            if char is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet,
+                    username,
+                    self.scriptSettings.create_command
+                ))
+                return
+            if char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you use specials while stunned!",
+                    username
+                ))
+                return
+            if target_name is None:
+                target = char
+            else:
+                target = Character.find_by_name(target_name, conn)
+                if target is None:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, there is no character called {1}",
+                        username,
+                        target_name
+                    ))
+                    return
+            char.use_special(Special.Specials.REPEL, target)
+
+    def blind(self, user_id, username, target_name):
+        with self.get_connection() as conn:
+            char = Character.find_by_user(user_id, conn)
+            if char is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet,
+                    username,
+                    self.scriptSettings.create_command
+                ))
+                return
+            if char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you use specials while stunned!",
+                    username
+                ))
+                return
+            target = Character.find_by_name(target_name, conn)
+            if target is None:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, there is no character called {1}",
+                    username,
+                    target_name
+                ))
+                return
+            char.use_special(Special.Specials.BLIND, target)
+
+    def curse(self, user_id, username, target_name):
+        with self.get_connection() as conn:
+            char = Character.find_by_user(user_id, conn)
+            if char is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet,
+                    username,
+                    self.scriptSettings.create_command
+                ))
+                return
+            if char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you use specials while stunned!",
+                    username
+                ))
+                return
+            target = Character.find_by_name(target_name, conn)
+            if target is None:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, there is no character called {1}",
+                    username,
+                    target_name
+                ))
+                return
+            char.use_special(Special.Specials.CURSE, target)
+
+    def invis(self, user_id, username, target_name=None):
+        with self.get_connection() as conn:
+            char = Character.find_by_user(user_id, conn)
+            if char is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet,
+                    username,
+                    self.scriptSettings.create_command
+                ))
+                return
+            if char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you use specials while stunned!",
+                    username
+                ))
+                return
+            if target_name is None:
+                target = char
+            else:
+                target = Character.find_by_name(target_name, conn)
+                if target is None:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, there is no character called {1}",
+                        username,
+                        target_name
+                    ))
+                    return
+            char.use_special(Special.Specials.INVIS, target)
+
+    def steal(self, user_id, username, target_name):
+        with self.get_connection() as conn:
+            char = Character.find_by_user(user_id, conn)
+            if char is None:
+                Parent.SendStreamMessage(self.format_message(
+                    self.scriptSettings.no_character_yet,
+                    username,
+                    self.scriptSettings.create_command
+                ))
+                return
+            if char.is_stunned():
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you use specials while stunned!",
+                    username
+                ))
+                return
+            target = Character.find_by_name(target_name, conn)
+            if target is None:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, there is no character called {1}",
+                    username,
+                    target_name
+                ))
+                return
+            char.use_special(Special.Specials.STEAL, target)
 
     # ---------------------------------------
     #   auxiliary functions

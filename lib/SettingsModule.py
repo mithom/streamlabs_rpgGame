@@ -27,7 +27,6 @@ class Settings(object):
             # Gameplay
             self.fight_resolve_time = 20
             self.xp_farm_time = 60
-            self.starting_location = "Town"
 
             # traits
             self.durable_enabled = True
@@ -55,6 +54,7 @@ class Settings(object):
             self.stun_name = "Stun"
             self.stun_identifier = "S"
             self.stun_cd = 180
+            self.stun_duration = 15
             self.track_enabled = True
             self.track_name = "Track"
             self.track_identifier = "T"
@@ -63,26 +63,32 @@ class Settings(object):
             self.guardian_name = "Guardian"
             self.guardian_identifier = "G"
             self.guardian_cd = 180
+            self.guardian_duration = 60
             self.empower_enabled = True
             self.empower_name = "Empower"
             self.empower_identifier = "E"
             self.empower_cd = 120
+            self.empower_duration = 60
             self.repel_enabled = True
             self.repel_name = "Repel"
             self.repel_identifier = "R"
             self.repel_cd = 60
+            self.repel_duration = 20
             self.blind_enabled = True
             self.blind_name = "Blind"
             self.blind_identifier = "B"
             self.blind_cd = 90
+            self.blind_duration = 20
             self.curse_enabled = True
             self.curse_name = "Curse"
             self.curse_identifier = "C"
             self.curse_cd = 300
+            self.curse_duration = 3600
             self.invis_enabled = True
             self.invis_name = "Invis"
             self.invis_identifier = "I"
             self.invis_cd = 180
+            self.invis_duration = 600
             self.steal_enabled = True
             self.steal_name = "Steal"
             self.steal_identifier = "L"

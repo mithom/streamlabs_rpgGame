@@ -6,6 +6,7 @@ from pytz import utc
 import datetime as dt
 from Position import Position
 from Attack import Attack
+from Special import SpecialCooldown, Special, ActiveEffect
 
 
 class Character(object):
@@ -14,6 +15,7 @@ class Character(object):
     """
     game = None
     Parent = None
+    format_message = None
 
     def __init__(self, char_id, name, user_id, experience, lvl, weapon_id, armor_id, trait_id,
                  exp_gain_time, x, y, trait_bonus, connection, weapon=None, armor=None, trait=None):
@@ -87,6 +89,9 @@ class Character(object):
             self._specials = SpecialCooldown.find_by_character_id(self.char_id, self.connection)
         return self._specials
 
+    def is_stunned(self):
+        return ActiveEffect.find_by_target_and_special(self, Special.Specials.STUN) is not None
+
     def attempt_flee(self):
         if random.random() * 100 <= 45:
             self.position.coord = random.choice(self.position.flee_options())
@@ -98,7 +103,7 @@ class Character(object):
         weapon_bonus = 0
         if self.weapon is not None:
             weapon_bonus = self.weapon.min_lvl * 10
-        return int(25 * (2 ** (0.7 * (difficulty - self.lvl) + 1)) * (100 + weapon_bonus) / 100.0)
+        return int(25 * (2 ** (0.7 * (difficulty - self.lvl*0.5) + 1)) * (100 + weapon_bonus) / 100.0)
 
     def exp_for_next_lvl(self):
         return int(100 + ((2.8 * self.lvl) ** 2))
@@ -124,12 +129,13 @@ class Character(object):
         rand = random.random() * 100
         armor_bonus = 0
         if self.armor is not None:
-            armor_bonus = self.armor.min_lvl * 10
+            armor_bonus = self.armor.min_lvl * 20
         if self.position.location.difficulty * 2 < self.lvl:
             return rand > 100 * self.trait.death_chance_factor * (
-                    4 + 0.5 * (self.position.location.difficulty * 3 - self.lvl)) / (100 + armor_bonus)
+                    3 + 0.5 * (self.position.location.difficulty * 2 - self.lvl)) / (100 + armor_bonus)
+
         return rand > 100 * self.trait.death_chance_factor * (
-                4 + 1.5 * (self.position.location.difficulty * 3 - self.lvl)) / (100.0 + armor_bonus)
+                3 + 1.5 * (self.position.location.difficulty * 2 - self.lvl)) / (100.0 + armor_bonus)
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
@@ -146,7 +152,7 @@ class Character(object):
         if self.trait.trait.id == Trait.Traits.PACIFIST:
             self.trait_bonus = 0
         elif self.trait.trait.id == Trait.Traits.VIOLENT:
-            self.trait_bonus += 2
+            self.trait_bonus += 3
         pie_bounty = Bounty.find_by_character_name_from_piebank(self.name, self.connection)
         if pie_bounty is None:
             Bounty.create(self, None, 0, 1, self.connection)
@@ -166,6 +172,21 @@ class Character(object):
             return success
         return False
 
+    def use_special(self, special_enum, target):
+        special_list = \
+            [special for special in self.specials if special.specials_orig_name == special_enum]
+        if len(special_list) > 0:
+            special = special_list[0]
+            if special.unavailable_until < dt.datetime.now(utc):
+                special.use(target)
+        else:
+            self.Parent.SendStreamMessage(self.format_message(
+                "{0}, your character {1} doesn't have that special",
+                self.Parent.GetDisplayName(self.user_id),
+                self.name
+            ))
+            return
+
     def save(self):
         self.connection.execute(
             """UPDATE characters set name = :name, user_id = :user_id,
@@ -181,14 +202,15 @@ class Character(object):
 
     def delete(self):
         attack = Attack.find_by_attacker_or_target(self, self.connection)
-        if attack is not None and attack.boss_id is None:  # TODO: fix problem is person is attacked during boss battle and dies by boss.
+        if attack is not None and attack.boss_id is None:
+            # TODO: fix problem is person is attacked during boss battle and dies by boss.
             self.Parent.Log("rpgGame", "something is wrong in the code, char got deleted while still in a fight.")
         elif attack is not None:
             attack.delete()
         for bounty in Bounty.find_all_by_character(self, self.connection):
             bounty.delete()
-        for special in self.specials:
-            special.delete()
+        SpecialCooldown.delete_all_from_character(self, self.connection)
+        ActiveEffect.delete_all_by_target(self, self.connection)
         self.connection.execute(
             """DELETE FROM characters WHERE character_id = ?""",
             (self.char_id,)
@@ -296,6 +318,7 @@ class Character(object):
             );"""
         )
         SpecialCooldown.create_table_if_not_exists(connection)
+        ActiveEffect.create_table_if_not_exists(connection)
 
     @classmethod
     def load_static_data(cls, connection):
@@ -321,8 +344,10 @@ class Trait(NamedData):
         PACIFIST = "Pacifist"
 
     def __init__(self, orig_name, name, connection):
+        if type(orig_name) is not self.Traits:
+            orig_name = self.Traits(orig_name)
         super(Trait, self).__init__(orig_name, name, connection)
-        self._NamedData__data_id = self.Traits(orig_name)
+        # self._NamedData__data_id = self.Traits(orig_name)
 
     def get_random_strength(self):
         if self.id == self.Traits.DURABLE:
@@ -431,129 +456,3 @@ class TraitStrength(object):
     @property
     def death_chance_factor(self):
         return self.trait.death_chance_factor(self.strength, self.lvl)
-
-
-class SpecialCooldown(object):
-    def __init__(self, character_id, specials_orig_name, unavailable_until, connection, character=None, special=None):
-        self.character_id = character_id
-        self._character = character
-
-        self.specials_orig_name = specials_orig_name
-        self._special = special
-
-        self.unavailable_until = unavailable_until
-
-        self.connection = connection
-
-    @property
-    def character(self):
-        if self._character is None:
-            self._character = Character.find(self.character_id, self.connection)
-        return self._character
-
-    @character.setter
-    def character(self, value):
-        self._character = value
-        self.character_id = value.char_id
-
-    @property
-    def special(self):
-        if self._special is None:
-            self._special = Special.find(self.specials_orig_name)
-        return self._special
-
-    @special.setter
-    def special(self, value):
-        self._special = value
-        self.specials_orig_name = value.id
-
-    def delete(self):
-        pass  # TODO: implement
-
-    def save(self):
-        pass  # TODO: implement
-
-    @classmethod
-    def find_by_character_id(cls, character_id, connection):
-        cursor = connection.execute("""SELECT * FROM character_specials
-                              WHERE character_id = :character_id""",
-                                    {"character_id": character_id})
-        return map(lambda row: cls(*row, connection=connection), cursor)
-
-    @classmethod
-    def create(cls, character, special, connection, unavailable_until=None):
-        if type(character) is Character:
-            character = character.char_id
-        if type(special) is Special:
-            special = special.id
-        connection.execute(
-            '''INSERT INTO character_specials (character_id, specials_orig_name, unavailable_until)
-            VALUES (:character_id, :specials_orig_name, :unavailable_until)''',
-            {"character_id": character, "specials_orig_name": special, "unavailable_until": unavailable_until})
-        return cls(character, special, unavailable_until, connection=connection)
-
-    @classmethod
-    def create_table_if_not_exists(cls, connection):
-        connection.execute("""create table if not exists character_specials
-            (character_id       text      NOT NULL,
-            specials_orig_name  text      NOT NULL,
-            unavailable_until  timestamp,
-            FOREIGN KEY (character_id)   REFERENCES characters(character_id),
-            FOREIGN KEY (specials_orig_name)   REFERENCES specials(orig_name),
-            PRIMARY KEY (character_id, specials_orig_name)
-        );""")
-
-
-class Special(NamedData):
-    """The specials self are static, the join-table won't be"""
-    data_by_name = {}
-    data_by_id = {}
-
-    class Specials(Enum):
-        PERSIST = "Persist"
-        STUN = "Stun"
-        TRACK = "Track"
-        GUARDIAN = "Guardian"
-        EMPOWER = "Empower"
-        REPEL = "Repel"
-        BLIND = "Blind"
-        CURSE = "Curse"
-        INVIS = "Invis"
-        STEAL = "Steal"
-
-    def __init__(self, orig_name, name, identifier, cooldown_time, connection):
-        super(Special, self).__init__(orig_name, name, connection)
-        self.cooldown_time = cooldown_time
-        self.identifier = identifier
-
-    @classmethod
-    def create_table_if_not_exists(cls, connection):
-        connection.execute("""create table if not exists specials
-            (orig_name      text    PRIMARY KEY  NOT NULL,
-            name            text    NOT NULL,
-            identifier      char    UNIQUE       NOT NULL,
-            cooldown_time   integer NOT NULL
-            );""")
-
-    @classmethod
-    def create_specials(cls, script_settings, connection):
-        """creates weapons into the database"""
-        specials = []
-        # noinspection PyTypeChecker
-        for special in cls.Specials:
-            if getattr(script_settings, special.name.lower() + "_enabled"):
-                specials.append((special.value, getattr(script_settings, special.name.lower() + "_name"),
-                                 getattr(script_settings, special.name.lower() + "_identifier"),
-                                 getattr(script_settings, special.name.lower() + "_cd", 0)))
-        connection.executemany('''INSERT OR IGNORE INTO specials(orig_name, name, identifier, cooldown_time)
-                                VALUES (?, ?, ?, ?)''', specials)
-        connection.commit()
-
-    @classmethod
-    def load_specials(cls, connection):
-        """loads weapons from database"""
-        cursor = connection.execute('SELECT orig_name, name, identifier, cooldown_time FROM specials')
-        for row in cursor:
-            special = cls(*row, connection=connection)
-            cls.data_by_id[special.id] = special
-            cls.data_by_name[special.name] = special
