@@ -161,6 +161,9 @@ class Character(object):
         roll = random.randint(1, 40)
         weapon_bonus = self.attack_bonus + sneak * 2 * defender.trait.sneak_penalty_factor
         armor_bonus = defender.armor_bonus
+        if ActiveEffect.find_by_target_and_special(self, Special.Specials.BLIND) is not None:
+            if random.random > 0.6:
+                return False
         return roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) > \
                defender.lvl * 2 + armor_bonus + 20 + (defense_bonus * 2)
 
@@ -179,6 +182,9 @@ class Character(object):
     def attack_boss(self, boss):
         roll = random.randint(1, 40)
         weapon_bonus = self.attack_bonus
+        if ActiveEffect.find_by_target_and_special(self, Special.Specials.BLIND) is not None:
+            if random.random > 0.6:
+                return False
         if roll + self.lvl * 2 + weapon_bonus > \
                 boss.lvl * 2 + boss.defense_bonus + 20:
             success = boss.damage(1)
