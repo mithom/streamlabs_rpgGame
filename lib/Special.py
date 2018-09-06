@@ -74,7 +74,9 @@ class SpecialCooldown(object):
         elif self.specials_orig_name is Special.Specials.PERSIST:
             pass  # todo: using this is linking it to next character
         elif self.specials_orig_name is Special.Specials.REPEL:
-            ActiveEffect.delete_all_by_target(self, self.connection)
+            for effect in ActiveEffect.find_all_by_target(self, self.connection):
+                if effect.specials_orig_name is not Special.Specials.GUARDIAN:
+                    effect.delete()
             ActiveEffect.create(target, self.special, self.connection)
         else:
             ActiveEffect.create(target, self.special, self.connection)

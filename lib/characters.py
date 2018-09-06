@@ -146,12 +146,16 @@ class Character(object):
         armor_bonus = 0
         if self.armor is not None:
             armor_bonus = self.armor.min_lvl * 20
+        terrain_factor = 1.5
         if self.position.location.difficulty * 2 < self.lvl:
-            return rand > 100 * self.trait.death_chance_factor * (
-                    3 + 0.5 * (self.position.location.difficulty * 2 - self.lvl)) / (100 + armor_bonus)
-
-        return rand > 100 * self.trait.death_chance_factor * (
-                3 + 1.5 * (self.position.location.difficulty * 2 - self.lvl)) / (100.0 + armor_bonus)
+            terrain_factor = 0.5
+        death_chance = 100 * self.trait.death_chance_factor * (
+                3 + terrain_factor * (self.position.location.difficulty * 2 - self.lvl)) / (100 + armor_bonus)
+        if ActiveEffect.find_by_target_and_special(self, Special.Specials.CURSE, self.connection):
+            death_chance += 5
+        if ActiveEffect.find_by_target_and_special(self, Special.Specials.GUARDIAN, self.connection):
+            death_chance -= 10
+        return rand > death_chance
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
