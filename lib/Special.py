@@ -73,6 +73,9 @@ class SpecialCooldown(object):
             ))
         elif self.specials_orig_name is Special.Specials.PERSIST:
             pass  # todo: using this is linking it to next character
+        elif self.specials_orig_name is Special.Specials.REPEL:
+            ActiveEffect.delete_all_by_target(self, self.connection)
+            ActiveEffect.create(target, self.special, self.connection)
         else:
             ActiveEffect.create(target, self.special, self.connection)
 
@@ -242,6 +245,15 @@ class ActiveEffect(object):
         connection.execute("""DELETE FROM active_effects
                             WHERE expiration_time <= ?""",
                            (dt.datetime.now(utc),))
+
+    @classmethod
+    def find_all_by_target(cls, target, connection):
+        if type(target) is characters.Character:
+            target = target.char_id
+        cursor = connection.execute("""SELECT * FROM active_effects
+                                    WHERE target_id = :target""",
+                                    {"target": target})
+        return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
     def find_by_target_and_special(cls, target, special, connection):

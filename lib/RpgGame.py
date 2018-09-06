@@ -858,12 +858,6 @@ class RpgGame(object):
                     self.scriptSettings.create_command
                 ))
                 return
-            if char.is_stunned():
-                Parent.SendStreamMessage(self.format_message(
-                    "{0}, you use specials while stunned!",
-                    username
-                ))
-                return
             if target_name is None:
                 target = char
             else:

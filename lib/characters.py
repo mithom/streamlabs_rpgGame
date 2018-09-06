@@ -89,6 +89,22 @@ class Character(object):
             self._specials = SpecialCooldown.find_by_character_id(self.char_id, self.connection)
         return self._specials
 
+    @property
+    def armor_bonus(self):
+        armor_bonus = self.trait.defense_bonus
+        if self.armor is not None:
+            armor_bonus += self.armor.min_lvl
+        return armor_bonus
+
+    @property
+    def attack_bonus(self):
+        attack_bonus = self.trait.attack_bonus
+        if self.weapon is not None:
+            attack_bonus += self.weapon.min_lvl
+        if ActiveEffect.find_by_target_and_special(self, Special.Specials.EMPOWER, self.connection):
+            attack_bonus += 4
+        return attack_bonus
+
     def is_stunned(self):
         return ActiveEffect.find_by_target_and_special(self, Special.Specials.STUN) is not None
 
@@ -139,12 +155,8 @@ class Character(object):
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
-        weapon_bonus = self.trait.attack_bonus + sneak * 2 * defender.trait.sneak_penalty_factor
-        armor_bonus = defender.trait.defense_bonus
-        if self.weapon is not None:
-            weapon_bonus += self.weapon.min_lvl
-        if defender.armor is not None:
-            armor_bonus += defender.armor.min_lvl
+        weapon_bonus = self.attack_bonus + sneak * 2 * defender.trait.sneak_penalty_factor
+        armor_bonus = defender.armor_bonus
         return roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) > \
                defender.lvl * 2 + armor_bonus + 20 + (defense_bonus * 2)
 
@@ -162,9 +174,7 @@ class Character(object):
 
     def attack_boss(self, boss):
         roll = random.randint(1, 40)
-        weapon_bonus = self.trait.attack_bonus
-        if self.weapon is not None:
-            weapon_bonus += self.weapon.min_lvl
+        weapon_bonus = self.attack_bonus
         if roll + self.lvl * 2 + weapon_bonus > \
                 boss.lvl * 2 + boss.defense_bonus + 20:
             success = boss.damage(1)
