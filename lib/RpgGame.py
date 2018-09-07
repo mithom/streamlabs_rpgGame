@@ -19,6 +19,29 @@ import sqlite3
 
 Parent = None
 
+
+def parse_datetime(adt):
+    return adt.isoformat(" ")
+
+
+def convert_aware_timestamp(val):
+    """this is adjusted from sqlite3/dbapi2.py convert_timestamp"""
+    datepart, timepart = val.split(" ")
+    year, month, day = map(int, datepart.split("-"))
+    timepart_full = timepart.split(".")
+    hours, minutes, seconds = map(int, timepart_full[0].split(":"))
+    if len(timepart_full) == 2:
+        microseconds = int('{:0<6.6}'.format(timepart_full[1].decode()))
+    else:
+        microseconds = 0
+
+    val = dt.datetime(year, month, day, hours, minutes, seconds, microseconds)
+    return utc.localize(val)
+
+
+sqlite3.register_adapter(dt.datetime, parse_datetime)
+sqlite3.register_converter("timestamp", convert_aware_timestamp)
+
 LEFT = ["left", "east"]
 RIGHT = ["right", "west"]
 UP = ["up", "north"]
@@ -76,6 +99,7 @@ class RpgGame(object):
             Attack.create_table_if_not_exists(conn)
             Bounty.create_table_if_not_exists(conn)
             Boss.create_table_if_not_exists(conn)
+        conn.close()
 
     def create_and_load_static_data(self):
         with self.get_connection() as conn:
@@ -89,7 +113,7 @@ class RpgGame(object):
             Special.create_specials(self.scriptSettings, conn)
             Character.load_static_data(conn)
             Boss.create_bosses(conn)
-            conn.commit()
+        conn.close()
 
     def apply_reload(self):
         SpecialCooldown.max_steal_amount = self.scriptSettings.max_steal_amount
@@ -132,6 +156,7 @@ class RpgGame(object):
                     "some characters died while roaming the dangerous lands or pieland: " +
                     ", ".join(map(lambda char: char.name, deaths))
                 ))
+        conn.close()
 
     def do_boss_attacks(self, conn):
         for boss in Boss.find_by_active_and_past_attack_time(conn):
@@ -302,6 +327,7 @@ class RpgGame(object):
                 trait_strength=character.trait.strength or 0,
                 specials=", ".join(map(lambda x: x.special.name, character.specials))
             ))
+        conn.close()
 
     def condensed_info(self, user_id, username):
         with self.get_connection() as conn:
@@ -322,6 +348,7 @@ class RpgGame(object):
                 character.trait.trait.name,
                 ", ".join(map(lambda x: x.special.identifier, character.specials))
             ))
+        conn.close()
 
     def create(self, user_id, username, character_name):
         with self.get_connection() as conn:
@@ -343,6 +370,7 @@ class RpgGame(object):
                     username,
                     character_name
                 ))
+        conn.close()
 
     def move(self, user_id, username, direction):
         with self.get_connection() as conn:
@@ -399,6 +427,7 @@ class RpgGame(object):
                     "{0}, there is no location on that side",
                     username
                 ))
+        conn.close()
 
     def buy(self, user_id, username, item_name):
         with self.get_connection() as conn:
@@ -445,6 +474,7 @@ class RpgGame(object):
                         username,
                         item_name
                     ))
+        conn.close()
 
     def attack(self, user_id, username, target_name):
         with self.get_connection() as conn:
@@ -542,6 +572,7 @@ class RpgGame(object):
                 Parent.SendStreamMessage(
                     self.format_message("{0}, your target is not in the same area is you are.", username))
                 return
+        conn.close()
 
     def defend(self, user_id, username):
         with self.get_connection() as conn:
@@ -565,6 +596,7 @@ class RpgGame(object):
                 return
             else:
                 Attack.create(self.DEFEND_ACTION, defender.char_id, resolver_id=fight.resolver_id, connection=conn)
+        conn.close()
 
     def counter(self, user_id, username):
         with self.get_connection() as conn:
@@ -588,6 +620,7 @@ class RpgGame(object):
                 return
             else:
                 Attack.create(self.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id, connection=conn)
+        conn.close()
 
     def flee(self, user_id, username):
         with self.get_connection() as conn:
@@ -614,6 +647,7 @@ class RpgGame(object):
                 return
             else:
                 Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
+        conn.close()
 
     def look(self, _, username, target_name):
         with self.get_connection() as conn:
@@ -645,6 +679,7 @@ class RpgGame(object):
                 target_char.lvl,
                 equipment_str
             ))
+        conn.close()
 
     def dough(self, user_id, username):
         Parent.SendStreamMessage(self.format_message("{0}, your current piecoin balance is {1} {2}",
@@ -677,6 +712,7 @@ class RpgGame(object):
                                                                          ))
                         else:
                             Parent.AddPoints(user_id, username, amount)
+        conn.close()
 
     def bounty(self, user_id, username, target_name, amount):
         amount = int(amount)
@@ -714,6 +750,7 @@ class RpgGame(object):
                             "{0}, your bounty on {1} has been updated",
                             username, target_name
                         ))
+        conn.close()
 
     def tax(self, user_id, username, amount):
         pass
@@ -764,6 +801,7 @@ class RpgGame(object):
                 ))
                 return
             char.use_special(Special.Specials.STUN, target)
+        conn.close()
 
     def track(self, user_id, username, target_name):
         with self.get_connection() as conn:
@@ -790,6 +828,7 @@ class RpgGame(object):
                 ))
                 return
             char.use_special(Special.Specials.TRACK, target)
+        conn.close()
 
     def guardian(self, user_id, username, target_name=None):
         with self.get_connection() as conn:
@@ -819,6 +858,7 @@ class RpgGame(object):
                     ))
                     return
             char.use_special(Special.Specials.GUARDIAN, target)
+        conn.close()
 
     def empower(self, user_id, username, target_name=None):
         with self.get_connection() as conn:
@@ -848,6 +888,7 @@ class RpgGame(object):
                     ))
                     return
             char.use_special(Special.Specials.EMPOWER, target)
+        conn.close()
 
     def repel(self, user_id, username, target_name=None):
         with self.get_connection() as conn:
@@ -871,6 +912,7 @@ class RpgGame(object):
                     ))
                     return
             char.use_special(Special.Specials.REPEL, target)
+        conn.close()
 
     def blind(self, user_id, username, target_name):
         with self.get_connection() as conn:
@@ -897,6 +939,7 @@ class RpgGame(object):
                 ))
                 return
             char.use_special(Special.Specials.BLIND, target)
+        conn.close()
 
     def curse(self, user_id, username, target_name):
         with self.get_connection() as conn:
@@ -923,6 +966,7 @@ class RpgGame(object):
                 ))
                 return
             char.use_special(Special.Specials.CURSE, target)
+        conn.close()
 
     def invis(self, user_id, username, target_name=None):
         with self.get_connection() as conn:
@@ -952,6 +996,7 @@ class RpgGame(object):
                     ))
                     return
             char.use_special(Special.Specials.INVIS, target)
+        conn.close()
 
     def steal(self, user_id, username, target_name):
         with self.get_connection() as conn:
@@ -978,6 +1023,7 @@ class RpgGame(object):
                 ))
                 return
             char.use_special(Special.Specials.STEAL, target)
+        conn.close()
 
     # ---------------------------------------
     #   auxiliary functions

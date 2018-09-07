@@ -161,7 +161,6 @@ class Boss(object):  # TODO: save boss in tick
         bosses = cls.read_bosses()
         connection.executemany("""INSERT OR IGNORE INTO bosses(name, attack, defense, max_hp, hp, x, y, hp_regen)
                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", bosses)
-        connection.commit()
 
     @staticmethod
     def read_bosses():
