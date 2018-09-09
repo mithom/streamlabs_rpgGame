@@ -199,6 +199,12 @@ class Character(object):
             special = special_list[0]
             if special.unavailable_until is None or special.unavailable_until < dt.datetime.now(utc):
                 special.use(target)
+            else:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you can not use that special right now, cooldown: {1}",
+                    self.Parent.GetDisplayName(self.user_id),
+                    str(special.unavailable_until - dt.datetime.now(utc))
+                ))
         else:
             self.Parent.SendStreamMessage(self.format_message(
                 "{0}, your character {1} doesn't have that special",
