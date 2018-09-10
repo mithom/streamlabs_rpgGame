@@ -587,18 +587,30 @@ class RpgGame(object):
 
                         resolve_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
                         Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time, connection=conn)
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0} challenges {1} to a fight",
+                            attacker.name, target.name
+                        ))
                     else:
                         if fight.target_id == attacker.char_id:
                             # my xp has already been delayed, i just react only now
                             resolver_id = fight.resolver_id
                             Attack.create(self.COUNTER_ACTION, attacker.char_id, target.char_id, resolver_id=resolver_id,
                                           connection=conn)
+                            Parent.SendStreamMessage(self.format_message(
+                                "{0} accepts the challenge and prepares to counter {1}",
+                                attacker.name, target.name
+                            ))
                         else:
                             attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
                             attacker.save()
 
                             Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id,
                                           resolver_id=fight.resolver_id, connection=conn)
+                            Parent.SendStreamMessage(self.format_message(
+                                "{0} sees an opportunity to sneak up on {1}",
+                                attacker.name, target.name
+                            ))
                 else:
                     Parent.SendStreamMessage(
                         self.format_message("{0}, your target is not in the same area is you are.", username))
@@ -621,21 +633,21 @@ class RpgGame(object):
                 if defender.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, you cannot defend while stunned!",
-                        username
+                        defender.name
                     ))
                     return
                 fight = Attack.find_by_target(defender, conn)
                 if fight is None:
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, you are currently not being attacked",
-                        username
+                        defender.name
                     ))
                     return
                 else:
                     Attack.create(self.DEFEND_ACTION, defender.char_id, resolver_id=fight.resolver_id, connection=conn)
                     Parent.SendStreamMessage(self.format_message(
                         "{0} has taken a defensive pose",
-                        username
+                        defender.name
                     ))
         finally:
             if 'conn' in locals():
@@ -655,21 +667,21 @@ class RpgGame(object):
                 if countermen.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, you cannot counter while stunned!",
-                        username
+                        countermen.name
                     ))
                     return
                 fight = Attack.find_by_target(countermen, conn)
                 if fight is None:
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, you are currently not being attacked",
-                        username
+                        countermen.name
                     ))
                     return
                 else:
                     Attack.create(self.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id, connection=conn)
                     Parent.SendStreamMessage(self.format_message(
                         "{0} prepares to counter attack",
-                        username
+                        countermen.name
                     ))
         finally:
             if 'conn' in locals():
@@ -689,21 +701,21 @@ class RpgGame(object):
                 if flee_char.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, you cannot flee while stunned!",
-                        username
+                        flee_char.name
                     ))
                     return
                 fight = Attack.find_by_target(flee_char, conn)
                 if fight is None:
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, you are currently not being attacked",
-                        username
+                        flee_char.name
                     ))
                     return
                 else:
                     Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
                     Parent.SendStreamMessage(self.format_message(
                         "{0} starts looking for a way out of this fight",
-                        username
+                        flee_char.name
                     ))
         finally:
             if 'conn' in locals():
@@ -862,8 +874,8 @@ class RpgGame(object):
                     return
                 if char.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you use specials while stunned!",
-                        username
+                        "{0}, you cannot use specials while stunned!",
+                        char.name
                     ))
                     return
                 target = Character.find_by_name(target_name, conn)
@@ -892,8 +904,8 @@ class RpgGame(object):
                     return
                 if char.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you use specials while stunned!",
-                        username
+                        "{0}, you cannot use specials while stunned!",
+                        char.name
                     ))
                     return
                 target = Character.find_by_name(target_name, conn)
@@ -922,8 +934,8 @@ class RpgGame(object):
                     return
                 if char.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you use specials while stunned!",
-                        username
+                        "{0}, you cannot use specials while stunned!",
+                        char.name
                     ))
                     return
                 if target_name is None:
@@ -955,8 +967,8 @@ class RpgGame(object):
                     return
                 if char.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you use specials while stunned!",
-                        username
+                        "{0}, you cannot use specials while stunned!",
+                        char.name
                     ))
                     return
                 if target_name is None:
@@ -1015,8 +1027,8 @@ class RpgGame(object):
                     return
                 if char.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you use specials while stunned!",
-                        username
+                        "{0}, you cannot use specials while stunned!",
+                        char.name
                     ))
                     return
                 target = Character.find_by_name(target_name, conn)
@@ -1045,8 +1057,8 @@ class RpgGame(object):
                     return
                 if char.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you use specials while stunned!",
-                        username
+                        "{0}, you cannot use specials while stunned!",
+                        char.name
                     ))
                     return
                 target = Character.find_by_name(target_name, conn)
@@ -1075,8 +1087,8 @@ class RpgGame(object):
                     return
                 if char.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you use specials while stunned!",
-                        username
+                        "{0}, you cannot use specials while stunned!",
+                        char.name
                     ))
                     return
                 if target_name is None:
@@ -1108,8 +1120,8 @@ class RpgGame(object):
                     return
                 if char.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you use specials while stunned!",
-                        username
+                        "{0}, you cannot use specials while stunned!",
+                        char.name
                     ))
                     return
                 target = Character.find_by_name(target_name, conn)

@@ -194,7 +194,15 @@ class Character(object):
                 boss.lvl * 2 + boss.defense_bonus + 20:
             success = boss.damage(1)
             boss.save()
+            self.Parent.SendStreamMessage(self.format_message(
+                "{0} managed to hit the {1}, {2}/{3} HP remaining",
+                self.name, boss.name, boss.hp, boss.max_hp
+            ))
             return success
+        self.Parent.SendStreamMessage(self.format_message(
+            "{0} failed to hit boss {1}.",
+            self.name, boss.name
+        ))
         return False
 
     def use_special(self, special_enum, target):
