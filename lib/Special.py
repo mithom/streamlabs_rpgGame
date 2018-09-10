@@ -72,15 +72,21 @@ class SpecialCooldown(object):
                 currency_name=self.Parent.GetCurrencyName(),
                 target_name=target_username
             ))
-        elif self.specials_orig_name is Special.Specials.PERSIST:
-            pass  # todo: using this is linking it to next character
         elif self.specials_orig_name is Special.Specials.REPEL:
-            for effect in ActiveEffect.find_all_by_target(self, self.connection):
+            for effect in ActiveEffect.find_all_by_target(target, self.connection):
                 if effect.specials_orig_name is not Special.Specials.GUARDIAN:
                     effect.delete()
             ActiveEffect.create(target, self.special, self.connection)
+            self.Parent.SendStreamMessage(self.format_message(
+                "{0} has cleansed hes soul and is now repelling other effects for {1} seconds",
+                target.name, self.special.duration
+            ))
         else:
             ActiveEffect.create(target, self.special, self.connection)
+            self.Parent.SendStreamMessage(self.format_message(
+                "{0} has the {1} effect for {2} seconds",
+                target.name, self.special.name, self.special.duration
+            ))
 
     def delete(self):
         self.connection.execute("""DELETE FROM character_specials
