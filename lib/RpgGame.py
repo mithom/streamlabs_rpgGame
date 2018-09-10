@@ -60,6 +60,7 @@ def get_coords_change(orientation):
     assert False
 
 
+# noinspection PyUnboundLocalVariable
 class RpgGame(object):
     ATTACK_ACTION = "attack"
     COUNTER_ACTION = "counter"
@@ -218,6 +219,11 @@ class RpgGame(object):
             if result is not None:
                 kills.update(result)
         fight.delete()
+        if len(kills) == 0:
+            Parent.SendStreamMessage(self.format_message(
+                "nobody died in the fight initiated by {0}",
+                fight.attacker.name
+            ))
         for dead, killer in kills.iteritems():
             dead_char = Character.find(dead, conn)
             killer_char = Character.find(killer, conn)
@@ -522,14 +528,15 @@ class RpgGame(object):
                 if target is None:
                     boss = Boss.find_by_name(target_name, conn)
                     if boss is None:
-                        Parent.SendStreamMessage(
-                            self.format_message("{0}, no target exists with that character name", username))
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, no target exists with that character name",
+                            username))
                         return
                     else:
                         if fight1 is not None:
                             Parent.SendStreamMessage(self.format_message(
-                                "{0}, you are being attacked or attacking someone, either way, too hard to focus on the" +
-                                " boss now",
+                                "{0}, you are being attacked or attacking someone, either way, too hard to focus on" +
+                                " the boss now",
                                 username
                             ))
                             return
@@ -548,6 +555,11 @@ class RpgGame(object):
                                     seconds=self.scriptSettings.fight_resolve_time)
                                 Attack.create(self.ATTACK_ACTION, attacker.char_id, boss_id=boss.boss_id,
                                               resolve_time=resolve_time, connection=conn)
+                                Parent.SendStreamMessage(self.format_message(
+                                    "{0} starts clashing with the big boss {1}",
+                                    attacker.name,
+                                    boss.name
+                                ))
                                 return
                 if target.position == attacker.position:
                     if fight1 is not None:
@@ -614,10 +626,17 @@ class RpgGame(object):
                     return
                 fight = Attack.find_by_target(defender, conn)
                 if fight is None:
-                    Parent.SendStreamMessage("you are currently not being attacked")
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you are currently not being attacked",
+                        username
+                    ))
                     return
                 else:
                     Attack.create(self.DEFEND_ACTION, defender.char_id, resolver_id=fight.resolver_id, connection=conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0} has taken a defensive pose",
+                        username
+                    ))
         finally:
             if 'conn' in locals():
                 conn.close()
@@ -641,10 +660,17 @@ class RpgGame(object):
                     return
                 fight = Attack.find_by_target(countermen, conn)
                 if fight is None:
-                    Parent.SendStreamMessage("you are currently not being attacked")
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you are currently not being attacked",
+                        username
+                    ))
                     return
                 else:
                     Attack.create(self.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id, connection=conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0} prepares to counter attack",
+                        username
+                    ))
         finally:
             if 'conn' in locals():
                 conn.close()
@@ -675,6 +701,10 @@ class RpgGame(object):
                     return
                 else:
                     Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0} starts looking for a way out of this fight",
+                        username
+                    ))
         finally:
             if 'conn' in locals():
                 conn.close()
@@ -728,24 +758,28 @@ class RpgGame(object):
                     if Parent.RemovePoints(user_id, username, amount):
                         bounty = Bounty.find_by_user_id_from_piebank(user_id, conn)
                         if amount >= 2 * bounty.reward and bounty.kill_count > 1:  # TODO: other way around
-                            bounty.delete()
+                            bounty.delete() # TODO: maybe add chance factor, higher is more chance to delete it?
                             Parent.SendStreamMessage(self.format_message(
                                 "{0}, Your bounty has been cleared",
                                 username
                             ))
-                    else:
-                        recipient = Character.find_by_name(recipient_name, conn)
-                        if Parent.RemovePoints(user_id, username, amount):
-                            recipient_user_name = Parent.GetDisplayName(recipient.user_id)
-                            if Parent.AddPoints(recipient.user_id, recipient_user_name, amount):
-                                Parent.SendStreamMessage(self.format_message("{0} just gave {1} {2} {3}",
-                                                                             username,
-                                                                             recipient_user_name,
-                                                                             amount,
-                                                                             Parent.GetCurrencyName()
-                                                                             ))
-                            else:
-                                Parent.AddPoints(user_id, username, amount)
+                        else:
+                            Parent.SendStreamMessage(self.format_message(
+                                "{0}, {1} thanks you for your kindness of this free donation"
+                            ))
+                else:
+                    recipient = Character.find_by_name(recipient_name, conn)
+                    if Parent.RemovePoints(user_id, username, amount):
+                        recipient_user_name = Parent.GetDisplayName(recipient.user_id)
+                        if Parent.AddPoints(recipient.user_id, recipient_user_name, amount):
+                            Parent.SendStreamMessage(self.format_message("{0} just gave {1} {2} {3}",
+                                                                         username,
+                                                                         recipient_user_name,
+                                                                         amount,
+                                                                         Parent.GetCurrencyName()
+                                                                         ))
+                        else:
+                            Parent.AddPoints(user_id, username, amount)
         finally:
             if 'conn' in locals():
                 conn.close()
