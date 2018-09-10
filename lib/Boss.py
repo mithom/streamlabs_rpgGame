@@ -64,7 +64,7 @@ class Boss(object):  # TODO: save boss in tick
         if self.state is self.State.PASSIVE:
             self.state = self.State.ATTACKING
             self.next_attack = dt.datetime.now(utc)
-        if 0 < self.hp < self._max_hp/4:
+        if 0 < self.hp <= self._max_hp/4:
             self.state = self.State.RAGE
         if self.hp <= 0:
             self.state = self.State.DEAD

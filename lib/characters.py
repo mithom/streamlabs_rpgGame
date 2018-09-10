@@ -386,7 +386,6 @@ class Trait(NamedData):
         if type(orig_name) is not self.Traits:
             orig_name = self.Traits(orig_name)
         super(Trait, self).__init__(orig_name, name, connection)
-        # self._NamedData__data_id = self.Traits(orig_name)
 
     def get_random_strength(self):
         if self.id == self.Traits.DURABLE:

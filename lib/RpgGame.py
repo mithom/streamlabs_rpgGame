@@ -21,12 +21,12 @@ Parent = None
 
 
 def parse_datetime(adt):
-    return adt.isoformat()
+    return adt.isoformat(" ")
 
 
 def convert_aware_timestamp(val):
     """this is adjusted from sqlite3/dbapi2.py convert_timestamp"""
-    datepart, timepart = val.split("T")
+    datepart, timepart = val.split(" ")
     year, month, day = map(int, datepart.split("-"))
     timepart_full = timepart.split(".")
     hours, minutes, seconds = map(int, timepart_full[0].split(":"))

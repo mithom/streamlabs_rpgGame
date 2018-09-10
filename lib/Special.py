@@ -55,7 +55,7 @@ class SpecialCooldown(object):
                 target.name,
                 weapon=getattr(target.weapon, "name", "hes bare hands"),
                 armor=getattr(target.armor, "name", "rags"),
-                trait=target.trait.name,
+                trait=target.trait.trait.name,
                 specials=", ".join(map(lambda x: x.special.name, target.specials)) or "nothing special"
             ))
         elif self.specials_orig_name is Special.Specials.STEAL:
