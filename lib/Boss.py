@@ -10,7 +10,7 @@ import datetime as dt
 from Position import Position
 
 
-class Boss(object):  # TODO: save boss in tick
+class Boss(object):
     class State(Enum):
         PASSIVE = "PASSIVE"
         DEAD = "DEAD"

@@ -170,7 +170,7 @@ class Character(object):
             if random.random > 0.6:
                 return False
         return roll + self.lvl * 2 + weapon_bonus + (attack_bonus * 2) > \
-               defender.lvl * 2 + armor_bonus + 20 + (defense_bonus * 2)
+               defender.lvl * 2 + armor_bonus + 18 + (defense_bonus * 2)
 
     def add_kill(self):
         if self.trait.trait.id == Trait.Traits.PACIFIST:
@@ -183,6 +183,11 @@ class Character(object):
         else:
             pie_bounty.kill_count += 1
             pie_bounty.save()
+            if pie_bounty.reward > 500:
+                self.Parent.SendStreamMessage(self.format_message(
+                    "{0}s bounty has been increased to a dangling amount of {1} {2}",
+                    self.name, pie_bounty.reward, self.Parent.GetCurrencyName()
+                ))
 
     def attack_boss(self, boss):
         roll = random.randint(1, 40)
