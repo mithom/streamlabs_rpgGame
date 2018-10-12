@@ -1,4 +1,3 @@
-from StaticData import Map, Location
 from characters import Character
 import random
 import codecs
@@ -74,7 +73,7 @@ class Boss(object):
 
     def do_attack(self, fight_time):
         self.next_attack += dt.timedelta(seconds=fight_time)
-        targets = Character.find_by_location(*(Map.boss_location()), connection=self.connection)
+        targets = Character.find_by_location(self.x, self.y, connection=self.connection)
         if len(targets) == 0:
             self.state = self.State.PASSIVE
             self.hp = self._max_hp

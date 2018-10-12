@@ -3,6 +3,7 @@ from characters import Character, Trait
 from Attack import Attack
 from Bounty import Bounty
 from Boss import Boss
+from King import King, Tournament
 import operator
 import random
 from Special import SpecialCooldown, Special, ActiveEffect
@@ -101,6 +102,8 @@ class RpgGame(object):
             Attack.create_table_if_not_exists(conn)
             Bounty.create_table_if_not_exists(conn)
             Boss.create_table_if_not_exists(conn)
+            King.create_table_if_not_exists(conn)
+            Tournament.create_table_if_not_exists(conn)
         conn.close()
 
     def create_and_load_static_data(self):

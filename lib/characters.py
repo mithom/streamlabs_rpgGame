@@ -160,6 +160,8 @@ class Character(object):
             death_chance += 5
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.GUARDIAN, self.connection):
             death_chance -= 10
+        if self.lvl < 5:
+            death_chance /= 2
         return rand > death_chance
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):

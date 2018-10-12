@@ -14,7 +14,6 @@ class Map(object):
     y_max = 0
     x_max = 0
     _starting_position = None
-    _boss_location = None
 
     @staticmethod
     def read_map():
@@ -29,18 +28,11 @@ class Map(object):
         return cls._starting_position
 
     @classmethod
-    def boss_location(cls):
-        if cls._boss_location is None:
-            cls.get_map()
-        return cls._boss_location
-
-    @classmethod
     def get_map(cls):
         if cls._map is None:
             map_dict = cls.read_map()
             lmap = map_dict["map"]
             cls._starting_position = map_dict["starting_coordinates"]
-            cls._boss_location = map_dict["boss_coordinates"]
             cls.x_max = max([len(x) for x in lmap])
             cls.y_max = len(lmap)
             cls._map = [[Location.find_by_name(name) for name in (row + (cls.x_max - len(row)) * [None])] for row in lmap]
