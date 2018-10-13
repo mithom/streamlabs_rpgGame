@@ -340,6 +340,13 @@ class Character(object):
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
+    def get_order_by_lvl_and_xp(cls, limit, connection):
+        cursor = connection.execute("""SELECT * FROM characters c
+            ORDER BY c.lvl DESC, c.experience DESC
+            LIMIT ?""", (limit,))
+        return map(lambda row: cls(*row, connection=connection), cursor)
+
+    @classmethod
     def create_table_if_not_exists(cls, connection):
         """timestamp can be null, if stream goes offline for example"""
         Trait.create_table_if_not_exists(connection)

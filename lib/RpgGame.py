@@ -127,6 +127,13 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 # TODO: check if thread increases efficiency or not for small amounts of fights
+                king = King.find(conn)
+                tournament = Tournament.find(conn)
+                if tournament is None:
+                    if king is None or king.character is None:
+                        Tournament.initiate_tournament(king, conn)
+                else:
+                    tournament.check_winner()
                 Boss.respawn_bosses(conn)
                 ActiveEffect.delete_all_expired(conn)
                 self.do_boss_attacks(conn)
