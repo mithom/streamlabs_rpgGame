@@ -244,7 +244,7 @@ class RpgGame(object):
             dead_part = Participant.find(dead_char.char_id, conn)
             if dead_part is not None and dead_part == Participant.find(killer_char.char_id, conn):
                 Parent.SendStreamMessage(self.format_message(
-                    "{0} has been knocked out of the tournament by {2}",
+                    "{0} has been knocked out of the tournament by {1}",
                     dead_char.name,
                     killer_char.name
                 ))
@@ -262,7 +262,7 @@ class RpgGame(object):
                     killer_char.add_kill()
                     self.pay_bounties(Bounty.find_all_by_character(dead, conn), killer_char.user_id)
                     killer_char.save()
-            dead_char.delete()
+                dead_char.delete()
 
     def resolve_attack(self, fight, kills, defenders, sneak=False):
         attacker = fight.attacker
@@ -752,11 +752,12 @@ class RpgGame(object):
                             "{0} tries to flee from the fight and thereby disqualifies from the tournament",
                             flee_char.name
                         ))
+                    else:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0} starts looking for a way out of this fight",
+                            flee_char.name
+                        ))
                     Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0} starts looking for a way out of this fight",
-                        flee_char.name
-                    ))
         finally:
             if 'conn' in locals():
                 conn.close()
