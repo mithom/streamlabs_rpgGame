@@ -43,8 +43,8 @@ def convert_aware_timestamp(val):
 sqlite3.register_adapter(dt.datetime, parse_datetime)
 sqlite3.register_converter("timestamp", convert_aware_timestamp)
 
-LEFT = ["left", "east"]
-RIGHT = ["right", "west"]
+LEFT = ["left", "west"]
+RIGHT = ["right", "east"]
 UP = ["up", "north"]
 DOWN = ["down", "south"]
 
