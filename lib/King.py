@@ -60,6 +60,7 @@ class Tournament(object):
         participants = characters.Character.get_order_by_lvl_and_xp(amount, conn)
         for character in participants:
             Participant.create(character.char_id, True, tournament.tournament_id, conn)
+        return participants
 
 
 class Participant(object):

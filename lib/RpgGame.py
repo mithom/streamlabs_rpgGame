@@ -131,7 +131,13 @@ class RpgGame(object):
                 tournament = Tournament.find(conn)
                 if tournament is None:
                     if king is None or king.character is None:
-                        Tournament.initiate_tournament(king, conn)
+                        participant_chars = Tournament.initiate_tournament(king, conn)
+                        msg = "a tournament to become king has started between the top warriors: "
+                        for part_char in participant_chars:
+                            msg += part_char.name + ", "
+                        Parent.SendStreamMessage(self.format_message(
+                            msg[:-2]
+                        ))
                 else:
                     winner = tournament.check_winner()
                     if winner is not None:
