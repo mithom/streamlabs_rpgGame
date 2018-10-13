@@ -3,7 +3,7 @@ from characters import Character, Trait
 from Attack import Attack
 from Bounty import Bounty
 from Boss import Boss
-from King import King, Tournament
+from King import King, Tournament, Participant
 import operator
 import random
 from Special import SpecialCooldown, Special, ActiveEffect
@@ -135,7 +135,7 @@ class RpgGame(object):
                 else:
                     winner = tournament.check_winner()
                     if winner is not None:
-                        King.crown(winner)
+                        King.crown(winner, conn)
                         tournament.delete()
                 Boss.respawn_bosses(conn)
                 ActiveEffect.delete_all_expired(conn)
@@ -241,17 +241,27 @@ class RpgGame(object):
         for dead, killer in kills.iteritems():
             dead_char = Character.find(dead, conn)
             killer_char = Character.find(killer, conn)
-            Parent.SendStreamMessage(self.format_message(
-                "{0} has been killed by {1} and died at lvl {2}",
-                dead_char.name,
-                killer_char.name,
-                dead_char.lvl
-            ))
-            if killer not in kills:
-                killer_char.gain_experience(2 * killer_char.exp_for_difficulty(dead_char.lvl))
-                killer_char.add_kill()
-                self.pay_bounties(Bounty.find_all_by_character(dead, conn), killer_char.user_id)
-                killer_char.save()
+            dead_part = Participant.find(dead_char.char_id, conn)
+            if dead_part is not None and dead_part == Participant.find(killer_char.char_id, conn):
+                Parent.SendStreamMessage(self.format_message(
+                    "{0} has been knocked out of the tournament by {2}",
+                    dead_char.name,
+                    killer_char.name
+                ))
+                dead_part.alive = False
+                dead_part.save()
+            else:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0} has been killed by {1} and died at lvl {2}",
+                    dead_char.name,
+                    killer_char.name,
+                    dead_char.lvl
+                ))
+                if killer not in kills:
+                    killer_char.gain_experience(2 * killer_char.exp_for_difficulty(dead_char.lvl))
+                    killer_char.add_kill()
+                    self.pay_bounties(Bounty.find_all_by_character(dead, conn), killer_char.user_id)
+                    killer_char.save()
             dead_char.delete()
 
     def resolve_attack(self, fight, kills, defenders, sneak=False):
@@ -528,7 +538,7 @@ class RpgGame(object):
                     return
                 if attacker.is_stunned():
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot move while stunned!",
+                        "{0}, you cannot attack while stunned!",
                         username
                     ))
                     return
@@ -591,20 +601,28 @@ class RpgGame(object):
                             return
                     fight = Attack.find_by_attacker_or_target(target, conn)
                     if fight is None:
-                        # delay xp time for attacker
-                        attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                        attacker.save()
+                        if attacker.participate_in_same_tournament(target):
+                            # delay xp time for attacker
+                            attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                            attacker.save()
 
-                        # delay xp time for target
-                        target.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                        target.save()
+                            # delay xp time for target
+                            target.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                            target.save()
 
-                        resolve_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                        Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time, connection=conn)
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0} challenges {1} to a fight",
-                            attacker.name, target.name
-                        ))
+                            resolve_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                            Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time, connection=conn)
+                            Parent.SendStreamMessage(self.format_message(
+                                "{0} challenges {1} to a fight",
+                                attacker.name, target.name
+                            ))
+                        else:
+                            Parent.SendStreamMessage(self.format_message(
+                                "{0}, you can not attack {1} as you are not in the same tournament.",
+                                username,
+                                target.name
+                            ))
+                            return
                     else:
                         if fight.target_id == attacker.char_id:
                             # my xp has already been delayed, i just react only now
@@ -726,6 +744,14 @@ class RpgGame(object):
                     ))
                     return
                 else:
+                    flee_part = Participant.find(flee_char.char_id, conn)
+                    if flee_part is not None and flee_part == Participant.find(fight.attacker_id, conn):
+                        flee_part.alive = False
+                        flee_part.save()
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0} tries to flee from the fight and thereby disqualifies from the tournament",
+                            flee_char.name
+                        ))
                     Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
                     Parent.SendStreamMessage(self.format_message(
                         "{0} starts looking for a way out of this fight",

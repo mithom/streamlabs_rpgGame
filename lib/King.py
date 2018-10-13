@@ -1,11 +1,12 @@
 import characters
 import datetime
 from pytz import utc
+import random
 
 
 class Tournament(object):
 
-    def __init__(self, tournament_id, end_time, connection=None):
+    def __init__(self, end_time, tournament_id, connection=None):
         self.tournament_id = tournament_id
         self.end_time = end_time
         self.connection = connection
@@ -14,7 +15,16 @@ class Tournament(object):
         part_count = Participant.count_alive_by_tournament(self, self.connection)
         if part_count == 1:
             return Participant.find_by_tournament_and_alive(self, self.connection)[0]
-        return None
+        if part_count == 0:
+            self.delete()
+            return None
+        if self.end_time < datetime.datetime.now(utc):
+            return random.choice(Participant.find_by_tournament_and_alive(self, self.connection))
+
+    def delete(self):
+        Participant.delete_by_tournament(self, self.connection)
+        self.connection.execute("""DELETE FROM tournament WHERE tournament_id = ?""",
+                                (self.tournament_id,))
 
     @classmethod
     def find(cls, conn):
@@ -27,7 +37,7 @@ class Tournament(object):
     @classmethod
     def create(cls, end_time, connection):
         cursor = connection.execute("""insert into tournament (end_time) values (?)""", (end_time,))
-        return cls(cursor.lastrowid, end_time, connection)
+        return cls(end_time, cursor.lastrowid, connection)
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
@@ -62,9 +72,29 @@ class Participant(object):
         self.tournament_id = tournament_id
         self.connection = connection
 
+    def __eq__(self, other):
+        if type(other) == Participant:
+            return self.tournament_id == other.tournament_id
+        return False
+
+    def delete(self):
+        self.connection.execute("""DELETE FROM participants WHERE character_id = ?""",
+                                (self.character_id,))
+
+    def save(self):
+        self.connection.execute("""UPDATE participants SET alive = :alive WHERE character_id = :char_id""",
+                                {"alive": self.alive, "char_id": self.character_id})
+
+    @classmethod
+    def delete_by_tournament(cls, tournament, connection):
+        if type(tournament) == Tournament:
+            tournament = tournament.tournament_id
+        connection.execute("""DELETE FROM participants where tournament_id = ?""",
+                           (tournament,))
+
     @classmethod
     def count_alive_by_tournament(cls, tournament, conn):
-        if type(tournament) == Tournament:
+        if type(tournament) is Tournament:
             tournament = tournament.tournament_id
         cursor = conn.execute("""select count(*) from participants p where p.tournament_id = ? and p.alive = 1""",
                               (tournament,))
@@ -77,6 +107,15 @@ class Participant(object):
         cursor = conn.execute("""SELECT * FROM participants p
           WHERE p.tournament_id = ? and p.alive = 1""", (tournament,))
         return map(lambda row: cls(*row, connection=conn), cursor)
+
+    @classmethod
+    def find(cls, character_id, conn):
+        cursor = conn.execute("""SELECT * from participants p WHERE p.character_id = ?""",
+                              (character_id,))
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return cls(*row, connection=conn)
 
     @classmethod
     def create(cls, character_id, alive, tournament_id, connection):
@@ -126,10 +165,11 @@ class King(object):
             if old_king.character_id == participant.character_id:
                 old_king.indisputable_until = datetime.datetime.now(utc) + datetime.timedelta(minutes=60)
                 old_king.save()
+                return
             else:
                 old_king.delete()
-                reign_time = datetime.datetime.now(utc) + datetime.timedelta(minutes=60)
-                King.create(5, participant.character_id, "king", reign_time, conn)
+        reign_time = datetime.datetime.now(utc) + datetime.timedelta(minutes=60)
+        King.create(5, participant.character_id, "king", reign_time, conn)
 
     @classmethod
     def create(cls, tax_rate, character_id, gender, indisputable_until, conn):
