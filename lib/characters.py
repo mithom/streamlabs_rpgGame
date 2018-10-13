@@ -7,6 +7,7 @@ import datetime as dt
 from Position import Position
 from Attack import Attack
 from Special import SpecialCooldown, Special, ActiveEffect
+import King
 
 
 class Character(object):
@@ -161,6 +162,8 @@ class Character(object):
             death_chance += 5
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.GUARDIAN, self.connection):
             death_chance -= 10
+        if self.lvl < 5:
+            death_chance /= 2
         return rand > death_chance
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
@@ -232,6 +235,14 @@ class Character(object):
             ))
             return
 
+    def get_tournament(self):
+        return King.Participant.find(self.char_id, self.connection)
+
+    def participate_in_same_tournament(self, char2):
+        part1 = King.Participant.find(self.char_id, self.connection)
+        part2 = King.Participant.find(char2.char_id, self.connection)
+        return part1 == part2  # checks tournament equality in None safe way, srry for bad == use
+
     def save(self):
         self.connection.execute(
             """UPDATE characters set name = :name, user_id = :user_id,
@@ -256,6 +267,9 @@ class Character(object):
             bounty.delete()
         SpecialCooldown.delete_all_from_character(self, self.connection)
         ActiveEffect.delete_all_by_target(self, self.connection)
+        participant = King.Participant.find(self.char_id, self.connection)
+        if participant is not None:
+            participant.delete()
         self.connection.execute(
             """DELETE FROM characters WHERE character_id = ?""",
             (self.char_id,)
@@ -336,6 +350,13 @@ class Character(object):
             WHERE x = :x and y = :y""",
             {"x": x, "y": y}
         )
+        return map(lambda row: cls(*row, connection=connection), cursor)
+
+    @classmethod
+    def get_order_by_lvl_and_xp(cls, limit, connection):
+        cursor = connection.execute("""SELECT * FROM characters c
+            ORDER BY c.lvl DESC, c.experience DESC
+            LIMIT ?""", (limit,))
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
