@@ -134,11 +134,12 @@ class Character(object):
         :return True if lvl'ed up, False otherwise"""
         self.experience += xp * self.trait.experience_factor
         next_lvl_exp = self.exp_for_next_lvl()
-        if self.experience >= next_lvl_exp:
+        lvl_up = False
+        while self.experience >= next_lvl_exp:
             self.experience -= next_lvl_exp
             self.lvl_up()
-            return True
-        return False
+            lvl_up = True
+        return lvl_up
 
     def lvl_up(self):
         self.lvl += 1
