@@ -65,23 +65,27 @@ class Location(NamedData):
     data_by_name = {}
     data_by_id = {}
 
-    def __init__(self, location_id, name, difficulty, connection):
+    def __init__(self, location_id, name, difficulty, reward, monsters, connection):
         super(Location, self).__init__(location_id, name, connection)
         self.difficulty = difficulty
+        self.reward = reward
+        self.monsters = monsters  # comma separated string
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists locations
-            (location_id integer PRIMARY KEY    NOT NULL,
-            name            text  UNIQUE        NOT NULL,
-            difficulty      integer  NOT NULL
+            (location_id    integer   PRIMARY KEY   NOT NULL,
+            name            text      UNIQUE        NOT NULL,
+            difficulty      integer   NOT NULL,
+            reward          integer   NOT NULL,
+            monsters        text      NOT NULL 
             );""")
 
     @classmethod
     def create_locations(cls, connection):
         """creates weapons into the database"""
         locations = cls.read_locations()
-        connection.executemany('INSERT OR IGNORE INTO locations(name, difficulty) VALUES (?, ?)', locations)
+        connection.executemany('INSERT OR IGNORE INTO locations(name, difficulty, reward, monsters) VALUES (?, ?, ?, ?)', locations)
         connection.commit()
 
     @staticmethod
@@ -93,7 +97,7 @@ class Location(NamedData):
     @classmethod
     def load_locations(cls, connection):
         """loads weapons from database"""
-        cursor = connection.execute('SELECT location_id, name, difficulty FROM locations')
+        cursor = connection.execute('SELECT location_id, name, difficulty, reward, monsters FROM locations')
         for row in cursor:
             location = cls(*row, connection=connection)
             cls.data_by_id[location.id] = location

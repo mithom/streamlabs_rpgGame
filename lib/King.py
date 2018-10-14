@@ -140,14 +140,20 @@ class Participant(object):
 class King(object):
     current_king = None
 
-    def __init__(self, tax_rate, character_id, gender, indisputable_until, connection):
+    def __init__(self, tax_rate, character_id, gender, indisputable_until, connection, character=None):
         self.character_id = character_id
 
         self.tax_rate = tax_rate
         self.gender = gender
         self.indisputable_until = indisputable_until
         self.connection = connection
-        self.character = None
+        self._character = character
+
+    @property
+    def character(self):
+        if self._character is None:
+            self._character = characters.Character.find(self.character_id, self.connection)
+        return self._character
 
     def delete(self):
         self.connection.execute("""DELETE FROM king WHERE king.character_id = ?""",
@@ -166,11 +172,11 @@ class King(object):
             if old_king.character_id == participant.character_id:
                 old_king.indisputable_until = datetime.datetime.now(utc) + datetime.timedelta(minutes=60)
                 old_king.save()
-                return
+                return old_king
             else:
                 old_king.delete()
         reign_time = datetime.datetime.now(utc) + datetime.timedelta(minutes=60)
-        King.create(5, participant.character_id, "king", reign_time, conn)
+        return King.create(5, participant.character_id, "king", reign_time, conn)
 
     @classmethod
     def create(cls, tax_rate, character_id, gender, indisputable_until, conn):
@@ -187,7 +193,6 @@ class King(object):
         if row is None:
             return None
         king = cls(*row, connection=conn)
-        king.character = characters.Character.find(king.character_id, conn)
         return king
 
     @classmethod

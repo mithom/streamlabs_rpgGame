@@ -8,7 +8,6 @@ import operator
 import random
 from Special import SpecialCooldown, Special, ActiveEffect
 
-
 import os
 import datetime as dt
 from pytz import utc
@@ -141,7 +140,7 @@ class RpgGame(object):
                 else:
                     winner = tournament.check_winner()
                     if winner is not None:
-                        King.crown(winner, conn)
+                        king = King.crown(winner, conn)
                         tournament.delete()
                 Boss.respawn_bosses(conn)
                 ActiveEffect.delete_all_expired(conn)
@@ -154,14 +153,24 @@ class RpgGame(object):
                 deaths = []
                 characters = Character.find_by_past_exp_time(conn)
                 coin_rewards = {}
+                tax = 0
+                if king is not None and king.character is not None:
+                    tax = king.tax_rate
+                    if tax != 0:
+                        coin_rewards[king.character.user_id] = 0
                 for character in characters:
                     # TODO: almost certainly add paging + threading/page to support crowds.
                     if character.check_survival():
                         coin_rewards[
-                            character.user_id] = round(character.position.location.difficulty * character.trait.loot_factor)
+                            character.user_id] = round(
+                            character.position.location.reward * character.trait.loot_factor*(1 - tax/100.0))
+                        if tax != 0:
+                            coin_rewards[king.character.user_id] += round(character.position.location.reward *
+                                                                          character.trait.loot_factor * (tax/100.0))
                         character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(
                             seconds=self.scriptSettings.xp_farm_time)
-                        if character.gain_experience(character.exp_for_difficulty(character.position.location.difficulty)):
+                        if character.gain_experience(
+                                character.exp_for_difficulty(character.position.location.difficulty)):
                             lvl_up.append(character)
                         character.save()  # TODO: batch update
                     else:
@@ -201,7 +210,7 @@ class RpgGame(object):
             if attack.attacker.attack_boss(boss):
                 specials = set(Special.data_by_id.keys())
                 character_specials = set(map(lambda x: x.specials_orig_name, attack.attacker.specials))
-                new_specials = specials-character_specials
+                new_specials = specials - character_specials
                 if len(new_specials) > 0:
                     new_special_id = random.choice(list(new_specials))
                     special = SpecialCooldown.create(attack.attacker_id, new_special_id, conn)
@@ -398,15 +407,15 @@ class RpgGame(object):
     def create(self, user_id, username, character_name):
         try:
             with self.get_connection() as conn:
-                if Character.find_by_user(user_id, conn) is None and\
+                if Character.find_by_user(user_id, conn) is None and \
                         Character.find_by_name(character_name, conn) is None and \
                         Boss.find_by_name(character_name, conn) is None:
                     exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
                     x, y = Map.starting_position()
                     Character.create(character_name, user_id, 0, 1, None, None, exp_gain_time, x, y, conn)
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you just created a new hero who listens to the mighty name of {1}. For more info about this" +
-                        " hero, type " + self.scriptSettings.info_command,
+                        "{0}, you just created a new hero who listens to the mighty name of {1}. For more info about" +
+                        " this hero, type " + self.scriptSettings.info_command,
                         username,
                         character_name
                     ))
@@ -616,8 +625,10 @@ class RpgGame(object):
                             target.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
                             target.save()
 
-                            resolve_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                            Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time, connection=conn)
+                            resolve_time = dt.datetime.now(utc) + \
+                                           dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                            Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time,
+                                          connection=conn)
                             Parent.SendStreamMessage(self.format_message(
                                 "{0} challenges {1} to a fight",
                                 attacker.name, target.name
@@ -633,8 +644,8 @@ class RpgGame(object):
                         if fight.target_id == attacker.char_id:
                             # my xp has already been delayed, i just react only now
                             resolver_id = fight.resolver_id
-                            Attack.create(self.COUNTER_ACTION, attacker.char_id, target.char_id, resolver_id=resolver_id,
-                                          connection=conn)
+                            Attack.create(self.COUNTER_ACTION, attacker.char_id, target.char_id,
+                                          resolver_id=resolver_id, connection=conn)
                             Parent.SendStreamMessage(self.format_message(
                                 "{0} accepts the challenge and prepares to counter {1}",
                                 attacker.name, target.name
@@ -716,7 +727,8 @@ class RpgGame(object):
                     ))
                     return
                 else:
-                    Attack.create(self.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id, connection=conn)
+                    Attack.create(self.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id,
+                                  connection=conn)
                     Parent.SendStreamMessage(self.format_message(
                         "{0} prepares to counter attack",
                         countermen.name
@@ -787,7 +799,7 @@ class RpgGame(object):
                 if target_char.armor is not None:
                     equipment_lvl += target_char.armor.min_lvl
 
-                if equipment_lvl >= target_char.lvl*1.5:
+                if equipment_lvl >= target_char.lvl * 1.5:
                     equipment_str = "greatly equipped for hes lvl "
                 elif equipment_lvl >= target_char.lvl:
                     equipment_str = "well equipped for hes lvl "
@@ -817,14 +829,15 @@ class RpgGame(object):
                     if Parent.RemovePoints(user_id, username, amount):
                         bounty = Bounty.find_by_user_id_from_piebank(user_id, conn)
                         if amount >= 2 * bounty.reward and bounty.kill_count > 1:  # TODO: other way around
-                            bounty.delete() # TODO: maybe add chance factor, higher is more chance to delete it?
+                            bounty.delete()  # TODO: maybe add chance factor, higher is more chance to delete it?
                             Parent.SendStreamMessage(self.format_message(
                                 "{0}, Your bounty has been cleared",
                                 username
                             ))
                         else:
                             Parent.SendStreamMessage(self.format_message(
-                                "{0}, {1} thanks you for your kindness of this free donation"
+                                "{0}, thanks for the kindness of this free donation",
+                                username
                             ))
                 else:
                     recipient = Character.find_by_name(recipient_name, conn)

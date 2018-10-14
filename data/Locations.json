@@ -1,14 +1,14 @@
 [
-  ["Castle", 0],
-  ["Town", 1],
-  ["Fields", 2],
-  ["Forest", 3],
-  ["River", 3],
-  ["Swamps", 4],
-  ["Mountains", 5],
-  ["Ruins", 5],
-  ["Dessert", 6],
-  ["Caves", 6],
-  ["Crypt", 8],
-  ["Abyss", 10]
+  ["Castle", 0, 1, "hearth attack"],
+  ["Town", 1, 2, "infected toe"],
+  ["Fields", 2, 3, "gazelle"],
+  ["Forest", 3, 4, "Giant Spider, Giant Rat"],
+  ["River", 3, 4, "Mutated Salmon, Mutated Cod, Piranha"],
+  ["Swamps", 4, 5, "Giant Crab"],
+  ["Mountains", 5, 6, "Giant"],
+  ["Ruins", 5, 6, "Troll"],
+  ["Dessert", 6, 7, "Giant Scorpion"],
+  ["Caves", 6, 7, "Risen Skeleton"],
+  ["Crypt", 8, 9, "Skeleton lord"],
+  ["Abyss", 10, 11, "Demon"]
 ]
