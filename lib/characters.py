@@ -9,6 +9,8 @@ from Attack import Attack
 from Special import SpecialCooldown, Special, ActiveEffect
 import King
 
+random = random.WichmannHill()
+
 
 class Character(object):
     """
@@ -133,7 +135,7 @@ class Character(object):
     def gain_experience(self, xp):
         """gain experience, auto lvl-up
         :return True if lvl'ed up, False otherwise"""
-        self.experience += xp * self.trait.experience_factor
+        self.experience += round(xp * self.trait.experience_factor)
         next_lvl_exp = self.exp_for_next_lvl()
         lvl_up = False
         while self.experience >= next_lvl_exp:

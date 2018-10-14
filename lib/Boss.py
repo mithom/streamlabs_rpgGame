@@ -8,6 +8,7 @@ from pytz import utc
 import datetime as dt
 from Position import Position
 
+random = random.WichmannHill()
 
 class Boss(object):
     class State(Enum):

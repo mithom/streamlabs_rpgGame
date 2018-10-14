@@ -18,6 +18,7 @@ clr.AddReference("IronPython.SQLite.dll")
 import sqlite3
 
 Parent = None
+random = random.WichmannHill()
 
 
 def parse_datetime(adt):
@@ -182,11 +183,16 @@ class RpgGame(object):
                     Parent.SendStreamMessage(self.format_message(
                         "some characters just lvl'ed up: " + ", ".join(map(lambda char: char.name, lvl_up))
                     ))
+                # if len(deaths) > 0:
+                #     Parent.SendStreamMessage(self.format_message(
+                #         "some characters died while roaming the dangerous lands or pieland: " +
+                #         ", ".join(map(lambda char: char.name, deaths))
+                #     ))
                 if len(deaths) > 0:
-                    Parent.SendStreamMessage(self.format_message(
-                        "some characters died while roaming the dangerous lands or pieland: " +
-                        ", ".join(map(lambda char: char.name, deaths))
-                    ))
+                    msg = ", ".join(map(lambda char: char.name + " got killed by a " +
+                                                     random.choice(char.position.location.monsters.split(",")) +
+                                        " at lvl " + char.lvl, deaths))
+                    Parent.SendStreamMessage(self.format_message(msg))
         finally:
             if 'conn' in locals():
                 conn.close()

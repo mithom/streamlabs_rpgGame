@@ -4,6 +4,7 @@ from enum import Enum
 import datetime as dt
 from pytz import utc
 import random
+random = random.WichmannHill()
 
 
 class SpecialCooldown(object):

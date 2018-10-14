@@ -2,6 +2,7 @@ import characters
 import datetime
 from pytz import utc
 import random
+random = random.WichmannHill()
 
 
 class Tournament(object):
