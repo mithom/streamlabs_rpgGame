@@ -927,6 +927,16 @@ class RpgGame(object):
                         "{0}, your title has been set to queen",
                         char.name
                     ))
+                elif king is not None and king.character is not None:
+                    Parent.SendStreamMessage(self.format_message(
+                        "our current {0} is {1}",
+                        king.gender,
+                        king.character.name
+                    ))
+                else:
+                    Parent.SendStreamMessage(self.format_message(
+                        "Pieland doesn't have a king or queen currently"
+                    ))
         finally:
             if 'conn' in locals():
                 conn.close()
@@ -942,6 +952,16 @@ class RpgGame(object):
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, your title has been set to king",
                         char.name
+                    ))
+                elif king is not None and king.character is not None:
+                    Parent.SendStreamMessage(self.format_message(
+                        "our current {0} is {1}",
+                        king.gender,
+                        king.character.name
+                    ))
+                else:
+                    Parent.SendStreamMessage(self.format_message(
+                        "Pieland doesn't have a king or queen currently"
                     ))
         finally:
             if 'conn' in locals():
