@@ -153,6 +153,10 @@ Persist ability: get best weapon for lvl until you reach your persisted weapon
 self addition: while being attacked, cannot attack someone who isn't in your combat already -> for each combat group, only 1 person can defend/counter/flee
 default currency
 
+self addition: add monsters in location.json, select a random monsted if someones dies for in the message
+
+addition: after a kill, you can select a class to specialise, maybe even t2 classes for second kills
+
 addition: add friends, being in same zone as a friend reduces death chance.
 Friends duel for fun (or piecoins) not until death
 

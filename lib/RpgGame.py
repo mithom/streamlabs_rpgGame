@@ -319,7 +319,7 @@ class RpgGame(object):
             self.scriptSettings.attack_command: self.attack,
             self.scriptSettings.look_command: self.look,
             self.scriptSettings.tax_command: self.tax,
-            self.scriptSettings.vote_command: self.vote,
+            self.scriptSettings.contest_command: self.contest,
             self.scriptSettings.smite_command: self.smite,
             self.scriptSettings.unsmite_command: self.unsmite,
             "!" + self.scriptSettings.stun_name: self.stun,
@@ -885,15 +885,56 @@ class RpgGame(object):
                 conn.close()
 
     def tax(self, user_id, username, amount):
-        pass
+        try:
+            amount = int(amount)
+            with self.get_connection() as conn:
+                king = King.find(conn)
+                char = Character.find_by_user(user_id, conn)
+                if char.char_id == king.character_id:
+                    king.tax_rate = max(min(amount, 10), 0)
+                    king.save()
+                    Parent.SendStreamMessage(self.format_message(
+                        "your {0} set the tax to {1}%",
+                        king.gender,
+                        king.tax_rate
+                    ))
+        finally:
+            if 'conn' in locals():
+                conn.close()
 
     def queen(self, user_id, username):
-        pass
+        try:
+            with self.get_connection() as conn:
+                king = King.find(conn)
+                char = Character.find_by_user(user_id, conn)
+                if king is not None and king.character_id == char.char_id:
+                    king.gender = "queen"
+                    king.save()
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, your title has been set to queen",
+                        char.name
+                    ))
+        finally:
+            if 'conn' in locals():
+                conn.close()
 
     def king(self, user_id, username):
-        pass
+        try:
+            with self.get_connection() as conn:
+                king = King.find(conn)
+                char = Character.find_by_user(user_id, conn)
+                if king is not None and king.character_id == char.char_id:
+                    king.gender = "king"
+                    king.save()
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, your title has been set to king",
+                        char.name
+                    ))
+        finally:
+            if 'conn' in locals():
+                conn.close()
 
-    def vote(self, user_id, username, target_name):
+    def contest(self, user_id, username, target_name):
         pass
 
     def smite(self, user_id, username, target_name):
