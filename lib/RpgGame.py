@@ -1020,8 +1020,9 @@ class RpgGame(object):
                     minutes, seconds = divmod(remainder, 60)
                     delta_str = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
                     Parent.SendStreamMessage(self.format_message(
-                        "{0} the king cannot be disputed so short after hes crowning, please wait {1}",
+                        "{0} the {1} cannot be disputed so short after hes crowning, please wait {2}",
                         username,
+                        king.gender,
                         delta_str
                     ))
                     return
