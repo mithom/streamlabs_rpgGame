@@ -192,7 +192,7 @@ class RpgGame(object):
                 if len(deaths) > 0:
                     msg = ", ".join(map(lambda char: char.name + " got killed by a " +
                                                      random.choice(char.position.location.monsters.split(",")) +
-                                        " at lvl " + char.lvl, deaths))
+                                        " at lvl " + str(char.lvl), deaths))
                     Parent.SendStreamMessage(self.format_message(msg))
         finally:
             if 'conn' in locals():
@@ -324,6 +324,7 @@ class RpgGame(object):
             self.scriptSettings.dough_command: self.dough,
             self.scriptSettings.queen_command: self.queen,
             self.scriptSettings.king_command: self.king,
+            self.scriptSettings.contest_command: self.contest,
             "!" + self.scriptSettings.guardian_name: self.guardian,
             "!" + self.scriptSettings.empower_name: self.empower,
             "!" + self.scriptSettings.repel_name: self.repel,
@@ -335,7 +336,6 @@ class RpgGame(object):
             self.scriptSettings.attack_command: self.attack,
             self.scriptSettings.look_command: self.look,
             self.scriptSettings.tax_command: self.tax,
-            self.scriptSettings.contest_command: self.contest,
             self.scriptSettings.smite_command: self.smite,
             self.scriptSettings.unsmite_command: self.unsmite,
             "!" + self.scriptSettings.stun_name: self.stun,
@@ -910,6 +910,13 @@ class RpgGame(object):
             with self.get_connection() as conn:
                 king = King.find(conn)
                 char = Character.find_by_user(user_id, conn)
+                if char is None:
+                    Parent.SendStreamMessage(self.format_message(
+                        self.scriptSettings.no_character_yet,
+                        username,
+                        self.scriptSettings.create_command
+                    ))
+                    return
                 if char.char_id == king.character_id:
                     king.tax_rate = max(min(amount, 10), 0)
                     king.save()
@@ -927,6 +934,13 @@ class RpgGame(object):
             with self.get_connection() as conn:
                 king = King.find(conn)
                 char = Character.find_by_user(user_id, conn)
+                if char is None:
+                    Parent.SendStreamMessage(self.format_message(
+                        self.scriptSettings.no_character_yet,
+                        username,
+                        self.scriptSettings.create_command
+                    ))
+                    return
                 if king is not None and king.character_id == char.char_id:
                     king.gender = "queen"
                     king.save()
@@ -953,6 +967,13 @@ class RpgGame(object):
             with self.get_connection() as conn:
                 king = King.find(conn)
                 char = Character.find_by_user(user_id, conn)
+                if char is None:
+                    Parent.SendStreamMessage(self.format_message(
+                        self.scriptSettings.no_character_yet,
+                        username,
+                        self.scriptSettings.create_command
+                    ))
+                    return
                 if king is not None and king.character_id == char.char_id:
                     king.gender = "king"
                     king.save()
@@ -974,8 +995,61 @@ class RpgGame(object):
             if 'conn' in locals():
                 conn.close()
 
-    def contest(self, user_id, username, target_name):
-        pass
+    def contest(self, user_id, username):
+        try:
+            with self.get_connection() as conn:
+                char = Character.find_by_user(user_id, conn)
+                if char is None:
+                    Parent.SendStreamMessage(self.format_message(
+                        self.scriptSettings.no_character_yet,
+                        username,
+                        self.scriptSettings.create_command
+                    ))
+                    return
+                king = King.find(conn)
+                tournament = Tournament.find(conn)
+                if tournament is not None:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, a tournament to become king is already in progress",
+                        username
+                    ))
+                    return
+                if king is not None and king.indisputable_until > dt.datetime.now(utc):
+                    delta = king.indisputable_until - dt.datetime.now(utc)
+                    hours, remainder = divmod(delta.seconds, 3600)
+                    minutes, seconds = divmod(remainder, 60)
+                    delta_str = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0} the king cannot be disputed so short after hes crowning, please wait {1}",
+                        username,
+                        delta_str
+                    ))
+                    return
+                candidates = Character.get_order_by_lvl_and_xp(3, conn, min_lvl=5)
+                if king.character_id not in map(lambda x: x.char_id, candidates):
+                    candidates = candidates[0:-1]
+                if char not in candidates:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you are not eligible to become king",
+                        char.name
+                    ))
+                    return
+                participant_chars = Tournament.initiate_tournament(king, conn)
+                if participant_chars is not None:
+                    msg = "a tournament to become king has started between the top warriors: "
+                    for part_char in participant_chars:
+                        msg += part_char.name + ", "
+                    Parent.SendStreamMessage(self.format_message(
+                        msg[:-2]
+                    ))
+                else:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, at least 2 candidates needed to start a tournament",
+                        username
+                    ))
+        finally:
+            if 'conn' in locals():
+                conn.close()
 
     def smite(self, user_id, username, target_name):
         pass

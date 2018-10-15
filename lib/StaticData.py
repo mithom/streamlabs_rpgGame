@@ -85,7 +85,8 @@ class Location(NamedData):
     def create_locations(cls, connection):
         """creates weapons into the database"""
         locations = cls.read_locations()
-        connection.executemany('INSERT OR IGNORE INTO locations(name, difficulty, reward, monsters) VALUES (?, ?, ?, ?)', locations)
+        connection.executemany('INSERT OR IGNORE INTO locations(name, difficulty, reward, monsters) VALUES (?, ?, ?, ?)'
+                               , locations)
         connection.commit()
 
     @staticmethod
