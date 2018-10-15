@@ -355,10 +355,11 @@ class Character(object):
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
-    def get_order_by_lvl_and_xp(cls, limit, connection):
+    def get_order_by_lvl_and_xp(cls, limit, connection, min_lvl=0):
         cursor = connection.execute("""SELECT * FROM characters c
+            WHERE c.lvl >= ?
             ORDER BY c.lvl DESC, c.experience DESC
-            LIMIT ?""", (limit,))
+            LIMIT ?""", (min_lvl, limit,))
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod

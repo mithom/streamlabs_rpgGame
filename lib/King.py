@@ -58,10 +58,12 @@ class Tournament(object):
             amount = 2
         else:
             amount = 3
-        participants = characters.Character.get_order_by_lvl_and_xp(amount, conn)
-        for character in participants:
-            Participant.create(character.char_id, True, tournament.tournament_id, conn)
-        return participants
+        participants = characters.Character.get_order_by_lvl_and_xp(amount, conn, min_lvl=5)
+        if len(participants) >= 2:
+            for character in participants:
+                Participant.create(character.char_id, True, tournament.tournament_id, conn)
+            return participants
+        return None
 
 
 class Participant(object):

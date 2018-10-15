@@ -595,11 +595,11 @@
     "tooltip": "This allows the king to tax everyone at a certain percentage (0-100).",
     "group": "Command Names"
   },
-  "vote_command": {
+  "contest_command": {
     "type": "textbox",
-    "value": "!vote",
-    "label": "vote command",
-    "tooltip": "Cast your vote for Pieland's hero. Must be level 5+ to vote.",
+    "value": "!contest",
+    "label": "contest command",
+    "tooltip": "start a tournament to become the next king, if possible",
     "group": "Command Names"
   },
   "smite_command": {
