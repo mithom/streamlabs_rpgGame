@@ -21,7 +21,7 @@ COMMANDS
 !bounty [amount] [target] - place piecoins on a player's head (loot reward).
 !tax (amount) - This allows the king to tax everyone at a certain percentage (0-100).
 !queen / !king - These commands adjust some messages for gender.
-!vote [player] - Cast your vote for Pieland's hero. Must be level 5+ to vote.
+!contest - If eligible, start a tournament to become king
 !smite [player] - Put a peasant in their place. They must be less than level 5.
 !unsmite [player] - Unban a player.
 !stat - Show the current Hero and King/Queen of Pieland.
