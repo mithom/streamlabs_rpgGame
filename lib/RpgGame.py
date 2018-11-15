@@ -178,7 +178,8 @@ class RpgGame(object):
                     else:
                         deaths.append(character)
                         character.delete()
-                Parent.AddPointsAll(coin_rewards)
+                if len(coin_rewards) > 0:
+                    Parent.AddPointsAll(coin_rewards)
                 conn.commit()
                 if len(lvl_up) > 0:
                     Parent.SendStreamMessage(self.format_message(

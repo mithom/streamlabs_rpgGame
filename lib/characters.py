@@ -127,7 +127,7 @@ class Character(object):
         weapon_bonus = 0
         if self.weapon is not None:
             weapon_bonus = self.weapon.min_lvl * 10
-        return max(round(((7 + self.lvl/2 + 3*(difficulty-self.lvl/2))**1.2) * (100 + weapon_bonus) / 100.0),0)
+        return max(round(((7 + (self.lvl-1)/2 + 3*(difficulty-self.lvl/2.0))**1.2) * (100 + weapon_bonus) / 100.0),0)
 
     def exp_for_next_lvl(self):
         return round(50 + ((7 * (self.lvl-1)) ** 1.4))
@@ -159,13 +159,14 @@ class Character(object):
         if self.position.location.difficulty * 2 < self.lvl:
             terrain_factor = 0.5
         death_chance = 100 * self.trait.death_chance_factor * (
-                max(3 + terrain_factor * (self.position.location.difficulty * 2 - self.lvl)),1) / (100 + armor_bonus)
+                max(3 + terrain_factor * (self.position.location.difficulty * 2 - self.lvl),1)) / (100 + armor_bonus)
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.CURSE, self.connection):
             death_chance += 5
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.GUARDIAN, self.connection):
             death_chance -= 10
-        if self.lvl < 5:
-            death_chance /= 2
+        if self.lvl < 4:
+            death_chance -= 2.5
+        print death_chance, self.position.location.difficulty
         return rand > death_chance
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
