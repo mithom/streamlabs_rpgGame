@@ -166,7 +166,6 @@ class Character(object):
             death_chance -= 10
         if self.lvl < 4:
             death_chance -= 2.5
-        print death_chance, self.position.location.difficulty
         return rand > death_chance
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
