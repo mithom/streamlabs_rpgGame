@@ -443,7 +443,7 @@ class RpgGame(object):
                 conn.close()
 
     def move(self, user_id, username, direction):
-        if Parent.IsOnIsOnUserCooldown(self.script_name, 'move', user_id):
+        if Parent.IsOnUserCooldown(self.script_name, 'move', user_id):
             Parent.SendStreamMessage('you cannot move for ' +
                                      str(Parent.GetUserCooldownDuration(self.script_name, 'move', user_id)) +
                                      ' seconds.')
