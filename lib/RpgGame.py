@@ -163,10 +163,10 @@ class RpgGame(object):
                     if character.check_survival():
                         coin_rewards[
                             character.user_id] = round(
-                            character.position.location.reward * character.trait.loot_factor*(1 - tax/100.0))
+                            character.position.location.reward * character.trait.loot_factor * (1 - tax / 100.0))
                         if tax != 0:
                             coin_rewards[king.character.user_id] += round(character.position.location.reward *
-                                                                          character.trait.loot_factor * (tax/100.0))
+                                                                          character.trait.loot_factor * (tax / 100.0))
                         character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(
                             seconds=self.scriptSettings.xp_farm_time)
                         if character.gain_experience(
@@ -191,7 +191,7 @@ class RpgGame(object):
                 if len(deaths) > 0:
                     msg = ", ".join(map(lambda char: char.name + " got killed by a " +
                                                      random.choice(char.position.location.monsters.split(",")) +
-                                        " at lvl " + str(char.lvl), deaths))
+                                                     " at lvl " + str(char.lvl), deaths))
                     Parent.SendStreamMessage(self.format_message(msg))
         finally:
             if 'conn' in locals():
@@ -219,7 +219,7 @@ class RpgGame(object):
         attack.delete()
 
     def reward_boss_kill(self, attacker, conn):  # TODO: possibility to only gain selection of specials from a
-                                                        # specific boss (can differ per boss)
+        # specific boss (can differ per boss)
         specials = set(Special.data_by_id.keys())
         character_specials = set(map(lambda x: x.specials_orig_name, attacker.specials))
         new_specials = specials - character_specials
@@ -444,11 +444,13 @@ class RpgGame(object):
 
     def move(self, user_id, username, direction):
         if Parent.IsOnUserCooldown(self.script_name, 'move', user_id):
-            Parent.SendStreamMessage('you cannot move for ' +
-                                     str(Parent.GetUserCooldownDuration(self.script_name, 'move', user_id)) +
-                                     ' seconds.')
+            Parent.SendStreamMessage(self.format_message(
+                '{0}, you cannot move for ' +
+                str(Parent.GetUserCooldownDuration(self.script_name, 'move', user_id)) + ' seconds.',
+                username
+            ))
             return
-        Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time/5)
+        Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
         try:
             with self.get_connection() as conn:
                 if direction not in LEFT + RIGHT + UP + DOWN:
