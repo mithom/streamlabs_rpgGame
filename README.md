@@ -3,23 +3,23 @@ This is a minigame in development for the Kaylovespie Twitch chat. You can level
 
 To start your journey just type: !create charactername
 
-##COMMANDS
-#####general - Done
+## COMMANDS
+##### general - Done
 * !create - Creates a new hero if you don't already have one.
 * !info - Show your level, eq, damage/defense, location, and specials/effects. - should be whispered (TODO)
 * !move \[location] - Moves to the location and starts leveling if there are monsters.
 * !buy \[item] - Attempts to purchase and equip the desired weapon or armor.
 * !i - condensed version of info including experience progress. - should be whispered (TODO)
 
-#####combat - done
+##### combat - done
 * !attack \[player] - This will start an attack on a nearby player which will resolve in 20 seconds. (will counter if you are attacked)
 * !defend - This will give you a defense bonus and prevent looting during an attack. Will not kill attacker.
 * !counter - This will attack your attacker giving you a small damage bonus.
 * !flee - This will give you a large defense bonus and but you may still be looted. You go to a random location. !move will also initiate a flee to the specified location.
 * !look \[player] - Get an idea of your chances against a nearby player.
 
-#####kingdom
-######!smite and !unsmite do not work yet
+##### kingdom
+###### !smite and !unsmite do not work yet
 * !dough - check piecoin balance.
 * !give \[amount] \[recipient] - give piecoins to a player. Giving to Piebank can remove bounty.
 * !bounty \[amount] \[target] - place piecoins on a player's head (loot reward).
@@ -47,7 +47,7 @@ To start your journey just type: !create charactername
 * Abyss - Unknown
 * ???? - Unknown
 
-####WEAPONS - configurable
+#### WEAPONS - configurable
 
 * ( 5pc : lvl 1) Dagger
 * ( 10pc: lvl 3) Wooden Club
@@ -60,7 +60,7 @@ To start your journey just type: !create charactername
 * (2000pc: lvl 24) Enchanted Bow
 * (5000pc: lvl 27) Demon Edge
 
-####ARMOR - configurable
+#### ARMOR - configurable
 
 * ( 5pc : lvl 1) Cloth Robe
 * ( 10pc: lvl 2) Fur Armor
@@ -73,7 +73,7 @@ To start your journey just type: !create charactername
 * (2000pc: lvl 16) Dragon Scalemail
 * (5000pc: lvl 18) Divine Aura
 
-####TRAITS
+#### TRAITS
 ###### alert doesn't work yet
 
 Every time you are born into Pieland at level 1 you will get a random trait:
@@ -87,8 +87,8 @@ Every time you are born into Pieland at level 1 you will get a random trait:
 * Violent - Less starting damage but gains damage for each kill
 * Pacifist - Gains armor every 2 levels but loses it for each kill
 
-####SPECIALS
-######Persist and invis do not work yet
+#### SPECIALS
+###### Persist and invis do not work yet
 
 These special powers are rare in Pieland. They will be granted every 15 levels or upon slaying Roshan. Most of them can be used on a nearby target player, or on the caster themselves if no one is specified. When obtaining a new special it is random, but you are guaranteed to get one you don't already have.
 
@@ -105,11 +105,11 @@ Specials are identified by a letter but casted with their full name (!guardian),
 * (I)nvis (180) - Can't be targeted for 10 minutes (any pvp combat dispels this.)
 * Stea(L) (60) - Pickpockets a random amount up to 2% of a player's piecoins. 3% for greedy players. Dispels invis on self.
 
-####BOSSES
+#### BOSSES
 
 Roshan will spawn during special occasions and will grant a special to whomever lands the killing blow. Anyone who helps with the fight will gain experience. There is no level requirement to fight Roshan but anyone with low defense needs to be careful because he can kill you. - configurable
 
-######boss fights
+###### boss fights
 * Boss has HP, but players do not HP (1). - Done
 * Boss can take 25 hits. - configurable
 * He attacks 1 player, but attacks hem twice. - Done (should make config)
@@ -117,7 +117,7 @@ Roshan will spawn during special occasions and will grant a special to whomever 
 * Boss only attacks after he is attacked, and then keeps doing so. - Done
 * Zone is always there, but kind of safe zone, but no shopping.
 
-##ADDITIONAL INFORMATION
+## ADDITIONAL INFORMATION
 
 Every minute you either gain experience or die depending on the area difficulty and your level/equipment. The weapon you have increases the experience you gain, and your armor reduces your death chance. - Done
 
@@ -128,19 +128,19 @@ Player vs player combat is only allowed for levels 5 and above, and is prohibite
 When the stream is offline you can't gain experience or die unless there is a live Roshan. Before you leave the channel or when the stream goes offline make sure to move to town (or castle) to be safe. - Done
 
 
-######Possible additions:
+##### #Possible additions:
 ability to add gender, if gender is available, automatically adapt game to it (auto king/queen)
 
 * add make command, no automatic characters/revives ability to choose name - Done
 * cannot be same as prev character (still need to keep death chars)
 
-####notes
+#### notes
 ###### general
 * Shopping only in towns.
 * Upon death: lose everything except coins. - Done
 * Persist ability: get best weapon for lvl until you reach your persisted weapon.
 
-######combat
+###### combat
 * Only 1 weapon at a time. - Done
 * Only 1 armor at a time. - Done
 * Each lvl has difficulty, if not high enough lvl, death chance goes up. - Done
@@ -158,7 +158,7 @@ Battle system has a separate tick rate. - Done
 * Exp gained depending on last time moved (x sec after last move/exp gain) - Done
 * Cannot move while being attacked - will try to flee - Done
 
-######self additions:
+###### self additions:
 While being attacked, cannot attack someone who isn't in your combat already -> for each combat group, only 1 person can defend/counter/flee - Done
 
 Self addition: add monsters in location.json, select a random monster if someones dies for in the message - Done
@@ -169,7 +169,7 @@ Addition: add friends, being in same zone as a friend reduces death chance.
 Friends duel for fun (or piecoins) not until death
 
 
-######idea for new minigame:
+###### idea for new minigame:
 the family game werewolfs
 every person gets hes role whispered, bot or streamer is game leader
 can be fun interactive
