@@ -1,5 +1,5 @@
 # RpgGame for chatbot
-This is a minigame in development for the Kaylovespie Twitch chat. You can level up, collect piecoin loot, buy equipment, and hunt down other players. This game has permanent death, when you die you lose all levels and equipment and return to town. Subscribers trigger 4x experience bonus for a time.
+This is a minigame in development for the Kaylovespie Twitch chat. You can level up, collect piecoin loot, buy equipment, and hunt down other players. This game has permanent death, when you die you lose all levels and equipment and return to town. Subscribers trigger 4x experience bonus for a time (not yet). 
 
 To start your journey just type: !create charactername
 
@@ -109,6 +109,14 @@ Specials are identified by a letter but casted with their full name (!guardian),
 
 Roshan will spawn during special occasions and will grant a special to whomever lands the killing blow. Anyone who helps with the fight will gain experience. There is no level requirement to fight Roshan but anyone with low defense needs to be careful because he can kill you. - configurable
 
+######boss fights
+* Boss has HP, but players do not HP (1). - Done
+* Boss can take 25 hits. - configurable
+* He attacks 1 player, but attacks hem twice. - Done (should make config)
+* Boss is in a zone, 1hour respawn time. - configurable
+* Boss only attacks after he is attacked, and then keeps doing so. - Done
+* Zone is always there, but kind of safe zone, but no shopping.
+
 ##ADDITIONAL INFORMATION
 
 Every minute you either gain experience or die depending on the area difficulty and your level/equipment. The weapon you have increases the experience you gain, and your armor reduces your death chance. - Done
@@ -127,6 +135,11 @@ ability to add gender, if gender is available, automatically adapt game to it (a
 * cannot be same as prev character (still need to keep death chars)
 
 ####notes
+###### general
+* Shopping only in towns.
+* Upon death: lose everything except coins. - Done
+* Persist ability: get best weapon for lvl until you reach your persisted weapon.
+
 ######combat
 * Only 1 weapon at a time. - Done
 * Only 1 armor at a time. - Done
@@ -144,17 +157,6 @@ Battle system has a separate tick rate. - Done
 * Move has it's own cooldown, shorter CD then game tick.
 * Exp gained depending on last time moved (x sec after last move/exp gain) - Done
 * Cannot move while being attacked - will try to flee - Done
-
-######boss fights
-* Boss has HP, but players do not HP (1). - Done
-* Boss can take 25 hits. - configurable
-* He attacks 1 player, but attacks hem twice. - Done (should make config)
-* Boss is in a zone, 1hour respawn time. - configurable
-* Boss only attacks after he is attacked, and then keeps doing so. - Done
-* Zone is always there, but kind of safe zone, but no shopping.
-* Shopping only in towns.
-* Upon death: lose everything except coins. - Done
-* Persist ability: get best weapon for lvl until you reach your persisted weapon.
 
 ######self additions:
 While being attacked, cannot attack someone who isn't in your combat already -> for each combat group, only 1 person can defend/counter/flee - Done

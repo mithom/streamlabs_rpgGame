@@ -126,7 +126,6 @@ class RpgGame(object):
     def tick(self):
         try:
             with self.get_connection() as conn:
-                # TODO: check if thread increases efficiency or not for small amounts of fights
                 king = King.find(conn)
                 tournament = Tournament.find(conn)
                 if tournament is None:
@@ -161,7 +160,6 @@ class RpgGame(object):
                     if tax != 0:
                         coin_rewards[king.character.user_id] = 0
                 for character in characters:
-                    # TODO: almost certainly add paging + threading/page to support crowds.
                     if character.check_survival():
                         coin_rewards[
                             character.user_id] = round(
@@ -216,28 +214,32 @@ class RpgGame(object):
         boss = Boss.find(attack.boss_id, conn)
         if boss.state != boss.State.DEAD:
             if attack.attacker.attack_boss(boss):
-                specials = set(Special.data_by_id.keys())
-                character_specials = set(map(lambda x: x.specials_orig_name, attack.attacker.specials))
-                new_specials = specials - character_specials
-                if len(new_specials) > 0:
-                    new_special_id = random.choice(list(new_specials))
-                    special = SpecialCooldown.create(attack.attacker_id, new_special_id, conn)
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, {1} has gained the ability {2} ({3}) on a {4} seconds cooldown.",
-                        Parent.GetDisplayName(attack.attacker.user_id),
-                        attack.attacker.name,
-                        special.special.name,
-                        special.special.identifier,
-                        special.special.cooldown_time
-                    ))
-                else:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, your character {1} already has every available special and cannot get a new one.",
-                        Parent.GetDisplayName(attack.attacker.user_id),
-                        attack.attacker.name
-                    ))
+                self.reward_boss_kill(attack.attacker, conn)
             boss.save()
         attack.delete()
+
+    def reward_boss_kill(self, attacker, conn):  # TODO: possibility to only gain selection of specials from a
+                                                        # specific boss (can differ per boss)
+        specials = set(Special.data_by_id.keys())
+        character_specials = set(map(lambda x: x.specials_orig_name, attacker.specials))
+        new_specials = specials - character_specials
+        if len(new_specials) > 0:
+            new_special_id = random.choice(list(new_specials))
+            special = SpecialCooldown.create(attacker.char_id, new_special_id, conn)
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, {1} has gained the ability {2} ({3}) on a {4} seconds cooldown.",
+                Parent.GetDisplayName(attacker.user_id),
+                attacker.name,
+                special.special.name,
+                special.special.identifier,
+                special.special.cooldown_time
+            ))
+        else:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, your character {1} already has every available special and cannot get a new one.",
+                Parent.GetDisplayName(attacker.user_id),
+                attacker.name
+            ))
 
     def resolve_fight(self, fight, conn):
         kills = {}
@@ -365,11 +367,12 @@ class RpgGame(object):
                     ))
                     return
                 location = character.position.location
-                Parent.SendStreamMessage(self.format_message(
-                    "{username}, your character {char_name} is located at {coords}, which is a {loc_name} with difficulty" +
-                    " {difficulty}. Your current lvl is {lvl} and xp {xp}/{needed_xp}. " +
+                Parent.SendStreamWhisper(user_id, self.format_message(
+                    "{username}, your character {char_name} is located at {coords}, which is a {loc_name} with " +
+                    "difficulty {difficulty}. Your current lvl is {lvl} and xp {xp}/{needed_xp}. " +
                     "You are currently wearing {armor} and use {weapon} as weapon." +
                     " Your trait is {trait_name} with strength {trait_strength} and specials: {specials}",
+                    whisper=True,
                     username=username,
                     char_name=character.name,
                     loc_name=location.name,
@@ -399,14 +402,15 @@ class RpgGame(object):
                         self.scriptSettings.create_command
                     ))
                     return
-                Parent.SendStreamMessage(self.format_message(
+                Parent.SendStreamWhisper(user_id, self.format_message(
                     "{0}, name: {1}, location {2}, lvl: {3}, trait: {4}, specials: {5}",
                     username,
                     character.name,
                     character.position.location.name,
                     character.lvl,
                     character.trait.trait.name,
-                    ", ".join(map(lambda x: x.special.identifier, character.specials))
+                    ", ".join(map(lambda x: x.special.identifier, character.specials)),
+                    whisper=True
                 ))
         finally:
             if 'conn' in locals():
@@ -428,16 +432,23 @@ class RpgGame(object):
                         character_name
                     ))
                 else:
-                    Parent.SendStreamMessage(self.format_message(
+                    Parent.SendStreamWhisper(user_id, self.format_message(
                         "{0}, character could not be created, you either already have one, or {1} has been taken",
                         username,
-                        character_name
+                        character_name,
+                        whisper=True
                     ))
         finally:
             if 'conn' in locals():
                 conn.close()
 
     def move(self, user_id, username, direction):
+        if Parent.IsOnIsOnUserCooldown(self.script_name, 'move', user_id):
+            Parent.SendStreamMessage('you cannot move for ' +
+                                     str(Parent.GetUserCooldownDuration(self.script_name, 'move', user_id)) +
+                                     ' seconds.')
+            return
+        Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time/5)
         try:
             with self.get_connection() as conn:
                 if direction not in LEFT + RIGHT + UP + DOWN:
@@ -462,6 +473,7 @@ class RpgGame(object):
                             character.exp_gain_time = dt.datetime.now(utc) + \
                                                       dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
                             character.save()
+                            Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time)
                             Parent.SendStreamMessage(self.format_message(
                                 "{0}, {1} moved to location {2} with difficulty {3}",
                                 username,
@@ -836,7 +848,7 @@ class RpgGame(object):
                 if recipient_name == self.scriptSettings.piebank_name:
                     if Parent.RemovePoints(user_id, username, amount):
                         bounty = Bounty.find_by_user_id_from_piebank(user_id, conn)
-                        if amount >= 2 * bounty.reward and bounty.kill_count > 1:  # TODO: other way around
+                        if amount >= 2 * bounty.reward and bounty.kill_count > 1:
                             bounty.delete()  # TODO: maybe add chance factor, higher is more chance to delete it?
                             Parent.SendStreamMessage(self.format_message(
                                 "{0}, Your bounty has been cleared",
@@ -1345,6 +1357,6 @@ class RpgGame(object):
     #   auxiliary functions
     # ---------------------------------------
     def format_message(self, msg, *args, **kwargs):
-        if self.scriptSettings.add_me:
+        if self.scriptSettings.add_me and not kwargs.get('whisper', False):
             msg = "/me " + msg
         return msg.format(*args, **kwargs)
