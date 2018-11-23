@@ -456,6 +456,7 @@ class RpgGame(object):
                         "{0}, that is no valid direction",
                         username
                     ))
+                    return
                 character = Character.find_by_user(user_id, conn)
                 if character is None:
                     Parent.SendStreamMessage(self.format_message(
