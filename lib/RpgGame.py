@@ -814,6 +814,7 @@ class RpgGame(object):
 
     def give(self, user_id, username, amount, recipient_name):
         try:
+            amount = int(amount)
             with self.get_connection() as conn:
                 if recipient_name == self.scriptSettings.piebank_name:
                     if Parent.RemovePoints(user_id, username, amount):
