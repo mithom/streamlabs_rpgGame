@@ -97,7 +97,6 @@ class Settings(object):
             self.steal_name = "Steal"
             self.steal_identifier = "L"
             self.steal_cd = 60
-            # TODO: add button to open data folder
 
             # command names
             # 0 args

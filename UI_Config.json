@@ -61,7 +61,23 @@
     "label": "create permission info",
     "tooltip": "extra info, eg: 10 (for Min_Hours) or: Rank1 (for Min_Rank)\r\nleave empty for most types",
     "group": "config"
-},
+  },
+  "open_folder": {
+    "type": "button",
+    "label": "open data folder",
+    "tooltip": "here you can configure the map, bosses and items",
+    "function": "OpenDataFolder",
+    "wsevent": "",
+    "group": "database stuff"
+  },
+  "reset": {
+    "type": "button",
+    "label": "Reset Database - Press 5 times in 5s",
+    "tooltip": "the whole game will be reset, only data files are kept\n all characters will vanish!",
+    "function": "ResetDatabase",
+    "wsevent": "",
+    "group": "database stuff"
+  },
   "fight_resolve_time":{
     "type":"numberbox",
     "value":20,

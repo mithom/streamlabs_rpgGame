@@ -141,6 +141,7 @@ class Character(object):
         while self.experience >= next_lvl_exp:
             self.experience -= next_lvl_exp
             self.lvl_up()
+            next_lvl_exp = self.exp_for_next_lvl()
             lvl_up = True
         return lvl_up
 

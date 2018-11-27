@@ -20,6 +20,8 @@ import sqlite3
 Parent = None
 random = random.WichmannHill()
 
+#  TODO: bountie billboard, bosses billboard, view persons on same tile, auto flee for alert char
+
 
 def parse_datetime(adt):
     return adt.isoformat()
@@ -122,6 +124,9 @@ class RpgGame(object):
 
     def apply_reload(self):
         SpecialCooldown.max_steal_amount = self.scriptSettings.max_steal_amount
+
+    def reset_db(self):
+        pass
 
     def tick(self):
         try:
