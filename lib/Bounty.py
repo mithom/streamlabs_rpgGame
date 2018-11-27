@@ -42,7 +42,7 @@ class Bounty(object):
 
     @property
     def reward(self):
-        if self.benefactor is None:
+        if self.benefactor_id is None:
             return max(0, (self.kill_count - 2) * 100) + max(500*2**(max(self.kill_count-1, 0)/5)-500, 0)
         return self._reward
 
@@ -146,7 +146,7 @@ class Bounty(object):
         character_id  integer NOT NULL ,
         benefactor_id integer,
         reward        integer NOT NULL,
-        kill_count         integer,
+        kill_count    integer,
         FOREIGN KEY (benefactor_id) REFERENCES characters(character_id),
         FOREIGN KEY (character_id) REFERENCES characters(character_id)
         );""")

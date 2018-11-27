@@ -23,11 +23,14 @@ class Settings(object):
             self.only_active = True
             self.add_me = True
             self.piebank_name = "piebank"
-            self.max_steal_amount = 100
+            self.create_permission = "Regular"
+            self.create_permission_info = ""
 
             # Gameplay
             self.fight_resolve_time = 20
             self.xp_farm_time = 60
+            self.max_steal_amount = 100
+            self.min_fight_lvl = 5
 
             # traits
             self.durable_enabled = True
@@ -94,7 +97,6 @@ class Settings(object):
             self.steal_name = "Steal"
             self.steal_identifier = "L"
             self.steal_cd = 60
-            # TODO: add button to open data folder
 
             # command names
             # 0 args

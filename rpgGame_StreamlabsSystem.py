@@ -99,6 +99,25 @@ def Execute(data):
                 command_functions[p_count-1][param0](data.User, data.UserName, *data.Message.split()[1:])
 
 
+def OpenDataFolder():
+    os.startfile(os.path.join(os.path.dirname(__file__), "data"))
+
+
+pushtime = 0
+pushcount = 0
+
+
+def ResetDatabase():
+    global pushtime, pushcount
+    if time.time() > pushtime:
+        pushcount = 0
+        pushtime = time.time() + 5
+    pushcount += 1
+    if pushcount >= 5:
+        game.reset_db()
+        Init()
+
+
 # ---------------------------------------
 #   auxiliary functions
 # ---------------------------------------

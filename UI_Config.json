@@ -35,12 +35,48 @@
     "tooltip": "name people have to give to to remove bounty from thyself",
     "group": "config"
   },
-  "max_steal_amount": {
-    "type": "numberbox",
-    "value": 100,
-    "label": "max steal amount",
-    "tooltip": "what is the maximum someone can steal with the Steal special",
+  "create_permission": {
+    "type": "dropdown",
+    "value": "Regular",
+    "label": "required create permission",
+    "tooltip": "required permission type (minimum) to create a character",
+    "group": "config",
+    "items": [
+      "Everyone",
+      "Regular",
+      "Subscriber",
+      "GameWisp_Subscriber",
+      "User_Specific",
+      "Min_Rank",
+      "Min_Points",
+      "Min_Hours",
+      "Moderator",
+      "Editor",
+      "Caster"
+    ]
+  },
+  "create_permission_info": {
+    "type": "textbox",
+    "value": "",
+    "label": "create permission info",
+    "tooltip": "extra info, eg: 10 (for Min_Hours) or: Rank1 (for Min_Rank)\r\nleave empty for most types",
     "group": "config"
+  },
+  "open_folder": {
+    "type": "button",
+    "label": "open data folder",
+    "tooltip": "here you can configure the map, bosses and items",
+    "function": "OpenDataFolder",
+    "wsevent": "",
+    "group": "database stuff"
+  },
+  "reset": {
+    "type": "button",
+    "label": "Reset Database - Press 5 times in 5s",
+    "tooltip": "the whole game will be reset, only data files are kept\n all characters will vanish!",
+    "function": "ResetDatabase",
+    "wsevent": "",
+    "group": "database stuff"
   },
   "fight_resolve_time":{
     "type":"numberbox",
@@ -55,6 +91,20 @@
     "label":"time to stay in an area before getting exp",
     "tooltip":"the time you need to stay in an area to gain exp. Being in a fight delays this",
     "group":"gameplay"
+  },
+  "max_steal_amount": {
+    "type": "numberbox",
+    "value": 100,
+    "label": "max steal amount",
+    "tooltip": "what is the maximum someone can steal with the Steal special",
+    "group": "gameplay"
+  },
+  "min_fight_lvl": {
+    "type": "numberbox",
+    "value": 5,
+    "label": "minimum lvl to fight",
+    "tooltip": "under this lvl, fighting is not allowed",
+    "group": "gameplay"
   },
   "durable_name":{
     "type":"textbox",
