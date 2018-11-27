@@ -50,10 +50,10 @@ class Tournament(object):
         Participant.create_table_if_not_exists(connection)
 
     @classmethod
-    def initiate_tournament(cls, old_king, conn):
-        tournament = cls.create(datetime.datetime.now(utc) + datetime.timedelta(minutes=5), conn)
+    def initiate_tournament(cls, old_king, min_lvl, conn):
+        tournament = cls.create(datetime.datetime.now(utc) + datetime.timedelta(minutes=10), conn)
         # find king and 2 or 3 top lvl
-        participants = characters.Character.get_order_by_lvl_and_xp(3, conn, min_lvl=5)
+        participants = characters.Character.get_order_by_lvl_and_xp(3, conn, min_lvl=min_lvl)
         if old_king is not None and old_king.character is not None:
             if old_king.character not in participants:
                 participants = participants[0:-1]

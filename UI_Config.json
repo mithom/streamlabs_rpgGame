@@ -35,13 +35,6 @@
     "tooltip": "name people have to give to to remove bounty from thyself",
     "group": "config"
   },
-  "max_steal_amount": {
-    "type": "numberbox",
-    "value": 100,
-    "label": "max steal amount",
-    "tooltip": "what is the maximum someone can steal with the Steal special",
-    "group": "config"
-  },
   "fight_resolve_time":{
     "type":"numberbox",
     "value":20,
@@ -55,6 +48,20 @@
     "label":"time to stay in an area before getting exp",
     "tooltip":"the time you need to stay in an area to gain exp. Being in a fight delays this",
     "group":"gameplay"
+  },
+  "max_steal_amount": {
+    "type": "numberbox",
+    "value": 100,
+    "label": "max steal amount",
+    "tooltip": "what is the maximum someone can steal with the Steal special",
+    "group": "gameplay"
+  },
+  "min_fight_lvl": {
+    "type": "numberbox",
+    "value": 5,
+    "label": "minimum lvl to fight",
+    "tooltip": "under this lvl, fighting is not allowed",
+    "group": "gameplay"
   },
   "durable_name":{
     "type":"textbox",

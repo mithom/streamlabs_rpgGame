@@ -130,7 +130,8 @@ class RpgGame(object):
                 tournament = Tournament.find(conn)
                 if tournament is None:
                     if king is None or king.character is None:
-                        participant_chars = Tournament.initiate_tournament(king, conn)
+                        participant_chars = Tournament.initiate_tournament(
+                            king, max(self.scriptSettings.min_fight_lvl, 5), conn)
                         if participant_chars is not None:
                             msg = "a tournament to become king has started between the top warriors: "
                             for part_char in participant_chars:
@@ -580,6 +581,18 @@ class RpgGame(object):
                         username
                     ))
                     return
+                if attacker.lvl < self.scriptSettings.min_fight_lvl:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, your character isn't lvl {lvl} yet",
+                        username, lvl=5
+                    ))
+                    return
+                if target.lvl < self.scriptSettings.min_fight_lvl:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, {target} isn't lvl {lvl} yet",
+                        username, target=target_name, lvl=5
+                    ))
+                    return
                 fight1 = Attack.find_by_attacker_or_target(attacker, conn)
                 if fight1 is not None:
                     if fight1.attacker_id == attacker.char_id:
@@ -624,6 +637,12 @@ class RpgGame(object):
                                 ))
                                 return
                 if target.position == attacker.position:
+                    if attacker.position.location.difficulty == 0:  # TODO: peaceful duels inside of the castle
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, the castle is a peaceful place!",
+                            username
+                        ))
+                        return
                     if fight1 is not None:
                         if fight1.attacker_id == attacker.char_id:
                             Parent.SendStreamMessage(self.format_message(
@@ -1051,7 +1070,8 @@ class RpgGame(object):
                         char.name
                     ))
                     return
-                participant_chars = Tournament.initiate_tournament(king, conn)
+                participant_chars = Tournament.initiate_tournament(
+                    king, max(self.scriptSettings.min_fight_lvl, 5), conn)
                 if participant_chars is not None:
                     msg = "a tournament to become king has started between the top warriors: "
                     for part_char in participant_chars:

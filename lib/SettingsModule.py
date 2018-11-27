@@ -23,11 +23,12 @@ class Settings(object):
             self.only_active = True
             self.add_me = True
             self.piebank_name = "piebank"
-            self.max_steal_amount = 100
 
             # Gameplay
             self.fight_resolve_time = 20
             self.xp_farm_time = 60
+            self.max_steal_amount = 100
+            self.min_fight_lvl = 5
 
             # traits
             self.durable_enabled = True
