@@ -418,6 +418,7 @@ class RpgGame(object):
                         self.scriptSettings.create_permission,
                         self.scriptSettings.create_permission_info
                     ))
+                    return
                 if Character.find_by_user(user_id, conn) is None and \
                         Character.find_by_name(character_name, conn) is None and \
                         Boss.find_by_name(character_name, conn) is None:
