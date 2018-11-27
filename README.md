@@ -6,10 +6,10 @@ To start your journey just type: !create charactername
 ## COMMANDS
 ##### general - Done
 * !create - Creates a new hero if you don't already have one.
-* !info - Show your level, eq, damage/defense, location, and specials/effects. - should be whispered (TODO)
+* !info - Whispers you your level, equipment, location, and specials/effects.
 * !move \[location] - Moves to the location and starts leveling if there are monsters.
 * !buy \[item] - Attempts to purchase and equip the desired weapon or armor.
-* !i - condensed version of info including experience progress. - should be whispered (TODO)
+* !i - condensed version of info including experience progress.
 
 ##### combat - done
 * !attack \[player] - This will start an attack on a nearby player which will resolve in 20 seconds. (will counter if you are attacked)
@@ -121,9 +121,9 @@ Roshan will spawn during special occasions and will grant a special to whomever 
 
 Every minute you either gain experience or die depending on the area difficulty and your level/equipment. The weapon you have increases the experience you gain, and your armor reduces your death chance. - Done
 
-Pay attention to the difficulty hint when you move between areas. There is no hp but you will risk death every minute in harder areas. This can be a way to get ahead quickly if you are lucky though. You get reduced experience in areas with no chance of death. When you level you get some Piecoin loot based on how high the level. The highest level player may become the King of Pieland, and can tax monster loot for players level 5 and above only if they are outside of the castle. Only subscribers are allowed in the castle, but if you have killed someone in the last 2 minutes you will be denied entry (unless you are king). - mostly Done (castle still accessible for everyone)
+Pay attention to the difficulty hint when you move between areas. There is no hp but you will risk death every minute in harder areas. This can be a way to get ahead quickly if you are lucky though. You get reduced experience in areas with no chance of death. When you level you get some Piecoin loot based on how high the level. The highest level player may become the King of Pieland, and can tax monster loot for players level 5 and above only if they are outside of the castle. Only subscribers are allowed in the castle, but if you have killed someone in the last 2 minutes you will be denied entry (unless you are king).
 
-Player vs player combat is only allowed for levels 5 and above, and is prohibited in the castle. Be aware that if you attack you are vulnerable to any number of players to sneak attack you in return without the ability to defend or flee. Once you are locked in combat you can only respond with one action and it cannot be changed during that round even if more players join combat. Only the player who lands the killing blow will earn tax free loot, and will gain extra loot from the victim kill count and any placed bounties. Experience may be gained by other participants. Kills show up on a player's info and will give more loot when they are killed themselves.
+Player vs player combat is only allowed for levels 5 and above, and is prohibited in the castle. Be aware that if you attack you are vulnerable to any number of players to sneak attack you in return without the ability to defend or flee. Once you are locked in combat you can only respond with one action and it cannot be changed during that round even if more players join combat. Only the player who lands the killing blow will earn tax free loot, and will gain extra loot from the victim kill count and any placed bounties. Experience may be gained by other participants. Kills show up on a player's info and will give more loot when they are killed themselves. - mostly done
 
 When the stream is offline you can't gain experience or die unless there is a live Roshan. Before you leave the channel or when the stream goes offline make sure to move to town (or castle) to be safe. - Done
 
