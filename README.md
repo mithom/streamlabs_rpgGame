@@ -88,7 +88,7 @@ Every time you are born into Pieland at level 1 you will get a random trait:
 * Pacifist - Gains armor every 2 levels but loses it for each kill
 
 #### SPECIALS
-###### Persist and invis do not work yet
+###### Persist does not work yet
 
 These special powers are rare in Pieland. They will be granted every 15 levels or upon slaying Roshan. Most of them can be used on a nearby target player, or on the caster themselves if no one is specified. When obtaining a new special it is random, but you are guaranteed to get one you don't already have.
 
