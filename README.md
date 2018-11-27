@@ -121,7 +121,7 @@ Roshan will spawn during special occasions and will grant a special to whomever 
 
 Every minute you either gain experience or die depending on the area difficulty and your level/equipment. The weapon you have increases the experience you gain, and your armor reduces your death chance. - Done
 
-Pay attention to the difficulty hint when you move between areas. There is no hp but you will risk death every minute in harder areas. This can be a way to get ahead quickly if you are lucky though. You get reduced experience in areas with no chance of death. When you level you get some Piecoin loot based on how high the level. The highest level player may become the King of Pieland, and can tax monster loot for players level 5 and above only if they are outside of the castle. Only subscribers are allowed in the castle, but if you have killed someone in the last 2 minutes you will be denied entry (unless you are king).
+Pay attention to the difficulty hint when you move between areas. There is no hp but you will risk death every minute in harder areas. This can be a way to get ahead quickly if you are lucky though. You get reduced experience in areas with no chance of death. When you level you get some Piecoin loot based on how high the level. The highest level player may become the King of Pieland, and can tax monster loot for players level 5 and above only if they are outside of the castle. Only subscribers are allowed in the castle, but if you have killed someone in the last 2 minutes you will be denied entry (unless you are king). - mostly Done (castle still accessible for everyone)
 
 Player vs player combat is only allowed for levels 5 and above, and is prohibited in the castle. Be aware that if you attack you are vulnerable to any number of players to sneak attack you in return without the ability to defend or flee. Once you are locked in combat you can only respond with one action and it cannot be changed during that round even if more players join combat. Only the player who lands the killing blow will earn tax free loot, and will gain extra loot from the victim kill count and any placed bounties. Experience may be gained by other participants. Kills show up on a player's info and will give more loot when they are killed themselves.
 
@@ -154,7 +154,7 @@ Battle system has a separate tick rate. - Done
 * Fight = 1 round - Done
 * Sneak attack, when attacking outside of village or town -> you cannot flee. 
 * There is a map - configurable
-* Move has it's own cooldown, shorter CD then game tick.
+* Move has it's own cooldown, shorter CD then game tick. - Done
 * Exp gained depending on last time moved (x sec after last move/exp gain) - Done
 * Cannot move while being attacked - will try to flee - Done
 
