@@ -126,7 +126,7 @@ class RpgGame(object):
         SpecialCooldown.max_steal_amount = self.scriptSettings.max_steal_amount
 
     def reset_db(self):
-        pass
+        os.remove(os.path.join(self.db_directory, "database.db"))
 
     def tick(self):
         try:
