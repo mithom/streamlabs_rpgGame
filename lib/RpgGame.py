@@ -608,6 +608,12 @@ class RpgGame(object):
                             username
                         ))
                         return
+                    if target.lvl < self.scriptSettings.min_fight_lvl:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, {target} isn't lvl {lvl} yet",
+                            username, lvl=5, target=target_name
+                        ))
+                        return
                     if fight1 is not None:
                         if fight1.attacker_id == attacker.char_id:
                             Parent.SendStreamMessage(self.format_message(
