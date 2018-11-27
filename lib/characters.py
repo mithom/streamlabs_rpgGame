@@ -116,6 +116,14 @@ class Character(object):
     def is_stunned(self):
         return ActiveEffect.find_by_target_and_special(self, Special.Specials.STUN, self.connection) is not None
 
+    def is_invisible(self):
+        return ActiveEffect.find_by_target_and_special(self, Special.Specials.INVIS, self.connection) is not None
+
+    def remove_invisibility(self):
+        invisibility = ActiveEffect.find_by_target_and_special(self, Special.Specials.INVIS, self.connection)
+        if invisibility is not None:
+            invisibility.delete()
+
     def attempt_flee(self):
         if random.random() * 100 <= 45:
             self.position.coord = random.choice(self.position.flee_options())
@@ -127,10 +135,11 @@ class Character(object):
         weapon_bonus = 0
         if self.weapon is not None:
             weapon_bonus = self.weapon.min_lvl * 10
-        return round((max(7 + (self.lvl-1)/2 + 3*(difficulty-self.lvl/2.0),0)**1.2) * (100 + weapon_bonus) / 100.0)
+        return round(
+            (max(7 + (self.lvl - 1) / 2 + 3 * (difficulty - self.lvl / 2.0), 0) ** 1.2) * (100 + weapon_bonus) / 100.0)
 
     def exp_for_next_lvl(self):
-        return round(50 + ((7 * (self.lvl-1)) ** 1.4))
+        return round(50 + ((7 * (self.lvl - 1)) ** 1.4))
 
     def gain_experience(self, xp):
         """gain experience, auto lvl-up
@@ -160,7 +169,7 @@ class Character(object):
         if self.position.location.difficulty * 2 < self.lvl:
             terrain_factor = 0.5
         death_chance = 100 * self.trait.death_chance_factor * (
-                max(3 + terrain_factor * (self.position.location.difficulty * 2 - self.lvl),1)) / (100 + armor_bonus)
+            max(3 + terrain_factor * (self.position.location.difficulty * 2 - self.lvl), 1)) / (100 + armor_bonus)
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.CURSE, self.connection):
             death_chance += 5
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.GUARDIAN, self.connection):

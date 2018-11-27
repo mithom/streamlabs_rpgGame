@@ -603,6 +603,7 @@ class RpgGame(object):
                             else:
                                 resolve_time = dt.datetime.now(utc) + dt.timedelta(
                                     seconds=self.scriptSettings.fight_resolve_time)
+                                attacker.remove_invisibility()
                                 Attack.create(self.ATTACK_ACTION, attacker.char_id, boss_id=boss.boss_id,
                                               resolve_time=resolve_time, connection=conn)
                                 Parent.SendStreamMessage(self.format_message(
@@ -611,6 +612,13 @@ class RpgGame(object):
                                     boss.name
                                 ))
                                 return
+                elif target.is_invisible():
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you cannot find {1}!",
+                        username,
+                        target.name
+                    ))
+                    return
                 elif target.position == attacker.position:
                     if attacker.position.location.difficulty == 0:  # TODO: peaceful duels inside of the castle
                         Parent.SendStreamMessage(self.format_message(
@@ -650,6 +658,7 @@ class RpgGame(object):
 
                             resolve_time = dt.datetime.now(utc) + \
                                            dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                            attacker.remove_invisibility()
                             Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time,
                                           connection=conn)
                             Parent.SendStreamMessage(self.format_message(
@@ -774,12 +783,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 target_char = Character.find_by_name(target_name, conn)
-                if target_char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, there is no character with the name {1}",
-                        username,
-                        target_name
-                    ))
+                if not self.check_valid_target(target_char, username):
                     return
                 equipment_str = "badly equipped for hes lvl"
 
@@ -868,9 +872,7 @@ class RpgGame(object):
                 bounty = Bounty.find_by_character_name_and_benefactor(target_name, benefactor.char_id, conn)
                 if bounty is None:
                     target = Character.find_by_name(target_name, conn)
-                    if target is None:
-                        Parent.SendStreamMessage(
-                            self.format_message("{0}, no target exists with that character name", username))
+                    if not self.check_valid_target(target, username, invisible_check=False):
                         return
                     if Parent.RemovePoints(user_id, username, amount):
                         Bounty.create(target, benefactor, amount, None, conn)
@@ -1044,12 +1046,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if target is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, there is no character called {1}",
-                        username,
-                        target_name
-                    ))
+                if not self.check_valid_target(target, username):
                     return
                 char.use_special(Special.Specials.STUN, target)
         finally:
@@ -1063,12 +1060,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if target is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, there is no character called {1}",
-                        username,
-                        target_name
-                    ))
+                if not self.check_valid_target(target, username):
                     return
                 char.use_special(Special.Specials.TRACK, target)
         finally:
@@ -1085,12 +1077,7 @@ class RpgGame(object):
                     target = char
                 else:
                     target = Character.find_by_name(target_name, conn)
-                    if target is None:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, there is no character called {1}",
-                            username,
-                            target_name
-                        ))
+                    if not self.check_valid_target(target, username):
                         return
                 char.use_special(Special.Specials.GUARDIAN, target)
         finally:
@@ -1107,12 +1094,7 @@ class RpgGame(object):
                     target = char
                 else:
                     target = Character.find_by_name(target_name, conn)
-                    if target is None:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, there is no character called {1}",
-                            username,
-                            target_name
-                        ))
+                    if not self.check_valid_target(target, username):
                         return
                 char.use_special(Special.Specials.EMPOWER, target)
         finally:
@@ -1129,12 +1111,7 @@ class RpgGame(object):
                     target = char
                 else:
                     target = Character.find_by_name(target_name, conn)
-                    if target is None:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, there is no character called {1}",
-                            username,
-                            target_name
-                        ))
+                    if not self.check_valid_target(target, username):
                         return
                 char.use_special(Special.Specials.REPEL, target)
         finally:
@@ -1148,12 +1125,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if target is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, there is no character called {1}",
-                        username,
-                        target_name
-                    ))
+                if not self.check_valid_target(target, username):
                     return
                 char.use_special(Special.Specials.BLIND, target)
         finally:
@@ -1167,12 +1139,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if target is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, there is no character called {1}",
-                        username,
-                        target_name
-                    ))
+                if not self.check_valid_target(target, username):
                     return
                 char.use_special(Special.Specials.CURSE, target)
         finally:
@@ -1189,12 +1156,7 @@ class RpgGame(object):
                     target = char
                 else:
                     target = Character.find_by_name(target_name, conn)
-                    if target is None:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, there is no character called {1}",
-                            username,
-                            target_name
-                        ))
+                    if not self.check_valid_target(target, username):
                         return
                 char.use_special(Special.Specials.INVIS, target)
         finally:
@@ -1208,12 +1170,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if target is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, there is no character called {1}",
-                        username,
-                        target_name
-                    ))
+                if not self.check_valid_target(target, username):
                     return
                 char.use_special(Special.Specials.STEAL, target)
         finally:
@@ -1231,14 +1188,31 @@ class RpgGame(object):
     def check_valid_char(self, char, username, stun_check=True):
         if char is None:
             Parent.SendStreamMessage(self.format_message(
-                self.scriptSettings.no_character_yet,
+                "{0}, there is no character called {1}",
                 username,
-                self.scriptSettings.create_command
+                char.name
             ))
             return False
         if stun_check and char.is_stunned():
             Parent.SendStreamMessage(self.format_message(
                 "{0}, you cannot do that while stunned!",
+                char.name
+            ))
+            return False
+        return True
+
+    def check_valid_target(self, char, username, invisible_check=True):
+        if char is None:
+            Parent.SendStreamMessage(self.format_message(
+                self.scriptSettings.no_character_yet,
+                username,
+                self.scriptSettings.create_command
+            ))
+            return False
+        if invisible_check and char.is_invisible():
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you cannot find {1}!",
+                username,
                 char.name
             ))
             return False
