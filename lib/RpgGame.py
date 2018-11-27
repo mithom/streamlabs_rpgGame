@@ -783,7 +783,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 target_char = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target_char, username):
+                if not self.check_valid_target(target_char, username, target_name):
                     return
                 equipment_str = "badly equipped for hes lvl"
 
@@ -872,7 +872,7 @@ class RpgGame(object):
                 bounty = Bounty.find_by_character_name_and_benefactor(target_name, benefactor.char_id, conn)
                 if bounty is None:
                     target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username, invisible_check=False):
+                    if not self.check_valid_target(target, username, target_name, invisible_check=False):
                         return
                     if Parent.RemovePoints(user_id, username, amount):
                         Bounty.create(target, benefactor, amount, None, conn)
@@ -1046,7 +1046,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username):
+                if not self.check_valid_target(target, username, target_name):
                     return
                 char.use_special(Special.Specials.STUN, target)
         finally:
@@ -1060,7 +1060,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username):
+                if not self.check_valid_target(target, username, target_name):
                     return
                 char.use_special(Special.Specials.TRACK, target)
         finally:
@@ -1077,7 +1077,7 @@ class RpgGame(object):
                     target = char
                 else:
                     target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username):
+                    if not self.check_valid_target(target, username, target_name):
                         return
                 char.use_special(Special.Specials.GUARDIAN, target)
         finally:
@@ -1094,7 +1094,7 @@ class RpgGame(object):
                     target = char
                 else:
                     target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username):
+                    if not self.check_valid_target(target, username, target_name):
                         return
                 char.use_special(Special.Specials.EMPOWER, target)
         finally:
@@ -1111,7 +1111,7 @@ class RpgGame(object):
                     target = char
                 else:
                     target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username):
+                    if not self.check_valid_target(target, username, target_name):
                         return
                 char.use_special(Special.Specials.REPEL, target)
         finally:
@@ -1125,7 +1125,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username):
+                if not self.check_valid_target(target, username, target_name):
                     return
                 char.use_special(Special.Specials.BLIND, target)
         finally:
@@ -1139,7 +1139,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username):
+                if not self.check_valid_target(target, username, target_name):
                     return
                 char.use_special(Special.Specials.CURSE, target)
         finally:
@@ -1156,7 +1156,7 @@ class RpgGame(object):
                     target = char
                 else:
                     target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username):
+                    if not self.check_valid_target(target, username, target_name):
                         return
                 char.use_special(Special.Specials.INVIS, target)
         finally:
@@ -1170,7 +1170,7 @@ class RpgGame(object):
                 if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username):
+                if not self.check_valid_target(target, username, target_name):
                     return
                 char.use_special(Special.Specials.STEAL, target)
         finally:
@@ -1188,9 +1188,9 @@ class RpgGame(object):
     def check_valid_char(self, char, username, stun_check=True):
         if char is None:
             Parent.SendStreamMessage(self.format_message(
-                "{0}, there is no character called {1}",
+                self.scriptSettings.no_character_yet,
                 username,
-                char.name
+                self.scriptSettings.create_command
             ))
             return False
         if stun_check and char.is_stunned():
@@ -1201,12 +1201,12 @@ class RpgGame(object):
             return False
         return True
 
-    def check_valid_target(self, char, username, invisible_check=True):
+    def check_valid_target(self, char, username, char_name, invisible_check=True):
         if char is None:
             Parent.SendStreamMessage(self.format_message(
-                self.scriptSettings.no_character_yet,
+                "{0}, there is no character called {1}",
                 username,
-                self.scriptSettings.create_command
+                char_name
             ))
             return False
         if invisible_check and char.is_invisible():
