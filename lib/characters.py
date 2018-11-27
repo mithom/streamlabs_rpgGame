@@ -127,7 +127,7 @@ class Character(object):
         weapon_bonus = 0
         if self.weapon is not None:
             weapon_bonus = self.weapon.min_lvl * 10
-        return max(round(((7 + (self.lvl-1)/2 + 3*(difficulty-self.lvl/2.0))**1.2) * (100 + weapon_bonus) / 100.0),0)
+        return round((max(7 + (self.lvl-1)/2 + 3*(difficulty-self.lvl/2.0),0)**1.2) * (100 + weapon_bonus) / 100.0)
 
     def exp_for_next_lvl(self):
         return round(50 + ((7 * (self.lvl-1)) ** 1.4))
