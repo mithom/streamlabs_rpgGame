@@ -37,7 +37,7 @@
   },
   "create_permission": {
     "type": "dropdown",
-    "value": "Moderator",
+    "value": "Regular",
     "label": "required create permission",
     "tooltip": "required permission type (minimum) to create a character",
     "group": "config",

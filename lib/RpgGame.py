@@ -455,10 +455,10 @@ class RpgGame(object):
                 username
             ))
             return
-        Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
         try:
             with self.get_connection() as conn:
                 if direction not in LEFT + RIGHT + UP + DOWN:
+                    Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, that is no valid direction",
                         username
@@ -466,6 +466,7 @@ class RpgGame(object):
                     return
                 character = Character.find_by_user(user_id, conn)
                 if not self.check_valid_char(character, username):
+                    Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
                     return
                 if character.position.can_move_to(*get_coords_change(direction)):
                     fight = Attack.find_by_attacker_or_target(character, conn)
@@ -485,11 +486,14 @@ class RpgGame(object):
                                 character.position.location.difficulty
                             ))
                         else:
+                            Parent.AddUserCooldown(self.script_name, 'move', user_id,
+                                                   self.scriptSettings.xp_farm_time / 5)
                             Parent.SendStreamMessage(self.format_message(
                                 "{0}, you cannot move while stunned!",
                                 username
                             ))
                     else:
+                        Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
                         if fight.attacker_id == character.char_id:
                             Parent.SendStreamMessage(self.format_message(
                                 "{0}, you cannot move during a fight, your action for this fight has already been set.",
@@ -504,6 +508,7 @@ class RpgGame(object):
                             ))
 
                 else:
+                    Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, there is no location on that side",
                         username
