@@ -23,6 +23,8 @@ class Settings(object):
             self.only_active = True
             self.add_me = True
             self.piebank_name = "piebank"
+            self.create_permission = "Regular"
+            self.create_permission_info = ""
 
             # Gameplay
             self.fight_resolve_time = 20

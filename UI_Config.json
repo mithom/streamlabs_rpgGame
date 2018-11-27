@@ -35,6 +35,33 @@
     "tooltip": "name people have to give to to remove bounty from thyself",
     "group": "config"
   },
+  "create_permission": {
+    "type": "dropdown",
+    "value": "Moderator",
+    "label": "required create permission",
+    "tooltip": "required permission type (minimum) to create a character",
+    "group": "config",
+    "items": [
+      "Everyone",
+      "Regular",
+      "Subscriber",
+      "GameWisp_Subscriber",
+      "User_Specific",
+      "Min_Rank",
+      "Min_Points",
+      "Min_Hours",
+      "Moderator",
+      "Editor",
+      "Caster"
+    ]
+  },
+  "create_permission_info": {
+    "type": "textbox",
+    "value": "",
+    "label": "create permission info",
+    "tooltip": "extra info, eg: 10 (for Min_Hours) or: Rank1 (for Min_Rank)\r\nleave empty for most types",
+    "group": "config"
+},
   "fight_resolve_time":{
     "type":"numberbox",
     "value":20,

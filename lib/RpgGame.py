@@ -410,6 +410,14 @@ class RpgGame(object):
     def create(self, user_id, username, character_name):
         try:
             with self.get_connection() as conn:
+                if not Parent.HasPermission(user_id, self.scriptSettings.create_permission,
+                                            self.scriptSettings.create_permission_info):
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, the minimum rank for this command is {1}, {2}",
+                        username,
+                        self.scriptSettings.create_permission,
+                        self.scriptSettings.create_permission_info
+                    ))
                 if Character.find_by_user(user_id, conn) is None and \
                         Character.find_by_name(character_name, conn) is None and \
                         Boss.find_by_name(character_name, conn) is None:
@@ -804,6 +812,10 @@ class RpgGame(object):
                                 "{0}, thanks for the kindness of this free donation",
                                 username
                             ))
+                    else:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you don't have enough coins", username
+                        ))
                 else:
                     recipient = Character.find_by_name(recipient_name, conn)
                     if Parent.RemovePoints(user_id, username, amount):
@@ -817,6 +829,13 @@ class RpgGame(object):
                                                                          ))
                         else:
                             Parent.AddPoints(user_id, username, amount)
+                            Parent.SendStreamMessage(self.format_message(
+                                "{0}, something went wrong", username
+                            ))
+                    else:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you don't have enough coins", username
+                        ))
         finally:
             if 'conn' in locals():
                 conn.close()
