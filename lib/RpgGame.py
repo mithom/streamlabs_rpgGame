@@ -360,12 +360,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 character = Character.find_by_user(user_id, conn)
-                if character is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(character, username, stun_check=False):
                     return
                 location = character.position.location
                 Parent.SendStreamWhisper(user_id, self.format_message(
@@ -396,12 +391,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 character = Character.find_by_user(user_id, conn)
-                if character is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(character, username, stun_check=False):
                     return
                 Parent.SendStreamWhisper(user_id, self.format_message(
                     "{0}, name: {1}, location {2}, lvl: {3}, trait: {4}, specials: {5}",
@@ -461,12 +451,7 @@ class RpgGame(object):
                     ))
                     return
                 character = Character.find_by_user(user_id, conn)
-                if character is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(character, username):
                     return
                 if character.position.can_move_to(*get_coords_change(direction)):
                     fight = Attack.find_by_attacker_or_target(character, conn)
@@ -517,12 +502,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 character = Character.find_by_user(user_id, conn)
-                if character is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(character, username):
                     return
                 weapon = Weapon.find_by_name(item_name)
                 if weapon is not None:
@@ -568,18 +548,7 @@ class RpgGame(object):
             with self.get_connection() as conn:
                 target = Character.find_by_name(target_name, conn)
                 attacker = Character.find_by_user(user_id, conn)
-                if attacker is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if attacker.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot attack while stunned!",
-                        username
-                    ))
+                if not self.check_valid_char(attacker, username):
                     return
                 if attacker.lvl < self.scriptSettings.min_fight_lvl:
                     Parent.SendStreamMessage(self.format_message(
@@ -587,19 +556,7 @@ class RpgGame(object):
                         username, lvl=5
                     ))
                     return
-                if target.lvl < self.scriptSettings.min_fight_lvl:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, {target} isn't lvl {lvl} yet",
-                        username, target=target_name, lvl=5
-                    ))
-                    return
                 fight1 = Attack.find_by_attacker_or_target(attacker, conn)
-                if fight1 is not None:
-                    if fight1.attacker_id == attacker.char_id:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, you are already attacking someone", username
-                        ))
-                        return
                 if target is None:
                     boss = Boss.find_by_name(target_name, conn)
                     if boss is None:
@@ -610,8 +567,7 @@ class RpgGame(object):
                     else:
                         if fight1 is not None:
                             Parent.SendStreamMessage(self.format_message(
-                                "{0}, you are being attacked or attacking someone, either way, too hard to focus on" +
-                                " the boss now",
+                                "{0}, you are already in a fight, focus on that fight first!",
                                 username
                             ))
                             return
@@ -636,7 +592,7 @@ class RpgGame(object):
                                     boss.name
                                 ))
                                 return
-                if target.position == attacker.position:
+                elif target.position == attacker.position:
                     if attacker.position.location.difficulty == 0:  # TODO: peaceful duels inside of the castle
                         Parent.SendStreamMessage(self.format_message(
                             "{0}, the castle is a peaceful place!",
@@ -646,8 +602,8 @@ class RpgGame(object):
                     if fight1 is not None:
                         if fight1.attacker_id == attacker.char_id:
                             Parent.SendStreamMessage(self.format_message(
-                                "{0}, you are already attacking someone",
-                                username))
+                                "{0}, you are already attacking someone", username
+                            ))
                             return
                         if fight1.attacker_id != target.char_id:
                             Parent.SendStreamMessage(self.format_message(
@@ -714,18 +670,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 defender = Character.find_by_user(user_id, conn)
-                if defender is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if defender.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot defend while stunned!",
-                        defender.name
-                    ))
+                if not self.check_valid_char(defender, username):
                     return
                 fight = Attack.find_by_target(defender, conn)
                 if fight is None:
@@ -748,18 +693,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 countermen = Character.find_by_user(user_id, conn)
-                if countermen is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if countermen.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot counter while stunned!",
-                        countermen.name
-                    ))
+                if not self.check_valid_char(countermen, username):
                     return
                 fight = Attack.find_by_target(countermen, conn)
                 if fight is None:
@@ -783,18 +717,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 flee_char = Character.find_by_user(user_id, conn)
-                if flee_char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if flee_char.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot flee while stunned!",
-                        flee_char.name
-                    ))
+                if not self.check_valid_char(flee_char, username):
                     return
                 fight = Attack.find_by_target(flee_char, conn)
                 if fight is None:
@@ -826,7 +749,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 target_char = Character.find_by_name(target_name, conn)
-                if target_name is None:
+                if target_char is None:
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, there is no character with the name {1}",
                         username,
@@ -870,7 +793,7 @@ class RpgGame(object):
                 if recipient_name == self.scriptSettings.piebank_name:
                     if Parent.RemovePoints(user_id, username, amount):
                         bounty = Bounty.find_by_user_id_from_piebank(user_id, conn)
-                        if amount >= 2 * bounty.reward and bounty.kill_count > 1:
+                        if bounty is not None and amount >= 2 * bounty.reward and bounty.kill_count > 1:
                             bounty.delete()  # TODO: maybe add chance factor, higher is more chance to delete it?
                             Parent.SendStreamMessage(self.format_message(
                                 "{0}, Your bounty has been cleared",
@@ -903,10 +826,7 @@ class RpgGame(object):
             amount = int(amount)
             with self.get_connection() as conn:
                 benefactor = Character.find_by_user(user_id, conn)
-                if benefactor is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet, username, self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(benefactor, username, stun_check=False):
                     return
                 bounty = Bounty.find_by_character_name_and_benefactor(target_name, benefactor.char_id, conn)
                 if bounty is None:
@@ -945,12 +865,7 @@ class RpgGame(object):
             with self.get_connection() as conn:
                 king = King.find(conn)
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(char, username, stun_check=False):
                     return
                 if char.char_id == king.character_id:
                     king.tax_rate = max(min(amount, 10), 0)
@@ -969,12 +884,7 @@ class RpgGame(object):
             with self.get_connection() as conn:
                 king = King.find(conn)
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(char, username, stun_check=False):
                     return
                 if king is not None and king.character_id == char.char_id:
                     king.gender = "queen"
@@ -1002,12 +912,7 @@ class RpgGame(object):
             with self.get_connection() as conn:
                 king = King.find(conn)
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(char, username, stun_check=False):
                     return
                 if king is not None and king.character_id == char.char_id:
                     king.gender = "king"
@@ -1034,12 +939,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(char, username):
                     return
                 king = King.find(conn)
                 tournament = Tournament.find(conn)
@@ -1104,18 +1004,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if char.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot use specials while stunned!",
-                        char.name
-                    ))
+                if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
                 if target is None:
@@ -1134,18 +1023,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if char.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot use specials while stunned!",
-                        char.name
-                    ))
+                if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
                 if target is None:
@@ -1164,18 +1042,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if char.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot use specials while stunned!",
-                        char.name
-                    ))
+                if not self.check_valid_char(char, username):
                     return
                 if target_name is None:
                     target = char
@@ -1197,18 +1064,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if char.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot use specials while stunned!",
-                        char.name
-                    ))
+                if not self.check_valid_char(char, username):
                     return
                 if target_name is None:
                     target = char
@@ -1230,12 +1086,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
+                if not self.check_valid_char(char, username, stun_check=False):
                     return
                 if target_name is None:
                     target = char
@@ -1257,18 +1108,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if char.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot use specials while stunned!",
-                        char.name
-                    ))
+                if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
                 if target is None:
@@ -1287,18 +1127,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if char.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot use specials while stunned!",
-                        char.name
-                    ))
+                if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
                 if target is None:
@@ -1317,18 +1146,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if char.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot use specials while stunned!",
-                        char.name
-                    ))
+                if not self.check_valid_char(char, username):
                     return
                 if target_name is None:
                     target = char
@@ -1350,18 +1168,7 @@ class RpgGame(object):
         try:
             with self.get_connection() as conn:
                 char = Character.find_by_user(user_id, conn)
-                if char is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        self.scriptSettings.no_character_yet,
-                        username,
-                        self.scriptSettings.create_command
-                    ))
-                    return
-                if char.is_stunned():
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot use specials while stunned!",
-                        char.name
-                    ))
+                if not self.check_valid_char(char, username):
                     return
                 target = Character.find_by_name(target_name, conn)
                 if target is None:
@@ -1383,3 +1190,19 @@ class RpgGame(object):
         if self.scriptSettings.add_me and not kwargs.get('whisper', False):
             msg = "/me " + msg
         return msg.format(*args, **kwargs)
+
+    def check_valid_char(self, char, username, stun_check=True):
+        if char is None:
+            Parent.SendStreamMessage(self.format_message(
+                self.scriptSettings.no_character_yet,
+                username,
+                self.scriptSettings.create_command
+            ))
+            return False
+        if stun_check and char.is_stunned():
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you cannot do that while stunned!",
+                char.name
+            ))
+            return False
+        return True
