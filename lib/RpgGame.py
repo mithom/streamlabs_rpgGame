@@ -7,6 +7,7 @@ from King import King, Tournament, Participant
 import operator
 import random
 from Special import SpecialCooldown, Special, ActiveEffect
+from threading import Lock
 
 import os
 import datetime as dt
@@ -71,6 +72,8 @@ class RpgGame(object):
     DEFEND_ACTION = "defend"
     FLEE_ACTION = "flee"
 
+    db_lock = Lock()
+
     def __init__(self, script_settings, script_name, db_directory):
         self.scriptSettings = script_settings
         self.script_name = script_name
@@ -92,7 +95,10 @@ class RpgGame(object):
         Map.get_map()  # init map variables
 
     def get_connection(self):
-        return sqlite3.connect(os.path.join(self.db_directory, "database.db"), detect_types=sqlite3.PARSE_DECLTYPES)
+        if self.db_lock.acquire():
+            return sqlite3.connect(os.path.join(self.db_directory, "database.db"), detect_types=sqlite3.PARSE_DECLTYPES)
+        else:
+            Parent.Log(self.script_name, 'could not acquire db lock in time (5s)')
 
     def prepare_database(self):
         with self.get_connection() as conn:
@@ -107,6 +113,7 @@ class RpgGame(object):
             King.create_table_if_not_exists(conn)
             Tournament.create_table_if_not_exists(conn)
         conn.close()
+        self.db_lock.release()
 
     def create_and_load_static_data(self):
         with self.get_connection() as conn:
@@ -121,12 +128,16 @@ class RpgGame(object):
             Character.load_static_data(conn)
             Boss.create_bosses(conn)
         conn.close()
+        self.db_lock.release()
 
     def apply_reload(self):
         SpecialCooldown.max_steal_amount = self.scriptSettings.max_steal_amount
 
     def reset_db(self):
+        self.db_lock.acquire()
         os.remove(os.path.join(self.db_directory, "database.db"))
+        self.db_lock.release()
+        Parent.Log(self.script_name, 'reset successful')
 
     def tick(self):
         try:
@@ -202,6 +213,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def do_boss_attacks(self, conn):
         for boss in Boss.find_by_active_and_past_attack_time(conn):
@@ -391,6 +403,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def condensed_info(self, user_id, username):
         try:
@@ -411,6 +424,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def create(self, user_id, username, character_name):
         try:
@@ -446,6 +460,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def move(self, user_id, username, direction):
         if Parent.IsOnUserCooldown(self.script_name, 'move', user_id):
@@ -516,6 +531,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def buy(self, user_id, username, item_name):
         try:
@@ -561,6 +577,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def attack(self, user_id, username, target_name):
         try:
@@ -699,6 +716,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def defend(self, user_id, username):
         try:
@@ -722,6 +740,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def counter(self, user_id, username):
         try:
@@ -746,6 +765,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def flee(self, user_id, username):
         try:
@@ -778,6 +798,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def look(self, _, username, target_name):
         try:
@@ -808,6 +829,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def dough(self, user_id, username):
         Parent.SendStreamMessage(self.format_message("{0}, your current piecoin balance is {1} {2}",
@@ -861,6 +883,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def bounty(self, user_id, username, target_name, amount):
         try:
@@ -897,6 +920,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def tax(self, user_id, username, amount):
         try:
@@ -917,6 +941,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def queen(self, user_id, username):
         try:
@@ -945,6 +970,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def king(self, user_id, username):
         try:
@@ -973,6 +999,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def contest(self, user_id, username):
         try:
@@ -1026,6 +1053,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def smite(self, user_id, username, target_name):
         pass
@@ -1052,6 +1080,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def track(self, user_id, username, target_name):
         try:
@@ -1066,6 +1095,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def guardian(self, user_id, username, target_name=None):
         try:
@@ -1083,6 +1113,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def empower(self, user_id, username, target_name=None):
         try:
@@ -1100,6 +1131,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def repel(self, user_id, username, target_name=None):
         try:
@@ -1117,6 +1149,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def blind(self, user_id, username, target_name):
         try:
@@ -1131,6 +1164,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def curse(self, user_id, username, target_name):
         try:
@@ -1145,6 +1179,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def invis(self, user_id, username, target_name=None):
         try:
@@ -1162,6 +1197,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     def steal(self, user_id, username, target_name):
         try:
@@ -1176,6 +1212,7 @@ class RpgGame(object):
         finally:
             if 'conn' in locals():
                 conn.close()
+            self.db_lock.release()
 
     # ---------------------------------------
     #   auxiliary functions
