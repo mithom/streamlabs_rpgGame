@@ -124,6 +124,20 @@ class Bounty(object):
         return [cls(*row, connection=conn) for row in cursor]
 
     @classmethod
+    def find_all_ordered_by_worth(cls, page, per, conn):
+        cursor = conn.execute("""SELECT * FROM bounties WHERE benefactor_id IS NOT NULL
+                              ORDER BY reward LIMIT :limit OFFSET :offset""",
+                              {"limit": per, "offset": (page-1)*per})
+        return [cls(*row, connection=conn) for row in cursor]
+
+    @classmethod
+    def find_all_ordered_by_kills(cls, page, per, conn):
+        cursor = conn.execute("""SELECT * FROM bounties WHERE benefactor_id IS NULL
+                              ORDER BY kill_count LIMIT :limit OFFSET :offset""",
+                              {"limit": per, "offset": (page-1)*per})
+        return [cls(*row, connection=conn) for row in cursor]
+
+    @classmethod
     def create(cls, character, benefactor, reward, kill_count, connection):
         if type(character) is characters.Character:
             character = character.char_id

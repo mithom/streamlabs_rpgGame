@@ -350,6 +350,8 @@ class RpgGame(object):
             "!" + self.scriptSettings.empower_name: self.empower,
             "!" + self.scriptSettings.repel_name: self.repel,
             "!" + self.scriptSettings.invis_name: self.invis,
+            "!Bounties": self.bounties,
+            "!TopKills": self.top_kills,
         }, {
             self.scriptSettings.create_command: self.create,
             self.scriptSettings.move_command: self.move,
@@ -368,6 +370,8 @@ class RpgGame(object):
             "!" + self.scriptSettings.empower_name: self.empower,
             "!" + self.scriptSettings.repel_name: self.repel,
             "!" + self.scriptSettings.invis_name: self.invis,
+            "!bounties": self.bounties,
+            "!TopKills": self.top_kills,
         }, {
             self.scriptSettings.give_command: self.give,
             self.scriptSettings.bounty_command: self.bounty,
@@ -887,8 +891,8 @@ class RpgGame(object):
 
     def bounty(self, user_id, username, target_name, amount):
         try:
-            amount = int(amount)
             with self.get_connection() as conn:
+                amount = int(amount)
                 benefactor = Character.find_by_user(user_id, conn)
                 if not self.check_valid_char(benefactor, username, stun_check=False):
                     return
@@ -902,6 +906,11 @@ class RpgGame(object):
                         Parent.SendStreamMessage(self.format_message(
                             "{0}, bounty on {1} has been created for {2}",
                             username, target_name, amount
+                        ))
+                    else:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you don't have enough points to do that!",
+                            username
                         ))
                 else:
                     if bounty.reward >= amount:
@@ -917,6 +926,28 @@ class RpgGame(object):
                                 "{0}, your bounty on {1} has been updated",
                                 username, target_name
                             ))
+        finally:
+            if 'conn' in locals():
+                conn.close()
+            self.db_lock.release()
+
+    def bounties(self, user_id, username, paging="0"):
+        try:
+            with self.get_connection() as conn:
+                page = int(paging)
+                top = Bounty.find_all_ordered_by_worth(page, 5, conn)
+                print top
+        finally:
+            if 'conn' in locals():
+                conn.close()
+            self.db_lock.release()
+
+    def top_kills(self, user_id, username, paging="0"):
+        try:
+            with self.get_connection() as conn:
+                page = int(paging)
+                top = Bounty.find_all_ordered_by_kills(page, 5, conn)
+                print top
         finally:
             if 'conn' in locals():
                 conn.close()
