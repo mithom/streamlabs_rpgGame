@@ -44,7 +44,8 @@ class Bounty(object):
 
     @staticmethod
     def kill_reward(kill_count):
-        return kill_count * 100 + max(300*2**(max(kill_count, 0)/3)-300, 0)
+        return min(kill_count * 100 + max(600*1.5**(max(kill_count, 0)/3)-600, 0),10000)
+        # TODO: add config kill delay + make the 100 a selectable amount
 
     @property
     def reward(self):

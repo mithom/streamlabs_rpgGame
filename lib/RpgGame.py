@@ -22,8 +22,12 @@ import sqlite3
 Parent = None
 random = random.WichmannHill()
 
-#  TODO: bountie billboard, bosses billboard, view persons on same tile, auto flee for alert char
-
+#  TODO: bosses billboard, view persons on same tile, auto flee for alert char
+#  TODO: teleportation points (long cooldown)
+#  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
+#  TODO: make flee stronger the more difference between characters (1.5% or 1% per lvl)
+#  TODO: gain special at lvl 15 (and announce) IMPORTANT
+#  TODO: loot player on flee except if alert
 
 def parse_datetime(adt):
     return adt.isoformat()
