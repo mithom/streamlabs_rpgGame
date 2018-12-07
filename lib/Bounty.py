@@ -14,6 +14,8 @@ class Bounty(object):
         self.benefactor_id = benefactor_id
         self._benefactor = None
 
+        self.__calculated = False
+
     @property
     def id(self):
         return self.__bounty_id
@@ -40,10 +42,15 @@ class Bounty(object):
         self._benefactor = value
         self.benefactor_id = value.char_id
 
+    @staticmethod
+    def kill_reward(kill_count):
+        return kill_count * 100 + max(300*2**(max(kill_count, 0)/3)-300, 0)
+
     @property
     def reward(self):
-        if self.benefactor_id is None:
-            return max(0, (self.kill_count - 2) * 100) + max(500*2**(max(self.kill_count-1, 0)/5)-500, 0)
+        if self.kill_count is not None and not self.__calculated:
+            self._reward += self.kill_reward(self.kill_count)
+            self.__calculated = True
         return self._reward
 
     @reward.setter
@@ -125,17 +132,35 @@ class Bounty(object):
 
     @classmethod
     def find_all_ordered_by_worth(cls, page, per, conn):
-        cursor = conn.execute("""SELECT * FROM bounties WHERE benefactor_id IS NOT NULL
-                              ORDER BY reward LIMIT :limit OFFSET :offset""",
-                              {"limit": per, "offset": (page-1)*per})
+        """bounty_id and benefactor_id will be a random, this is just to make the init work"""
+        # cursor = conn.execute("""SELECT bounty_id, character_id, benefactor_id,sum(reward), sum(kill_count)
+        #                       FROM bounties
+        #                       GROUP BY character_id
+        #                       ORDER BY sum(reward) DESC LIMIT :limit OFFSET :offset""",
+        #                       {"limit": per, "offset": (page-1)*per})
+        conn.create_function("KILLREWARD", 1, cls.kill_reward)
+        cursor = conn.execute('''SELECT bounty_id, character_id, benefactor_id,sum(reward), sum(kill_count)
+                              FROM bounties
+                              GROUP BY character_id
+                              ORDER BY sum(reward)+ KILLREWARD(IFNULL(sum(kill_count),0))
+                              DESC LIMIT :limit OFFSET :offset''',
+                              {"limit": per, "offset": (page - 1) * per})
         return [cls(*row, connection=conn) for row in cursor]
 
     @classmethod
     def find_all_ordered_by_kills(cls, page, per, conn):
         cursor = conn.execute("""SELECT * FROM bounties WHERE benefactor_id IS NULL
-                              ORDER BY kill_count LIMIT :limit OFFSET :offset""",
+                              ORDER BY kill_count DESC LIMIT :limit OFFSET :offset""",
                               {"limit": per, "offset": (page-1)*per})
         return [cls(*row, connection=conn) for row in cursor]
+
+    @staticmethod
+    def count(conn, only_kills=False):
+        if only_kills:
+            cursor = conn.execute("""SELECT COUNT(DISTINCT character_id) FROM bounties WHERE benefactor_id IS NULL""")
+        else:
+            cursor = conn.execute("""SELECT COUNT(DISTINCT character_id) FROM bounties """)
+        return cursor.fetchone()[0]
 
     @classmethod
     def create(cls, character, benefactor, reward, kill_count, connection):

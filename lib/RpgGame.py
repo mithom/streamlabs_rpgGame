@@ -8,6 +8,7 @@ import operator
 import random
 from Special import SpecialCooldown, Special, ActiveEffect
 from threading import Lock
+from math import ceil
 
 import os
 import datetime as dt
@@ -350,8 +351,8 @@ class RpgGame(object):
             "!" + self.scriptSettings.empower_name: self.empower,
             "!" + self.scriptSettings.repel_name: self.repel,
             "!" + self.scriptSettings.invis_name: self.invis,
-            "!Bounties": self.bounties,
-            "!TopKills": self.top_kills,
+            "!bounties": self.bounties,
+            "!topKills": self.top_kills,
         }, {
             self.scriptSettings.create_command: self.create,
             self.scriptSettings.move_command: self.move,
@@ -371,7 +372,7 @@ class RpgGame(object):
             "!" + self.scriptSettings.repel_name: self.repel,
             "!" + self.scriptSettings.invis_name: self.invis,
             "!bounties": self.bounties,
-            "!TopKills": self.top_kills,
+            "!topKills": self.top_kills,
         }, {
             self.scriptSettings.give_command: self.give,
             self.scriptSettings.bounty_command: self.bounty,
@@ -931,23 +932,55 @@ class RpgGame(object):
                 conn.close()
             self.db_lock.release()
 
-    def bounties(self, user_id, username, paging="0"):
+    def bounties(self, user_id, username, paging="1"):
         try:
             with self.get_connection() as conn:
                 page = int(paging)
-                top = Bounty.find_all_ordered_by_worth(page, 5, conn)
-                print top
+                pages = int(ceil(Bounty.count(conn) / 5.0))
+                if pages == 0:
+                    Parent.SendStreamMessage(self.format_message(
+                        "there are no bounties currently"
+                    ))
+                elif page > pages:
+                    Parent.SendStreamMessage(self.format_message(
+                        "there are currently only {0} pages",
+                        pages
+                    ))
+                else:
+                    top = Bounty.find_all_ordered_by_worth(page, 5, conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "bounties: {0}, page {1}/{2}",
+                        ', '.join(map(lambda x: x.character.name + ": " + str(x.reward), top)),
+                        page,
+                        pages
+                    ))
         finally:
             if 'conn' in locals():
                 conn.close()
             self.db_lock.release()
 
-    def top_kills(self, user_id, username, paging="0"):
+    def top_kills(self, user_id, username, paging="1"):
         try:
             with self.get_connection() as conn:
                 page = int(paging)
-                top = Bounty.find_all_ordered_by_kills(page, 5, conn)
-                print top
+                pages = int(ceil(Bounty.count(conn, True) / 5.0))
+                if pages == 0:
+                    Parent.SendStreamMessage(self.format_message(
+                        "there are no killers currently"
+                    ))
+                elif page > pages:
+                    Parent.SendStreamMessage(self.format_message(
+                        "there are currently only {0} pages",
+                        pages
+                    ))
+                else:
+                    top = Bounty.find_all_ordered_by_kills(page, 5, conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "kills: {0}, page {1}/{2}",
+                        ', '.join(map(lambda x: x.character.name + ": " + str(x.kill_count), top)),
+                        page,
+                        pages
+                    ))
         finally:
             if 'conn' in locals():
                 conn.close()
