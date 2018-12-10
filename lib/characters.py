@@ -124,8 +124,8 @@ class Character(object):
         if invisibility is not None:
             invisibility.delete()
 
-    def attempt_flee(self):
-        if random.random() * 100 <= 45:
+    def attempt_flee(self, vs_lvl):
+        if random.random() * 100 <= (45 - self.lvl + vs_lvl):
             self.position.coord = random.choice(self.position.flee_options())
             self.save()
             return True

@@ -25,9 +25,9 @@ random = random.WichmannHill()
 #  TODO: bosses billboard, view persons on same tile, auto flee for alert char
 #  TODO: teleportation points (long cooldown)
 #  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
-#  TODO: make flee stronger the more difference between characters (1.5% or 1% per lvl)
 #  TODO: gain special at lvl 15 (and announce) IMPORTANT
 #  TODO: loot player on flee except if alert
+
 
 def parse_datetime(adt):
     return adt.isoformat()
@@ -194,7 +194,7 @@ class RpgGame(object):
                         if character.gain_experience(
                                 character.exp_for_difficulty(character.position.location.difficulty)):
                             lvl_up.append(character)
-                        character.save()  # TODO: batch update
+                        character.save()
                     else:
                         deaths.append(character)
                         character.delete()
@@ -268,7 +268,9 @@ class RpgGame(object):
         kills = {}
         defenders = [attack.attacker_id for attack in fight.children if attack.action == self.DEFEND_ACTION]
         for attack in filter(lambda x: x.action == self.FLEE_ACTION, fight.children):
-            if attack.attacker.attempt_flee():
+            max_lvl = max(fight.children, key=lambda x: x.attacker.lvl)
+            max_lvl = max(max_lvl.attacker.lvl, fight.attacker.lvl)
+            if attack.attacker.attempt_flee(max_lvl):
                 Parent.SendStreamMessage(self.format_message(
                     "{0} has successfully fled from the fight",
                     attack.attacker.name
@@ -334,7 +336,7 @@ class RpgGame(object):
             Parent.AddPoints(killer_user_id, Parent.GetDisplayName(killer_user_id), to_pay)
             if to_pay > 1000:  # TODO: setting for min_announcement_amount
                 Parent.SendStreamMessage(self.format_message(
-                    "{0} has claimed a huge amount of {1} in bounties!",
+                    "{0} has claimed the huge amount of {1} in bounties!",
                     Parent.GetDisplayName(killer_user_id),
                     to_pay
                 ))
@@ -646,7 +648,7 @@ class RpgGame(object):
                     ))
                     return
                 elif target.position == attacker.position:
-                    if attacker.position.location.difficulty == 0:  # TODO: peaceful duels inside of the castle
+                    if attacker.position.location.difficulty == 0:
                         Parent.SendStreamMessage(self.format_message(
                             "{0}, the castle is a peaceful place!",
                             username
