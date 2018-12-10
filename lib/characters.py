@@ -227,7 +227,7 @@ class Character(object):
             pie_bounty.save()
             if pie_bounty.reward > 500:
                 self.Parent.SendStreamMessage(self.format_message(
-                    "{0}s bounty has been increased to a dangling amount of {1} {2}",
+                    "{0}s killing spree bounty has been increased to a dangling amount of {1} {2}",
                     self.name, pie_bounty.reward, self.Parent.GetCurrencyName()
                 ))
 

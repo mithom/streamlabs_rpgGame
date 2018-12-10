@@ -1,9 +1,21 @@
 import characters
 import datetime as dt
 from pytz import utc
+import Boss
+import King
+import Bounty
 
 
 class Attack(object):
+    ATTACK_ACTION = "attack"
+    COUNTER_ACTION = "counter"
+    DEFEND_ACTION = "defend"
+    FLEE_ACTION = "flee"
+
+    Parent = None
+    format_message = None
+    game = None
+
     def __init__(self, attack_id, action, attacker_id, target_id, resolve_time=None, resolver_id=None, boss_id=None,
                  connection=None, children=None):
         if connection is None:
@@ -38,7 +50,7 @@ class Attack(object):
     @property
     def attacker(self):
         if self._attacker is None:
-                self._attacker = characters.Character.find(self.attacker_id, self.connection)
+            self._attacker = characters.Character.find(self.attacker_id, self.connection)
         return self._attacker
 
     @attacker.setter
@@ -65,6 +77,77 @@ class Attack(object):
     def resolver_id(self, resolver_id):
         self._resolver_id = resolver_id
 
+    def resolve_fight(self):
+        kills = {}
+        defenders = [attack.attacker_id for attack in self.children if attack.action == self.DEFEND_ACTION]
+        for attack in filter(lambda x: x.action == self.FLEE_ACTION, self.children):
+            max_lvl = max(self.children, key=lambda x: x.attacker.lvl)
+            max_lvl = max(max_lvl.attacker.lvl, self.attacker.lvl)
+            if attack.attacker.attempt_flee(max_lvl):
+                self.Parent.SendStreamMessage(self.format_message(
+                    "{0} has successfully fled from the fight",
+                    attack.attacker.name
+                ))
+        result = self.resolve_attack(self, kills, defenders)
+        if result is not None:
+            kills.update(result)
+        for attack in self.children:
+            result = self.resolve_attack(attack, kills, defenders, sneak=attack.action != self.COUNTER_ACTION)
+            if result is not None:
+                kills.update(result)
+        self.delete()
+        if len(kills) == 0:
+            self.Parent.SendStreamMessage(self.format_message(
+                "nobody died in the fight initiated by {0}",
+                self.attacker.name
+            ))
+        for dead, killer in kills.iteritems():
+            dead_char = characters.Character.find(dead, self.connection)
+            killer_char = characters.Character.find(killer, self.connection)
+            dead_part = King.Participant.find(dead_char.char_id, self.connection)
+            if dead_part is not None and dead_part == King.Participant.find(killer_char.char_id, self.connection):
+                self.Parent.SendStreamMessage(self.format_message(
+                    "{0} has been knocked out of the tournament by {1}",
+                    dead_char.name,
+                    killer_char.name
+                ))
+                dead_part.alive = False
+                dead_part.save()
+            else:
+                self.Parent.SendStreamMessage(self.format_message(
+                    "{0} has been killed by {1} and died at lvl {2}",
+                    dead_char.name,
+                    killer_char.name,
+                    dead_char.lvl
+                ))
+                if killer not in kills:
+                    killer_char.gain_experience(2 * killer_char.exp_for_difficulty(dead_char.lvl))
+                    killer_char.add_kill()
+                    self.game.pay_bounties(Bounty.Bounty.find_all_by_character(dead, self.connection),
+                                           killer_char.user_id)
+                    killer_char.save()
+                dead_char.delete()
+
+    def resolve_attack(self, fight, kills, defenders, sneak=False):
+        attacker = fight.attacker
+        target = fight.target
+        sneak = sneak and target not in defenders
+        if target is None or target.char_id in kills or attacker.position != target.position:
+            return None
+        if attacker.attack(target, defense_bonus=attacker in defenders,
+                           attack_bonus=fight.action == self.COUNTER_ACTION, sneak=sneak):
+            return {target.char_id: attacker.char_id}
+        else:
+            return None
+
+    def resolve_boss_attack(self):
+        boss = Boss.Boss.find(self.boss_id, self.connection)
+        if boss.state != boss.State.DEAD:
+            if self.attacker.attack_boss(boss):
+                self.attacker.gain_special()
+            boss.save()
+        self.delete()
+
     def add_child(self, child):
         assert child.resolver_id == self.attack_id
         self.children.append(child)
@@ -75,7 +158,7 @@ class Attack(object):
             """DELETE FROM attacks
             WHERE resolver_id = ?""",
             (self.attack_id,)
-         )
+        )
         self.connection.execute(
             """DELETE FROM attacks
             WHERE attack_id = ?""",

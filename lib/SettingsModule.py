@@ -87,7 +87,7 @@ class Settings(object):
             self.curse_name = "Curse"
             self.curse_identifier = "C"
             self.curse_cd = 300
-            self.curse_duration = 3600
+            self.curse_duration = 300
             self.invis_enabled = True
             self.invis_name = "Invis"
             self.invis_identifier = "I"

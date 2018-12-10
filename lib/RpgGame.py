@@ -22,6 +22,7 @@ import sqlite3
 Parent = None
 random = random.WichmannHill()
 
+
 #  TODO: bosses billboard, view persons on same tile, auto flee for alert char
 #  TODO: teleportation points (long cooldown)
 #  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
@@ -71,11 +72,6 @@ def get_coords_change(orientation):
 
 # noinspection PyUnboundLocalVariable
 class RpgGame(object):
-    ATTACK_ACTION = "attack"
-    COUNTER_ACTION = "counter"
-    DEFEND_ACTION = "defend"
-    FLEE_ACTION = "flee"
-
     db_lock = Lock()
 
     def __init__(self, script_settings, script_name, db_directory):
@@ -90,12 +86,15 @@ class RpgGame(object):
         # Pass on Parent object
         Character.Parent = Parent
         Character.format_message = self.format_message
+        Character.game = self
+        Attack.Parent = Parent
+        Attack.format_message = self.format_message
+        Attack.game = self
 
         # Prepare everything
         self.prepare_database()
         self.create_and_load_static_data()
 
-        Character.game = self
         Map.get_map()  # init map variables
 
     def get_connection(self):
@@ -164,13 +163,17 @@ class RpgGame(object):
                     if winner is not None:
                         king = King.crown(winner, conn)
                         tournament.delete()
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0} has proven worthy of the crown and shall become king/queen",
+                            king.character.name
+                        ))
                 Boss.respawn_bosses(conn)
                 ActiveEffect.delete_all_expired(conn)
                 self.do_boss_attacks(conn)
                 for attack in Attack.find_boss_attack_past_resolve_time(conn):
-                    self.resolve_boss_attack(attack, conn)
+                    attack.resolve_boss_attack()
                 for fight in Attack.find_fights(conn):
-                    self.resolve_fight(fight, conn)
+                    fight.resolve_fight()
                 lvl_up = []
                 deaths = []
                 characters = Character.find_by_past_exp_time(conn)
@@ -204,11 +207,6 @@ class RpgGame(object):
                     Parent.SendStreamMessage(self.format_message(
                         "some characters just lvl'ed up: " + ", ".join(map(lambda char: char.name, lvl_up))
                     ))
-                # if len(deaths) > 0:
-                #     Parent.SendStreamMessage(self.format_message(
-                #         "some characters died while roaming the dangerous lands or pieland: " +
-                #         ", ".join(map(lambda char: char.name, deaths))
-                #     ))
                 if len(deaths) > 0:
                     msg = ", ".join(map(lambda char: char.name + " got killed by a " +
                                                      random.choice(char.position.location.monsters.split(",")) +
@@ -231,77 +229,6 @@ class RpgGame(object):
                 ))
                 killed_char.delete()
             boss.save()
-
-    def resolve_boss_attack(self, attack, conn):
-        boss = Boss.find(attack.boss_id, conn)
-        if boss.state != boss.State.DEAD:
-            if attack.attacker.attack_boss(boss):
-                #self.reward_boss_kill(attack.attacker, conn)
-                attack.attacker.gain_special()
-            boss.save()
-        attack.delete()
-
-    def resolve_fight(self, fight, conn):
-        kills = {}
-        defenders = [attack.attacker_id for attack in fight.children if attack.action == self.DEFEND_ACTION]
-        for attack in filter(lambda x: x.action == self.FLEE_ACTION, fight.children):
-            max_lvl = max(fight.children, key=lambda x: x.attacker.lvl)
-            max_lvl = max(max_lvl.attacker.lvl, fight.attacker.lvl)
-            if attack.attacker.attempt_flee(max_lvl):
-                Parent.SendStreamMessage(self.format_message(
-                    "{0} has successfully fled from the fight",
-                    attack.attacker.name
-                ))
-        result = self.resolve_attack(fight, kills, defenders)
-        if result is not None:
-            kills.update(result)
-        for attack in fight.children:
-            result = self.resolve_attack(attack, kills, defenders, sneak=attack.action != self.COUNTER_ACTION)
-            if result is not None:
-                kills.update(result)
-        fight.delete()
-        if len(kills) == 0:
-            Parent.SendStreamMessage(self.format_message(
-                "nobody died in the fight initiated by {0}",
-                fight.attacker.name
-            ))
-        for dead, killer in kills.iteritems():
-            dead_char = Character.find(dead, conn)
-            killer_char = Character.find(killer, conn)
-            dead_part = Participant.find(dead_char.char_id, conn)
-            if dead_part is not None and dead_part == Participant.find(killer_char.char_id, conn):
-                Parent.SendStreamMessage(self.format_message(
-                    "{0} has been knocked out of the tournament by {1}",
-                    dead_char.name,
-                    killer_char.name
-                ))
-                dead_part.alive = False
-                dead_part.save()
-            else:
-                Parent.SendStreamMessage(self.format_message(
-                    "{0} has been killed by {1} and died at lvl {2}",
-                    dead_char.name,
-                    killer_char.name,
-                    dead_char.lvl
-                ))
-                if killer not in kills:
-                    killer_char.gain_experience(2 * killer_char.exp_for_difficulty(dead_char.lvl))
-                    killer_char.add_kill()
-                    self.pay_bounties(Bounty.find_all_by_character(dead, conn), killer_char.user_id)
-                    killer_char.save()
-                dead_char.delete()
-
-    def resolve_attack(self, fight, kills, defenders, sneak=False):
-        attacker = fight.attacker
-        target = fight.target
-        sneak = sneak and target not in defenders
-        if target is None or target.char_id in kills or attacker.position != target.position:
-            return None
-        if attacker.attack(target, defense_bonus=attacker in defenders,
-                           attack_bonus=fight.action == self.COUNTER_ACTION, sneak=sneak):
-            return {target.char_id: attacker.char_id}
-        else:
-            return None
 
     def pay_bounties(self, bounties, killer_user_id):
         to_pay = 0
@@ -329,6 +256,7 @@ class RpgGame(object):
             self.scriptSettings.queen_command: self.queen,
             self.scriptSettings.king_command: self.king,
             self.scriptSettings.contest_command: self.contest,
+            self.scriptSettings.tax_command: self.tax,
             "!" + self.scriptSettings.guardian_name: self.guardian,
             "!" + self.scriptSettings.empower_name: self.empower,
             "!" + self.scriptSettings.repel_name: self.repel,
@@ -502,7 +430,7 @@ class RpgGame(object):
                                 username
                             ))
                         else:
-                            Attack.create(self.FLEE_ACTION, character.char_id, resolver_id=fight.resolver_id,
+                            Attack.create(Attack.FLEE_ACTION, character.char_id, resolver_id=fight.resolver_id,
                                           connection=conn)
                             Parent.SendStreamMessage(self.format_message(
                                 "{0}, you cannot move during a fight, a flee attempt will be made.",
@@ -608,7 +536,7 @@ class RpgGame(object):
                                 resolve_time = dt.datetime.now(utc) + dt.timedelta(
                                     seconds=self.scriptSettings.fight_resolve_time)
                                 attacker.remove_invisibility()
-                                Attack.create(self.ATTACK_ACTION, attacker.char_id, boss_id=boss.boss_id,
+                                Attack.create(Attack.ATTACK_ACTION, attacker.char_id, boss_id=boss.boss_id,
                                               resolve_time=resolve_time, connection=conn)
                                 Parent.SendStreamMessage(self.format_message(
                                     "{0} starts clashing with the big boss {1}",
@@ -663,7 +591,7 @@ class RpgGame(object):
                             resolve_time = dt.datetime.now(utc) + \
                                            dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
                             attacker.remove_invisibility()
-                            Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time,
+                            Attack.create(Attack.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time,
                                           connection=conn)
                             Parent.SendStreamMessage(self.format_message(
                                 "{0} challenges {1} to a fight",
@@ -680,7 +608,7 @@ class RpgGame(object):
                         if fight.target_id == attacker.char_id:
                             # my xp has already been delayed, i just react only now
                             resolver_id = fight.resolver_id
-                            Attack.create(self.COUNTER_ACTION, attacker.char_id, target.char_id,
+                            Attack.create(Attack.COUNTER_ACTION, attacker.char_id, target.char_id,
                                           resolver_id=resolver_id, connection=conn)
                             Parent.SendStreamMessage(self.format_message(
                                 "{0} accepts the challenge and prepares to counter {1}",
@@ -690,7 +618,7 @@ class RpgGame(object):
                             attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
                             attacker.save()
 
-                            Attack.create(self.ATTACK_ACTION, attacker.char_id, target.char_id,
+                            Attack.create(Attack.ATTACK_ACTION, attacker.char_id, target.char_id,
                                           resolver_id=fight.resolver_id, connection=conn)
                             Parent.SendStreamMessage(self.format_message(
                                 "{0} sees an opportunity to sneak up on {1}",
@@ -719,7 +647,8 @@ class RpgGame(object):
                     ))
                     return
                 else:
-                    Attack.create(self.DEFEND_ACTION, defender.char_id, resolver_id=fight.resolver_id, connection=conn)
+                    Attack.create(Attack.DEFEND_ACTION, defender.char_id, resolver_id=fight.resolver_id,
+                                  connection=conn)
                     Parent.SendStreamMessage(self.format_message(
                         "{0} has taken a defensive pose",
                         defender.name
@@ -743,7 +672,7 @@ class RpgGame(object):
                     ))
                     return
                 else:
-                    Attack.create(self.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id,
+                    Attack.create(Attack.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id,
                                   connection=conn)
                     Parent.SendStreamMessage(self.format_message(
                         "{0} prepares to counter attack",
@@ -781,7 +710,7 @@ class RpgGame(object):
                             "{0} starts looking for a way out of this fight",
                             flee_char.name
                         ))
-                    Attack.create(self.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
+                    Attack.create(Attack.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
         finally:
             if 'conn' in locals():
                 conn.close()
@@ -968,22 +897,22 @@ class RpgGame(object):
                 conn.close()
             self.db_lock.release()
 
-    def tax(self, user_id, username, amount):
+    def tax(self, user_id, username, amount=None):
         try:
-            amount = int(amount)
             with self.get_connection() as conn:
                 king = King.find(conn)
                 char = Character.find_by_user(user_id, conn)
                 if not self.check_valid_char(char, username, stun_check=False):
                     return
-                if char.char_id == king.character_id:
+                if char.char_id == king.character_id and amount is not None:
+                    amount = int(amount)
                     king.tax_rate = max(min(amount, 10), 0)
                     king.save()
-                    Parent.SendStreamMessage(self.format_message(
-                        "your {0} set the tax to {1}%",
-                        king.gender,
-                        king.tax_rate
-                    ))
+                Parent.SendStreamMessage(self.format_message(
+                    "your {0} set the tax to {1}%",
+                    king.gender,
+                    king.tax_rate
+                ))
         finally:
             if 'conn' in locals():
                 conn.close()

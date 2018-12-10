@@ -1,4 +1,4 @@
-from characters import Character
+import characters
 import random
 import codecs
 import json
@@ -9,6 +9,7 @@ import datetime as dt
 from Position import Position
 
 random = random.WichmannHill()
+
 
 class Boss(object):
     class State(Enum):
@@ -74,7 +75,7 @@ class Boss(object):
 
     def do_attack(self, fight_time):
         self.next_attack += dt.timedelta(seconds=fight_time)
-        targets = Character.find_by_location(self.x, self.y, connection=self.connection)
+        targets = characters.Character.find_by_location(self.x, self.y, connection=self.connection)
         if len(targets) == 0:
             self.state = self.State.PASSIVE
             self.hp = self._max_hp
@@ -95,9 +96,10 @@ class Boss(object):
 
     def save(self):
         self.connection.execute(
-            """UPDATE bosses set name = :name, boss_id = :boss_id, state = :state, lvl = :lvl, attack = :attack,
+            """UPDATE bosses set name = :name, state = :state, lvl = :lvl, attack = :attack,
             defense = :defense, max_hp = :max_hp, hp = :hp, respawn_time = :respawn_time, x = :x, y = :y,
-            hp_regen = :hp_regen, next_attack = :next_attack""",
+            hp_regen = :hp_regen, next_attack = :next_attack
+            WHERE boss_id = :boss_id""",
             {"name": self.name, "boss_id": self.boss_id, "state": self.state.value, "lvl": self.lvl,
              "attack": self.attack_bonus, "defense": self.defense_bonus, "max_hp": self._max_hp, "hp": self.hp,
              "respawn_time": self.respawn_time, "x": self.x, "y": self.y, "hp_regen": self.hp_regen,
