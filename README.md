@@ -10,6 +10,8 @@ To start your journey just type: !create charactername
 * !move \[location] - Moves to the location and starts leveling if there are monsters.
 * !buy \[item] - Attempts to purchase and equip the desired weapon or armor.
 * !i - condensed version of info including experience progress.
+* !bounties - show the top 5 bounties, pass a number to see 6-10 etc.
+* !topKills - show the top killing sprees, pass a number to see 6-10 etc.
 
 ##### combat - done
 * !attack \[player] - This will start an attack on a nearby player which will resolve in 20 seconds. (will counter if you are attacked)
