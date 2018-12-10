@@ -25,7 +25,6 @@ random = random.WichmannHill()
 #  TODO: bosses billboard, view persons on same tile, auto flee for alert char
 #  TODO: teleportation points (long cooldown)
 #  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
-#  TODO: gain special at lvl 15 (and announce) IMPORTANT
 #  TODO: loot player on flee except if alert
 
 
@@ -237,32 +236,10 @@ class RpgGame(object):
         boss = Boss.find(attack.boss_id, conn)
         if boss.state != boss.State.DEAD:
             if attack.attacker.attack_boss(boss):
-                self.reward_boss_kill(attack.attacker, conn)
+                #self.reward_boss_kill(attack.attacker, conn)
+                attack.attacker.gain_special()
             boss.save()
         attack.delete()
-
-    def reward_boss_kill(self, attacker, conn):  # TODO: possibility to only gain selection of specials from a
-        # specific boss (can differ per boss)
-        specials = set(Special.data_by_id.keys())
-        character_specials = set(map(lambda x: x.specials_orig_name, attacker.specials))
-        new_specials = specials - character_specials
-        if len(new_specials) > 0:
-            new_special_id = random.choice(list(new_specials))
-            special = SpecialCooldown.create(attacker.char_id, new_special_id, conn)
-            Parent.SendStreamMessage(self.format_message(
-                "{0}, {1} has gained the ability {2} ({3}) on a {4} seconds cooldown.",
-                Parent.GetDisplayName(attacker.user_id),
-                attacker.name,
-                special.special.name,
-                special.special.identifier,
-                special.special.cooldown_time
-            ))
-        else:
-            Parent.SendStreamMessage(self.format_message(
-                "{0}, your character {1} already has every available special and cannot get a new one.",
-                Parent.GetDisplayName(attacker.user_id),
-                attacker.name
-            ))
 
     def resolve_fight(self, fight, conn):
         kills = {}
