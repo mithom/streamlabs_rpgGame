@@ -4,5 +4,10 @@
     ["Fields","Town",   "Forest", "Forest", "Mountains",  "Ruins",  "Dessert", "Abyss"],
     [null,    "Castle", null,     "River",  null,         "Caves",  null],
     [null,    null,     null,     "Swamps", null,         "Crypt",  null]
-  ]
+  ],
+  "teleportation_locations":
+          [
+            ["TownHall", 1, 0],
+            ["CaveCamp", 5, 1]
+          ]
 }

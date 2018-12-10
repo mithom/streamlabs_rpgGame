@@ -102,7 +102,6 @@ class Settings(object):
             # 0 args
             self.info_command = "!info"
             self.condensed_info_command = "!i"
-            self.stat_command = "!stat"
             self.defend_command = "!defend"
             self.counter_command = "!counter"
             self.flee_command = "!flee"

@@ -1,4 +1,4 @@
-from StaticData import Map
+import StaticData
 
 
 class Position(object):
@@ -10,7 +10,7 @@ class Position(object):
     @property
     def location(self):
         if self._location is None:
-            self._location = Map.get_map()[self._y][self._x]
+            self._location = StaticData.Map.get_map()[self._y][self._x]
         return self._location
 
     @property
@@ -29,7 +29,7 @@ class Position(object):
     def coord(self, tupl):
         self._x = tupl[0]
         self._y = tupl[1]
-        self._location = Map.get_map()[self._y][self._x]
+        self._location = StaticData.Map.get_map()[self._y][self._x]
 
     def __eq__(self, other):
         return self.coord == other.coord
@@ -38,9 +38,9 @@ class Position(object):
         return not (self == other)
 
     def can_move_to(self, x_change, y_change):
-        return (0 <= self._x + x_change < Map.x_max) and\
-               (0 <= self._y + y_change < Map.y_max) and\
-            Map.get_map()[self._y + y_change][self._x + x_change] is not None
+        return (0 <= self._x + x_change < StaticData.Map.x_max) and\
+               (0 <= self._y + y_change < StaticData.Map.y_max) and \
+               StaticData.Map.get_map()[self._y + y_change][self._x + x_change] is not None
 
     def flee_options(self):
         options = [[self._x-1, self._y], [self._x+1, self._y], [self._x, self._y-1], [self._x, self._y+1]]

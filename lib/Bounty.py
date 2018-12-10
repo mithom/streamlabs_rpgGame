@@ -44,7 +44,7 @@ class Bounty(object):
 
     @staticmethod
     def kill_reward(kill_count):
-        return min(kill_count * 100 + max(600*1.5**(max(kill_count, 0)/3)-600, 0),10000)
+        return min(kill_count * 100 + max(600 * 1.5 ** (max(kill_count, 0) / 3) - 600, 0), 10000)
         # TODO: add config kill delay + make the 100 a selectable amount
 
     @property
@@ -71,7 +71,7 @@ class Bounty(object):
             character_id = :character_id, benefactor_id = :benefactor_id, reward = :reward, kill_count = :kill_count
             WHERE bounty_id = :bounty_id""",
             {"character_id": self.character_id, "benefactor_id": self.benefactor_id, "reward": self._reward,
-                "kill_count": self.kill_count, "bounty_id": self.id}
+             "kill_count": self.kill_count, "bounty_id": self.id}
         )
 
     @classmethod
@@ -152,7 +152,7 @@ class Bounty(object):
     def find_all_ordered_by_kills(cls, page, per, conn):
         cursor = conn.execute("""SELECT * FROM bounties WHERE benefactor_id IS NULL
                               ORDER BY kill_count DESC LIMIT :limit OFFSET :offset""",
-                              {"limit": per, "offset": (page-1)*per})
+                              {"limit": per, "offset": (page - 1) * per})
         return [cls(*row, connection=conn) for row in cursor]
 
     @staticmethod

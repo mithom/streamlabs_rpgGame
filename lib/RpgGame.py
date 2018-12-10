@@ -248,7 +248,6 @@ class RpgGame(object):
         return [{
             self.scriptSettings.info_command: self.info,
             self.scriptSettings.condensed_info_command: self.condensed_info,
-            self.scriptSettings.stat_command: self.stat,
             self.scriptSettings.defend_command: self.defend,
             self.scriptSettings.counter_command: self.counter,
             self.scriptSettings.flee_command: self.flee,
@@ -1034,9 +1033,6 @@ class RpgGame(object):
         pass
 
     def unsmite(self, user_id, username, target_name):
-        pass
-
-    def stat(self, user_id, username):
         pass
 
     # ---------------------------------------

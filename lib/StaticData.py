@@ -1,6 +1,7 @@
 import json
 import codecs
 import os
+import Position
 
 
 class StaticData(object):
@@ -14,6 +15,7 @@ class Map(object):
     y_max = 0
     x_max = 0
     _starting_position = None
+    _teleportation_positions = []
 
     @staticmethod
     def read_map():
@@ -32,9 +34,11 @@ class Map(object):
         if cls._map is None:
             map_dict = cls.read_map()
             lmap = map_dict["map"]
+            tp_locations = map_dict.get("teleportation_locations", [])
             cls._starting_position = map_dict["starting_coordinates"]
             cls.x_max = max([len(x) for x in lmap])
             cls.y_max = len(lmap)
+            cls._teleportation_positions = {row[0]: Position.Position(row[1], row[2]) for row in tp_locations}
             cls._map = [[Location.find_by_name(name) for name in (row + (cls.x_max - len(row)) * [None])] for row in lmap]
         return cls._map
 

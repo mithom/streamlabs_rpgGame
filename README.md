@@ -28,7 +28,6 @@ To start your journey just type: !create charactername
 * !contest - If eligible, start a tournament to become king
 * !smite \[player] - Put a peasant in their place. They must be less than level 5.
 * !unsmite \[player] - Unban a player.
-* !stat - Show the current Hero and King/Queen of Pieland.
 
 
 #### LOCATIONS - configurable
