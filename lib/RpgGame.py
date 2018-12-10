@@ -279,7 +279,7 @@ class RpgGame(object):
         if result is not None:
             kills.update(result)
         for attack in fight.children:
-            result = self.resolve_attack(attack, kills, defenders, sneak=True)
+            result = self.resolve_attack(attack, kills, defenders, sneak=attack.action != self.COUNTER_ACTION)
             if result is not None:
                 kills.update(result)
         fight.delete()
@@ -317,11 +317,10 @@ class RpgGame(object):
     def resolve_attack(self, fight, kills, defenders, sneak=False):
         attacker = fight.attacker
         target = fight.target
-        sneak = sneak and self.COUNTER_ACTION != fight.action
-        if (attacker.char_id in kills and fight.action != self.COUNTER_ACTION) or \
-                target is None or target.char_id in kills or attacker.position != target.position:
+        sneak = sneak and target not in defenders
+        if target is None or target.char_id in kills or attacker.position != target.position:
             return None
-        if attacker.attack(target, defense_bonus=attacker.char_id in defenders,
+        if attacker.attack(target, defense_bonus=attacker in defenders,
                            attack_bonus=fight.action == self.COUNTER_ACTION, sneak=sneak):
             return {target.char_id: attacker.char_id}
         else:

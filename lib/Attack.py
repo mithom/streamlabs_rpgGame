@@ -101,7 +101,7 @@ class Attack(object):
             Resolver.resolve_time, Child.attack_id, Child.action, Child.attacker_id, Child.target_id, Child.resolver_id
             FROM attacks Resolver LEFT OUTER JOIN attacks Child on Child.resolver_id = Resolver.attack_id
             WHERE Resolver.resolve_time <= ? and Resolver.boss_id is null 
-            ORDER BY Resolver.attack_id ASC, Child.attack_id;""",
+            ORDER BY Resolver.attack_id ASC, Child.attack_id ASC;""",
             (dt.datetime.now(utc),)
         )
         fights = {}

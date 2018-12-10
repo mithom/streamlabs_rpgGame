@@ -48,6 +48,8 @@ class Character(object):
         self.connection = connection
 
     def __eq__(self, other):
+        if type(other) is int:
+            return self.char_id == other
         if type(other) is not self.__class__:
             return False
         return self.char_id == other.char_id
