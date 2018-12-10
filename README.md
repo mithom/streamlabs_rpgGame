@@ -118,6 +118,37 @@ Roshan will spawn during special occasions and will grant a special to whomever 
 * Boss only attacks after he is attacked, and then keeps doing so. - Done
 * Zone is always there, but kind of safe zone, but no shopping.
 
+## CONFIGURATION
+
+#### settings
+these can be found under the scripts tab in streamlabs chatbot, click on the rpgGame and it will pop up on the right side.
+
+Here you can enabe/disable and rename all the traits and specials.
+
+You can also configure in here how often the game checks for game state updates, change command names and more stuff
+
+#### data folder
+
+You can find this folder by going to the script settings, click on the 'database stuff' tab and press the 'open data folder' button.
+
+Here you can add/change/remove the armors/weapons/Locations/Map/Bosses.
+The meaning each line in the files is listed here:
+
+###### Armors.json
+\["Name", price, min_lvl\]
+###### Weapons.json
+\["Name", price, min_lvl\]
+###### Locations.json
+\["Name", difficulty, reward, "what you can die from", "possibly more thing", ...\]
+###### Map.json
+open the file, it speaks for itself, coordinates start counting at 0 (harder to explain than to see)
+###### Bosses.json
+\["Name", attack, defense, max_hp, hp, x, y, hp_regen\]
+
+where hp_regen is the amount of hp the boss regenerates if he successfully kills a player.
+
+x and y are the coordinates where he can be found.
+
 ## ADDITIONAL INFORMATION
 
 Every minute you either gain experience or die depending on the area difficulty and your level/equipment. The weapon you have increases the experience you gain, and your armor reduces your death chance. - Done
@@ -127,7 +158,6 @@ Pay attention to the difficulty hint when you move between areas. There is no hp
 Player vs player combat is only allowed for levels 5 and above, and is prohibited in the castle. Be aware that if you attack you are vulnerable to any number of players to sneak attack you in return without the ability to defend or flee. Once you are locked in combat you can only respond with one action and it cannot be changed during that round even if more players join combat. Only the player who lands the killing blow will earn tax free loot, and will gain extra loot from the victim kill count and any placed bounties. Experience may be gained by other participants. Kills show up on a player's info and will give more loot when they are killed themselves. - mostly done
 
 When the stream is offline you can't gain experience or die unless there is a live Roshan. Before you leave the channel or when the stream goes offline make sure to move to town (or castle) to be safe. - Done
-
 
 ##### #Possible additions:
 ability to add gender, if gender is available, automatically adapt game to it (auto king/queen)
