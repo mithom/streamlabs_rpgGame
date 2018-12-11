@@ -9,6 +9,7 @@ import random
 from Special import SpecialCooldown, Special, ActiveEffect
 from threading import Lock
 from math import ceil
+from functools import wraps
 
 import os
 import datetime as dt
@@ -22,7 +23,7 @@ import sqlite3
 Parent = None
 random = random.WichmannHill()
 
-#  TODO: database connection with @connection and filling last argument
+#  TODO: return streammessages and send those with decorator
 #  TODO: bosses billboard, view persons on same tile, auto flee for alert char
 #  TODO: teleportation points (long cooldown)
 #  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
@@ -68,6 +69,20 @@ def get_coords_change(orientation):
     if orientation in DOWN:
         return 0, -1
     assert False
+
+
+def connect(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            with args[0].get_connection() as conn:
+                return f(*args, conn=conn, **kwargs)
+        finally:
+            if 'conn' in locals():
+                # noinspection PyUnboundLocalVariable
+                conn.close()
+            args[0].db_lock.release()
+    return wrapper
 
 
 # noinspection PyUnboundLocalVariable
@@ -142,80 +157,75 @@ class RpgGame(object):
         self.db_lock.release()
         Parent.Log(self.script_name, 'reset successful')
 
-    def tick(self):
-        try:
-            with self.get_connection() as conn:
-                king = King.find(conn)
-                tournament = Tournament.find(conn)
-                if tournament is None:
-                    if king is None or king.character is None:
-                        participant_chars = Tournament.initiate_tournament(
-                            king, max(self.scriptSettings.min_fight_lvl, 5), conn)
-                        if participant_chars is not None:
-                            msg = "a tournament to become king has started between the top warriors: "
-                            for part_char in participant_chars:
-                                msg += part_char.name + ", "
-                            Parent.SendStreamMessage(self.format_message(
-                                msg[:-2]
-                            ))
-                else:
-                    winner = tournament.check_winner()
-                    if winner is not None:
-                        king = King.crown(winner, conn)
-                        tournament.delete()
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0} has proven worthy of the crown and shall become king/queen",
-                            king.character.name
-                        ))
-                Boss.respawn_bosses(conn)
-                ActiveEffect.delete_all_expired(conn)
-                self.do_boss_attacks(conn)
-                for attack in Attack.find_boss_attack_past_resolve_time(conn):
-                    attack.resolve_boss_attack()
-                for fight in Attack.find_fights(conn):
-                    fight.resolve_fight()
-                lvl_up = []
-                deaths = []
-                characters = Character.find_by_past_exp_time(conn)
-                coin_rewards = {}
-                tax = 0
-                if king is not None and king.character is not None:
-                    tax = king.tax_rate
-                    if tax != 0:
-                        coin_rewards[king.character.user_id] = 0
-                for character in characters:
-                    if character.check_survival():
-                        coin_rewards[
-                            character.user_id] = round(
-                            character.position.location.reward * character.trait.loot_factor * (1 - tax / 100.0))
-                        if tax != 0:
-                            coin_rewards[king.character.user_id] += round(character.position.location.reward *
-                                                                          character.trait.loot_factor * (tax / 100.0))
-                        character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(
-                            seconds=self.scriptSettings.xp_farm_time)
-                        if character.gain_experience(
-                                character.exp_for_difficulty(character.position.location.difficulty)):
-                            lvl_up.append(character)
-                        character.save()
-                    else:
-                        deaths.append(character)
-                        character.delete()
-                if len(coin_rewards) > 0:
-                    Parent.AddPointsAll(coin_rewards)
-                conn.commit()
-                if len(lvl_up) > 0:
+    @connect
+    def tick(self, conn):
+        king = King.find(conn)
+        tournament = Tournament.find(conn)
+        if tournament is None:
+            if king is None or king.character is None:
+                participant_chars = Tournament.initiate_tournament(
+                    king, max(self.scriptSettings.min_fight_lvl, 5), conn)
+                if participant_chars is not None:
+                    msg = "a tournament to become king has started between the top warriors: "
+                    for part_char in participant_chars:
+                        msg += part_char.name + ", "
                     Parent.SendStreamMessage(self.format_message(
-                        "some characters just lvl'ed up: " + ", ".join(map(lambda char: char.name, lvl_up))
+                        msg[:-2]
                     ))
-                if len(deaths) > 0:
-                    msg = ", ".join(map(lambda char: char.name + " got killed by a " +
-                                                     random.choice(char.position.location.monsters.split(",")) +
-                                                     " at lvl " + str(char.lvl), deaths))
-                    Parent.SendStreamMessage(self.format_message(msg))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+        else:
+            winner = tournament.check_winner()
+            if winner is not None:
+                king = King.crown(winner, conn)
+                tournament.delete()
+                Parent.SendStreamMessage(self.format_message(
+                    "{0} has proven worthy of the crown and shall become king/queen",
+                    king.character.name
+                ))
+        Boss.respawn_bosses(conn)
+        ActiveEffect.delete_all_expired(conn)
+        self.do_boss_attacks(conn)
+        for attack in Attack.find_boss_attack_past_resolve_time(conn):
+            attack.resolve_boss_attack()
+        for fight in Attack.find_fights(conn):
+            fight.resolve_fight()
+        lvl_up = []
+        deaths = []
+        characters = Character.find_by_past_exp_time(conn)
+        coin_rewards = {}
+        tax = 0
+        if king is not None and king.character is not None:
+            tax = king.tax_rate
+            if tax != 0:
+                coin_rewards[king.character.user_id] = 0
+        for character in characters:
+            if character.check_survival():
+                coin_rewards[
+                    character.user_id] = round(
+                    character.position.location.reward * character.trait.loot_factor * (1 - tax / 100.0))
+                if tax != 0:
+                    coin_rewards[king.character.user_id] += round(character.position.location.reward *
+                                                                  character.trait.loot_factor * (tax / 100.0))
+                character.exp_gain_time = dt.datetime.now(utc) + dt.timedelta(
+                    seconds=self.scriptSettings.xp_farm_time)
+                if character.gain_experience(
+                        character.exp_for_difficulty(character.position.location.difficulty)):
+                    lvl_up.append(character)
+                character.save()
+            else:
+                deaths.append(character)
+                character.delete()
+        if len(coin_rewards) > 0:
+            Parent.AddPointsAll(coin_rewards)
+        conn.commit()
+        if len(lvl_up) > 0:
+            Parent.SendStreamMessage(self.format_message(
+                "some characters just lvl'ed up: " + ", ".join(map(lambda char: char.name, lvl_up))
+            ))
+        if len(deaths) > 0:
+            msg = ", ".join(map(lambda char: char.name + " got killed by a " +
+                                             random.choice(char.position.location.monsters.split(",")) +
+                                             " at lvl " + str(char.lvl), deaths))
+            Parent.SendStreamMessage(self.format_message(msg))
 
     def do_boss_attacks(self, conn):
         for boss in Boss.find_by_active_and_past_attack_time(conn):
@@ -288,96 +298,82 @@ class RpgGame(object):
             self.scriptSettings.bounty_command: self.bounty,
         }]
 
-    def info(self, user_id, username):
-        try:
-            with self.get_connection() as conn:
-                character = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(character, username, stun_check=False):
-                    return
-                location = character.position.location
-                Parent.SendStreamWhisper(user_id, self.format_message(
-                    "{username}, your character {char_name} is located at {coords}, which is a {loc_name} with " +
-                    "difficulty {difficulty}. Your current lvl is {lvl} and xp {xp}/{needed_xp}. " +
-                    "You are currently wearing {armor} and use {weapon} as weapon." +
-                    " Your trait is {trait_name} with strength {trait_strength} and specials: {specials}",
-                    whisper=True,
-                    username=username,
-                    char_name=character.name,
-                    loc_name=location.name,
-                    difficulty=location.difficulty,
-                    lvl=character.lvl,
-                    xp=character.experience,
-                    needed_xp=character.exp_for_next_lvl(),
-                    weapon=getattr(character.weapon, "name", "bare hands"),
-                    armor=getattr(character.armor, "name", "rags"),
-                    coords=str(character.position.coord),
-                    trait_name=character.trait.trait.name,
-                    trait_strength=character.trait.strength or 0,
-                    specials=", ".join(map(lambda x: x.special.name, character.specials))
-                ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def info(self, user_id, username, conn):
+        character = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(character, username, stun_check=False):
+            return
+        location = character.position.location
+        Parent.SendStreamWhisper(user_id, self.format_message(
+            "{username}, your character {char_name} is located at {coords}, which is a {loc_name} with " +
+            "difficulty {difficulty}. Your current lvl is {lvl} and xp {xp}/{needed_xp}. " +
+            "You are currently wearing {armor} and use {weapon} as weapon." +
+            " Your trait is {trait_name} with strength {trait_strength} and specials: {specials}",
+            whisper=True,
+            username=username,
+            char_name=character.name,
+            loc_name=location.name,
+            difficulty=location.difficulty,
+            lvl=character.lvl,
+            xp=character.experience,
+            needed_xp=character.exp_for_next_lvl(),
+            weapon=getattr(character.weapon, "name", "bare hands"),
+            armor=getattr(character.armor, "name", "rags"),
+            coords=str(character.position.coord),
+            trait_name=character.trait.trait.name,
+            trait_strength=character.trait.strength or 0,
+            specials=", ".join(map(lambda x: x.special.name, character.specials))
+        ))
 
-    def condensed_info(self, user_id, username):
-        try:
-            with self.get_connection() as conn:
-                character = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(character, username, stun_check=False):
-                    return
-                Parent.SendStreamWhisper(user_id, self.format_message(
-                    "{0}, name: {1}, location {2}, lvl: {3}, trait: {4}, specials: {5}",
-                    username,
-                    character.name,
-                    character.position.location.name,
-                    character.lvl,
-                    character.trait.trait.name,
-                    ", ".join(map(lambda x: x.special.identifier, character.specials)),
-                    whisper=True
-                ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def condensed_info(self, user_id, username, conn):
+        character = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(character, username, stun_check=False):
+            return
+        Parent.SendStreamWhisper(user_id, self.format_message(
+            "{0}, name: {1}, location {2}, lvl: {3}, trait: {4}, specials: {5}",
+            username,
+            character.name,
+            character.position.location.name,
+            character.lvl,
+            character.trait.trait.name,
+            ", ".join(map(lambda x: x.special.identifier, character.specials)),
+            whisper=True
+        ))
 
-    def create(self, user_id, username, character_name):
-        try:
-            with self.get_connection() as conn:
-                if not Parent.HasPermission(user_id, self.scriptSettings.create_permission,
-                                            self.scriptSettings.create_permission_info):
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, the minimum rank for this command is {1}, {2}",
-                        username,
-                        self.scriptSettings.create_permission,
-                        self.scriptSettings.create_permission_info
-                    ))
-                    return
-                if Character.find_by_user(user_id, conn) is None and \
-                        Character.find_by_name(character_name, conn) is None and \
-                        Boss.find_by_name(character_name, conn) is None:
-                    exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
-                    x, y = Map.starting_position()
-                    Character.create(character_name, user_id, 0, 1, None, None, exp_gain_time, x, y, conn)
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you just created a new hero who listens to the mighty name of {1}. For more info about" +
-                        " this hero, type " + self.scriptSettings.info_command,
-                        username,
-                        character_name
-                    ))
-                else:
-                    Parent.SendStreamWhisper(user_id, self.format_message(
-                        "{0}, character could not be created, you either already have one, or {1} has been taken",
-                        username,
-                        character_name,
-                        whisper=True
-                    ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def create(self, user_id, username, character_name, conn):
+        if not Parent.HasPermission(user_id, self.scriptSettings.create_permission,
+                                    self.scriptSettings.create_permission_info):
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, the minimum rank for this command is {1}, {2}",
+                username,
+                self.scriptSettings.create_permission,
+                self.scriptSettings.create_permission_info
+            ))
+            return
+        if Character.find_by_user(user_id, conn) is None and \
+                Character.find_by_name(character_name, conn) is None and \
+                Boss.find_by_name(character_name, conn) is None:
+            exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
+            x, y = Map.starting_position()
+            Character.create(character_name, user_id, 0, 1, None, None, exp_gain_time, x, y, conn)
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you just created a new hero who listens to the mighty name of {1}. For more info about" +
+                " this hero, type " + self.scriptSettings.info_command,
+                username,
+                character_name
+            ))
+        else:
+            Parent.SendStreamWhisper(user_id, self.format_message(
+                "{0}, character could not be created, you either already have one, or {1} has been taken",
+                username,
+                character_name,
+                whisper=True
+            ))
 
-    def move(self, user_id, username, direction):
+    @connect
+    def move(self, user_id, username, direction, conn):
         if Parent.IsOnUserCooldown(self.script_name, 'move', user_id):
             Parent.SendStreamMessage(self.format_message(
                 '{0}, you cannot move for ' +
@@ -385,367 +381,331 @@ class RpgGame(object):
                 username
             ))
             return
-        try:
-            with self.get_connection() as conn:
-                if direction not in LEFT + RIGHT + UP + DOWN:
-                    Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
+        if direction not in LEFT + RIGHT + UP + DOWN:
+            Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, that is no valid direction",
+                username
+            ))
+            return
+        character = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(character, username):
+            Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
+            return
+        if character.position.can_move_to(*get_coords_change(direction)):
+            fight = Attack.find_by_attacker_or_target(character, conn)
+            if fight is None:
+                if not character.is_stunned():
+                    character.position.coord = tuple(
+                        map(operator.add, character.position.coord, get_coords_change(direction)))
+                    character.exp_gain_time = dt.datetime.now(utc) + \
+                                              dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
+                    character.save()
+                    Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time)
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, that is no valid direction",
+                        "{0}, {1} moved to location {2} with difficulty {3}",
+                        username,
+                        character.name,
+                        character.position.location.name,
+                        character.position.location.difficulty
+                    ))
+                else:
+                    Parent.AddUserCooldown(self.script_name, 'move', user_id,
+                                           self.scriptSettings.xp_farm_time / 5)
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you cannot move while stunned!",
+                        username
+                    ))
+            else:
+                Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
+                if fight.attacker_id == character.char_id:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you cannot move during a fight, your action for this fight has already been set.",
+                        username
+                    ))
+                else:
+                    Attack.create(Attack.FLEE_ACTION, character.char_id, resolver_id=fight.resolver_id,
+                                  connection=conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you cannot move during a fight, a flee attempt will be made.",
+                        username
+                    ))
+
+        else:
+            Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, there is no location on that side",
+                username
+            ))
+
+    @connect
+    def buy(self, user_id, username, item_name, conn):
+        character = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(character, username):
+            return
+        weapon = Weapon.find_by_name(item_name)
+        if weapon is not None:
+            if character.lvl >= weapon.min_lvl and Parent.RemovePoints(user_id, username, weapon.price):
+                character.weapon = weapon
+                character.save()
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, {1} successfully bought {2}",
+                    username, character.name, weapon.name
+                ))
+            else:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, {1} failed to buy {2}",
+                    username, character.name, weapon.name
+                ))
+        else:
+            armor = Armor.find_by_name(item_name)
+            if armor is not None:
+                if character.lvl >= armor.min_lvl and Parent.RemovePoints(user_id, username, armor.price):
+                    character.armor = armor
+                    character.save()
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, {1} successfully bought {2}",
+                        username, character.name, armor.name
+                    ))
+                else:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, {1} failed to buy {2}",
+                        username, character.name, armor.name
+                    ))
+            else:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, {1} does not exists",
+                    username,
+                    item_name
+                ))
+
+    @connect
+    def attack(self, user_id, username, target_name, conn):
+        target = Character.find_by_name(target_name, conn)
+        attacker = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(attacker, username):
+            return
+        if attacker.lvl < self.scriptSettings.min_fight_lvl:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, your character isn't lvl {lvl} yet",
+                username, lvl=5
+            ))
+            return
+        fight1 = Attack.find_by_attacker_or_target(attacker, conn)
+        if target is None:
+            boss = Boss.find_by_name(target_name, conn)
+            if boss is None:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, no target exists with that character name",
+                    username))
+                return
+            else:
+                if fight1 is not None:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you are already in a fight, focus on that fight first!",
                         username
                     ))
                     return
-                character = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(character, username):
-                    Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
+                if boss.position != attacker.position:
+                    Parent.SendStreamMessage(
+                        self.format_message("{0}, your target is not in the same area is you are.", username))
                     return
-                if character.position.can_move_to(*get_coords_change(direction)):
-                    fight = Attack.find_by_attacker_or_target(character, conn)
-                    if fight is None:
-                        if not character.is_stunned():
-                            character.position.coord = tuple(
-                                map(operator.add, character.position.coord, get_coords_change(direction)))
-                            character.exp_gain_time = dt.datetime.now(utc) + \
-                                                      dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
-                            character.save()
-                            Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time)
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, {1} moved to location {2} with difficulty {3}",
-                                username,
-                                character.name,
-                                character.position.location.name,
-                                character.position.location.difficulty
-                            ))
-                        else:
-                            Parent.AddUserCooldown(self.script_name, 'move', user_id,
-                                                   self.scriptSettings.xp_farm_time / 5)
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, you cannot move while stunned!",
-                                username
-                            ))
-                    else:
-                        Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
-                        if fight.attacker_id == character.char_id:
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, you cannot move during a fight, your action for this fight has already been set.",
-                                username
-                            ))
-                        else:
-                            Attack.create(Attack.FLEE_ACTION, character.char_id, resolver_id=fight.resolver_id,
-                                          connection=conn)
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, you cannot move during a fight, a flee attempt will be made.",
-                                username
-                            ))
-
                 else:
-                    Parent.AddUserCooldown(self.script_name, 'move', user_id, self.scriptSettings.xp_farm_time / 5)
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, there is no location on that side",
-                        username
-                    ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def buy(self, user_id, username, item_name):
-        try:
-            with self.get_connection() as conn:
-                character = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(character, username):
-                    return
-                weapon = Weapon.find_by_name(item_name)
-                if weapon is not None:
-                    if character.lvl >= weapon.min_lvl and Parent.RemovePoints(user_id, username, weapon.price):
-                        character.weapon = weapon
-                        character.save()
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, {1} successfully bought {2}",
-                            username, character.name, weapon.name
-                        ))
-                    else:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, {1} failed to buy {2}",
-                            username, character.name, weapon.name
-                        ))
-                else:
-                    armor = Armor.find_by_name(item_name)
-                    if armor is not None:
-                        if character.lvl >= armor.min_lvl and Parent.RemovePoints(user_id, username, armor.price):
-                            character.armor = armor
-                            character.save()
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, {1} successfully bought {2}",
-                                username, character.name, armor.name
-                            ))
-                        else:
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, {1} failed to buy {2}",
-                                username, character.name, armor.name
-                            ))
-                    else:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, {1} does not exists",
-                            username,
-                            item_name
-                        ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def attack(self, user_id, username, target_name):
-        try:
-            with self.get_connection() as conn:
-                target = Character.find_by_name(target_name, conn)
-                attacker = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(attacker, username):
-                    return
-                if attacker.lvl < self.scriptSettings.min_fight_lvl:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, your character isn't lvl {lvl} yet",
-                        username, lvl=5
-                    ))
-                    return
-                fight1 = Attack.find_by_attacker_or_target(attacker, conn)
-                if target is None:
-                    boss = Boss.find_by_name(target_name, conn)
-                    if boss is None:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, no target exists with that character name",
-                            username))
+                    if boss.state is Boss.State.DEAD:
+                        Parent.SendStreamMessage(
+                            self.format_message("{0}, this boss is currenlty dead. It will respawn in {1}",
+                                                username, str(boss.respawn_time - dt.datetime.now(utc))))
                         return
                     else:
-                        if fight1 is not None:
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, you are already in a fight, focus on that fight first!",
-                                username
-                            ))
-                            return
-                        if boss.position != attacker.position:
-                            Parent.SendStreamMessage(
-                                self.format_message("{0}, your target is not in the same area is you are.", username))
-                            return
-                        else:
-                            if boss.state is Boss.State.DEAD:
-                                Parent.SendStreamMessage(
-                                    self.format_message("{0}, this boss is currenlty dead. It will respawn in {1}",
-                                                        username, str(boss.respawn_time - dt.datetime.now(utc))))
-                                return
-                            else:
-                                resolve_time = dt.datetime.now(utc) + dt.timedelta(
-                                    seconds=self.scriptSettings.fight_resolve_time)
-                                attacker.remove_invisibility()
-                                Attack.create(Attack.ATTACK_ACTION, attacker.char_id, boss_id=boss.boss_id,
-                                              resolve_time=resolve_time, connection=conn)
-                                Parent.SendStreamMessage(self.format_message(
-                                    "{0} starts clashing with the big boss {1}",
-                                    attacker.name,
-                                    boss.name
-                                ))
-                                return
-                elif target.is_invisible():
+                        resolve_time = dt.datetime.now(utc) + dt.timedelta(
+                            seconds=self.scriptSettings.fight_resolve_time)
+                        attacker.remove_invisibility()
+                        Attack.create(Attack.ATTACK_ACTION, attacker.char_id, boss_id=boss.boss_id,
+                                      resolve_time=resolve_time, connection=conn)
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0} starts clashing with the big boss {1}",
+                            attacker.name,
+                            boss.name
+                        ))
+                        return
+        elif target.is_invisible():
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you cannot find {1}!",
+                username,
+                target.name
+            ))
+            return
+        elif target.position == attacker.position:
+            if attacker.position.location.difficulty == 0:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, the castle is a peaceful place!",
+                    username
+                ))
+                return
+            if target.lvl < self.scriptSettings.min_fight_lvl:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, {target} isn't lvl {lvl} yet",
+                    username, lvl=5, target=target_name
+                ))
+                return
+            if fight1 is not None:
+                if fight1.attacker_id == attacker.char_id:
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot find {1}!",
+                        "{0}, you are already attacking someone", username
+                    ))
+                    return
+                if fight1.attacker_id != target.char_id:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you are being attacked by {1}, you should fight hem first",
                         username,
                         target.name
                     ))
                     return
-                elif target.position == attacker.position:
-                    if attacker.position.location.difficulty == 0:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, the castle is a peaceful place!",
-                            username
-                        ))
-                        return
-                    if target.lvl < self.scriptSettings.min_fight_lvl:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, {target} isn't lvl {lvl} yet",
-                            username, lvl=5, target=target_name
-                        ))
-                        return
-                    if fight1 is not None:
-                        if fight1.attacker_id == attacker.char_id:
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, you are already attacking someone", username
-                            ))
-                            return
-                        if fight1.attacker_id != target.char_id:
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, you are being attacked by {1}, you should fight hem first",
-                                username,
-                                target.name
-                            ))
-                            return
-                    fight = Attack.find_by_attacker_or_target(target, conn)
-                    if fight is None:
-                        if attacker.participate_in_same_tournament(target):
-                            # delay xp time for attacker
-                            attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                            attacker.save()
+            fight = Attack.find_by_attacker_or_target(target, conn)
+            if fight is None:
+                if attacker.participate_in_same_tournament(target):
+                    # delay xp time for attacker
+                    attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                    attacker.save()
 
-                            # delay xp time for target
-                            target.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                            target.save()
+                    # delay xp time for target
+                    target.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                    target.save()
 
-                            resolve_time = dt.datetime.now(utc) + \
-                                           dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                            attacker.remove_invisibility()
-                            Attack.create(Attack.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time,
-                                          connection=conn)
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0} challenges {1} to a fight",
-                                attacker.name, target.name
-                            ))
-                        else:
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, you can not attack {1} as you are not in the same tournament.",
-                                username,
-                                target.name
-                            ))
-                            return
-                    else:
-                        if fight.target_id == attacker.char_id:
-                            # my xp has already been delayed, i just react only now
-                            resolver_id = fight.resolver_id
-                            Attack.create(Attack.COUNTER_ACTION, attacker.char_id, target.char_id,
-                                          resolver_id=resolver_id, connection=conn)
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0} accepts the challenge and prepares to counter {1}",
-                                attacker.name, target.name
-                            ))
-                        else:
-                            attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
-                            attacker.save()
-
-                            Attack.create(Attack.ATTACK_ACTION, attacker.char_id, target.char_id,
-                                          resolver_id=fight.resolver_id, connection=conn)
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0} sees an opportunity to sneak up on {1}",
-                                attacker.name, target.name
-                            ))
-                else:
-                    Parent.SendStreamMessage(
-                        self.format_message("{0}, your target is not in the same area is you are.", username))
-                    return
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def defend(self, user_id, username):
-        try:
-            with self.get_connection() as conn:
-                defender = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(defender, username):
-                    return
-                fight = Attack.find_by_target(defender, conn)
-                if fight is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you are currently not being attacked",
-                        defender.name
-                    ))
-                    return
-                else:
-                    Attack.create(Attack.DEFEND_ACTION, defender.char_id, resolver_id=fight.resolver_id,
+                    resolve_time = dt.datetime.now(utc) + \
+                                   dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                    attacker.remove_invisibility()
+                    Attack.create(Attack.ATTACK_ACTION, attacker.char_id, target.char_id, resolve_time,
                                   connection=conn)
                     Parent.SendStreamMessage(self.format_message(
-                        "{0} has taken a defensive pose",
-                        defender.name
+                        "{0} challenges {1} to a fight",
+                        attacker.name, target.name
                     ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def counter(self, user_id, username):
-        try:
-            with self.get_connection() as conn:
-                countermen = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(countermen, username):
-                    return
-                fight = Attack.find_by_target(countermen, conn)
-                if fight is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you are currently not being attacked",
-                        countermen.name
-                    ))
-                    return
                 else:
-                    Attack.create(Attack.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id,
-                                  connection=conn)
                     Parent.SendStreamMessage(self.format_message(
-                        "{0} prepares to counter attack",
-                        countermen.name
-                    ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def flee(self, user_id, username):
-        try:
-            with self.get_connection() as conn:
-                flee_char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(flee_char, username):
-                    return
-                fight = Attack.find_by_target(flee_char, conn)
-                if fight is None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you are currently not being attacked",
-                        flee_char.name
+                        "{0}, you can not attack {1} as you are not in the same tournament.",
+                        username,
+                        target.name
                     ))
                     return
+            else:
+                if fight.target_id == attacker.char_id:
+                    # my xp has already been delayed, i just react only now
+                    resolver_id = fight.resolver_id
+                    Attack.create(Attack.COUNTER_ACTION, attacker.char_id, target.char_id,
+                                  resolver_id=resolver_id, connection=conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0} accepts the challenge and prepares to counter {1}",
+                        attacker.name, target.name
+                    ))
                 else:
-                    flee_part = Participant.find(flee_char.char_id, conn)
-                    if flee_part is not None and flee_part == Participant.find(fight.attacker_id, conn):
-                        flee_part.alive = False
-                        flee_part.save()
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0} tries to flee from the fight and thereby disqualifies from the tournament",
-                            flee_char.name
-                        ))
-                    else:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0} starts looking for a way out of this fight",
-                            flee_char.name
-                        ))
-                    Attack.create(Attack.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+                    attacker.exp_gain_time += dt.timedelta(seconds=self.scriptSettings.fight_resolve_time)
+                    attacker.save()
 
-    def look(self, _, username, target_name):
-        try:
-            with self.get_connection() as conn:
-                target_char = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target_char, username, target_name):
-                    return
-                equipment_str = "badly equipped for hes lvl"
+                    Attack.create(Attack.ATTACK_ACTION, attacker.char_id, target.char_id,
+                                  resolver_id=fight.resolver_id, connection=conn)
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0} sees an opportunity to sneak up on {1}",
+                        attacker.name, target.name
+                    ))
+        else:
+            Parent.SendStreamMessage(
+                self.format_message("{0}, your target is not in the same area is you are.", username))
+            return
 
-                equipment_lvl = 0
-                if target_char.weapon is not None:
-                    equipment_lvl += target_char.weapon.min_lvl
-                if target_char.armor is not None:
-                    equipment_lvl += target_char.armor.min_lvl
+    @connect
+    def defend(self, user_id, username, conn):
+        defender = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(defender, username):
+            return
+        fight = Attack.find_by_target(defender, conn)
+        if fight is None:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you are currently not being attacked",
+                defender.name
+            ))
+            return
+        else:
+            Attack.create(Attack.DEFEND_ACTION, defender.char_id, resolver_id=fight.resolver_id,
+                          connection=conn)
+            Parent.SendStreamMessage(self.format_message(
+                "{0} has taken a defensive pose",
+                defender.name
+            ))
 
-                if equipment_lvl >= target_char.lvl * 1.5:
-                    equipment_str = "greatly equipped for hes lvl "
-                elif equipment_lvl >= target_char.lvl:
-                    equipment_str = "well equipped for hes lvl "
+    @connect
+    def counter(self, user_id, username, conn):
+        countermen = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(countermen, username):
+            return
+        fight = Attack.find_by_target(countermen, conn)
+        if fight is None:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you are currently not being attacked",
+                countermen.name
+            ))
+            return
+        else:
+            Attack.create(Attack.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id,
+                          connection=conn)
+            Parent.SendStreamMessage(self.format_message(
+                "{0} prepares to counter attack",
+                countermen.name
+            ))
 
+    @connect
+    def flee(self, user_id, username, conn):
+        flee_char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(flee_char, username):
+            return
+        fight = Attack.find_by_target(flee_char, conn)
+        if fight is None:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you are currently not being attacked",
+                flee_char.name
+            ))
+            return
+        else:
+            flee_part = Participant.find(flee_char.char_id, conn)
+            if flee_part is not None and flee_part == Participant.find(fight.attacker_id, conn):
+                flee_part.alive = False
+                flee_part.save()
                 Parent.SendStreamMessage(self.format_message(
-                    "{0}, {1} is currently lvl {2}. He looks {3}",
-                    username,
-                    target_name,
-                    target_char.lvl,
-                    equipment_str
+                    "{0} tries to flee from the fight and thereby disqualifies from the tournament",
+                    flee_char.name
                 ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+            else:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0} starts looking for a way out of this fight",
+                    flee_char.name
+                ))
+            Attack.create(Attack.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
+
+    @connect
+    def look(self, _, username, target_name, conn):
+        target_char = Character.find_by_name(target_name, conn)
+        if not self.check_valid_target(target_char, username, target_name):
+            return
+        equipment_str = "badly equipped for hes lvl"
+
+        equipment_lvl = 0
+        if target_char.weapon is not None:
+            equipment_lvl += target_char.weapon.min_lvl
+        if target_char.armor is not None:
+            equipment_lvl += target_char.armor.min_lvl
+
+        if equipment_lvl >= target_char.lvl * 1.5:
+            equipment_str = "greatly equipped for hes lvl "
+        elif equipment_lvl >= target_char.lvl:
+            equipment_str = "well equipped for hes lvl "
+
+        Parent.SendStreamMessage(self.format_message(
+            "{0}, {1} is currently lvl {2}. He looks {3}",
+            username,
+            target_name,
+            target_char.lvl,
+            equipment_str
+        ))
 
     def dough(self, user_id, username):
         Parent.SendStreamMessage(self.format_message("{0}, your current piecoin balance is {1} {2}",
@@ -754,281 +714,241 @@ class RpgGame(object):
                                                      Parent.GetCurrencyName()
                                                      ))
 
-    def give(self, user_id, username, amount, recipient_name):
-        try:
-            amount = int(amount)
-            with self.get_connection() as conn:
-                if recipient_name == self.scriptSettings.piebank_name:
-                    if Parent.RemovePoints(user_id, username, amount):
-                        bounty = Bounty.find_by_user_id_from_piebank(user_id, conn)
-                        if bounty is not None and amount >= 2 * bounty.reward and bounty.kill_count > 1:
-                            bounty.delete()  # TODO: maybe add chance factor, higher is more chance to delete it?
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, Your bounty has been cleared",
-                                username
-                            ))
-                        else:
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, thanks for the kindness of this free donation",
-                                username
-                            ))
-                    else:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, you don't have enough coins", username
-                        ))
-                else:
-                    recipient = Character.find_by_name(recipient_name, conn)
-                    if Parent.RemovePoints(user_id, username, amount):
-                        recipient_user_name = Parent.GetDisplayName(recipient.user_id)
-                        if Parent.AddPoints(recipient.user_id, recipient_user_name, amount):
-                            Parent.SendStreamMessage(self.format_message("{0} just gave {1} {2} {3}",
-                                                                         username,
-                                                                         recipient_user_name,
-                                                                         amount,
-                                                                         Parent.GetCurrencyName()
-                                                                         ))
-                        else:
-                            Parent.AddPoints(user_id, username, amount)
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, something went wrong", username
-                            ))
-                    else:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, you don't have enough coins", username
-                        ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def bounty(self, user_id, username, target_name, amount):
-        try:
-            with self.get_connection() as conn:
-                amount = int(amount)
-                benefactor = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(benefactor, username, stun_check=False):
-                    return
-                bounty = Bounty.find_by_character_name_and_benefactor(target_name, benefactor.char_id, conn)
-                if bounty is None:
-                    target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username, target_name, invisible_check=False):
-                        return
-                    if Parent.RemovePoints(user_id, username, amount):
-                        Bounty.create(target, benefactor, amount, None, conn)
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, bounty on {1} has been created for {2}",
-                            username, target_name, amount
-                        ))
-                    else:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, you don't have enough points to do that!",
-                            username
-                        ))
-                else:
-                    if bounty.reward >= amount:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, your current bounty for {1} is larger then your new offer: {2}",
-                            username, target_name, bounty.reward
-                        ))
-                    else:
-                        if Parent.RemovePoints(user_id, username, amount - bounty.reward):
-                            bounty.reward = amount
-                            bounty.save()
-                            Parent.SendStreamMessage(self.format_message(
-                                "{0}, your bounty on {1} has been updated",
-                                username, target_name
-                            ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def bounties(self, user_id, username, paging="1"):
-        try:
-            with self.get_connection() as conn:
-                page = int(paging)
-                pages = int(ceil(Bounty.count(conn) / 5.0))
-                if pages == 0:
+    @connect
+    def give(self, user_id, username, amount, recipient_name, conn):
+        amount = int(amount)
+        if recipient_name == self.scriptSettings.piebank_name:
+            if Parent.RemovePoints(user_id, username, amount):
+                bounty = Bounty.find_by_user_id_from_piebank(user_id, conn)
+                if bounty is not None and amount >= 2 * bounty.reward and bounty.kill_count > 1:
+                    bounty.delete()  # TODO: maybe add chance factor, higher is more chance to delete it?
                     Parent.SendStreamMessage(self.format_message(
-                        "there are no bounties currently"
-                    ))
-                elif page > pages:
-                    Parent.SendStreamMessage(self.format_message(
-                        "there are currently only {0} pages",
-                        pages
+                        "{0}, Your bounty has been cleared",
+                        username
                     ))
                 else:
-                    top = Bounty.find_all_ordered_by_worth(page, 5, conn)
                     Parent.SendStreamMessage(self.format_message(
-                        "bounties: {0}, page {1}/{2}",
-                        ', '.join(map(lambda x: x.character.name + ": " + str(x.reward), top)),
-                        page,
-                        pages
+                        "{0}, thanks for the kindness of this free donation",
+                        username
                     ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def top_kills(self, user_id, username, paging="1"):
-        try:
-            with self.get_connection() as conn:
-                page = int(paging)
-                pages = int(ceil(Bounty.count(conn, True) / 5.0))
-                if pages == 0:
-                    Parent.SendStreamMessage(self.format_message(
-                        "there are no killers currently"
-                    ))
-                elif page > pages:
-                    Parent.SendStreamMessage(self.format_message(
-                        "there are currently only {0} pages",
-                        pages
-                    ))
-                else:
-                    top = Bounty.find_all_ordered_by_kills(page, 5, conn)
-                    Parent.SendStreamMessage(self.format_message(
-                        "kills: {0}, page {1}/{2}",
-                        ', '.join(map(lambda x: x.character.name + ": " + str(x.kill_count), top)),
-                        page,
-                        pages
-                    ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def tax(self, user_id, username, amount=None):
-        try:
-            with self.get_connection() as conn:
-                king = King.find(conn)
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username, stun_check=False):
-                    return
-                if char.char_id == king.character_id and amount is not None:
-                    amount = int(amount)
-                    king.tax_rate = max(min(amount, 10), 0)
-                    king.save()
+            else:
                 Parent.SendStreamMessage(self.format_message(
-                    "your {0} set the tax to {1}%",
-                    king.gender,
-                    king.tax_rate
+                    "{0}, you don't have enough coins", username
                 ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
-
-    def queen(self, user_id, username):
-        try:
-            with self.get_connection() as conn:
-                king = King.find(conn)
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username, stun_check=False):
-                    return
-                if king is not None and king.character_id == char.char_id:
-                    king.gender = "queen"
-                    king.save()
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, your title has been set to queen",
-                        char.name
-                    ))
-                elif king is not None and king.character is not None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "our current {0} is {1}",
-                        king.gender,
-                        king.character.name
-                    ))
+        else:
+            recipient = Character.find_by_name(recipient_name, conn)
+            if Parent.RemovePoints(user_id, username, amount):
+                recipient_user_name = Parent.GetDisplayName(recipient.user_id)
+                if Parent.AddPoints(recipient.user_id, recipient_user_name, amount):
+                    Parent.SendStreamMessage(self.format_message("{0} just gave {1} {2} {3}",
+                                                                 username,
+                                                                 recipient_user_name,
+                                                                 amount,
+                                                                 Parent.GetCurrencyName()
+                                                                 ))
                 else:
+                    Parent.AddPoints(user_id, username, amount)
                     Parent.SendStreamMessage(self.format_message(
-                        "Pieland doesn't have a king or queen currently"
+                        "{0}, something went wrong", username
                     ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+            else:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you don't have enough coins", username
+                ))
 
-    def king(self, user_id, username):
-        try:
-            with self.get_connection() as conn:
-                king = King.find(conn)
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username, stun_check=False):
-                    return
-                if king is not None and king.character_id == char.char_id:
-                    king.gender = "king"
-                    king.save()
+    @connect
+    def bounty(self, user_id, username, target_name, amount, conn):
+        amount = int(amount)
+        benefactor = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(benefactor, username, stun_check=False):
+            return
+        bounty = Bounty.find_by_character_name_and_benefactor(target_name, benefactor.char_id, conn)
+        if bounty is None:
+            target = Character.find_by_name(target_name, conn)
+            if not self.check_valid_target(target, username, target_name, invisible_check=False):
+                return
+            if Parent.RemovePoints(user_id, username, amount):
+                Bounty.create(target, benefactor, amount, None, conn)
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, bounty on {1} has been created for {2}",
+                    username, target_name, amount
+                ))
+            else:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you don't have enough points to do that!",
+                    username
+                ))
+        else:
+            if bounty.reward >= amount:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, your current bounty for {1} is larger then your new offer: {2}",
+                    username, target_name, bounty.reward
+                ))
+            else:
+                if Parent.RemovePoints(user_id, username, amount - bounty.reward):
+                    bounty.reward = amount
+                    bounty.save()
                     Parent.SendStreamMessage(self.format_message(
-                        "{0}, your title has been set to king",
-                        char.name
+                        "{0}, your bounty on {1} has been updated",
+                        username, target_name
                     ))
-                elif king is not None and king.character is not None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "our current {0} is {1}",
-                        king.gender,
-                        king.character.name
-                    ))
-                else:
-                    Parent.SendStreamMessage(self.format_message(
-                        "Pieland doesn't have a king or queen currently"
-                    ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
 
-    def contest(self, user_id, username):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                king = King.find(conn)
-                tournament = Tournament.find(conn)
-                if tournament is not None:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, a tournament to become king is already in progress",
-                        username
-                    ))
-                    return
-                if king is not None and king.indisputable_until > dt.datetime.now(utc):
-                    delta = king.indisputable_until - dt.datetime.now(utc)
-                    hours, remainder = divmod(delta.seconds, 3600)
-                    minutes, seconds = divmod(remainder, 60)
-                    delta_str = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0} the {1} cannot be disputed so short after hes crowning, please wait {2}",
-                        username,
-                        king.gender,
-                        delta_str
-                    ))
-                    return
-                candidates = Character.get_order_by_lvl_and_xp(3, conn, min_lvl=5)
-                if king.character_id not in map(lambda x: x.char_id, candidates):
-                    candidates = candidates[0:-1]
-                if char not in candidates:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you are not eligible to become king",
-                        char.name
-                    ))
-                    return
-                participant_chars = Tournament.initiate_tournament(
-                    king, max(self.scriptSettings.min_fight_lvl, 5), conn)
-                if participant_chars is not None:
-                    msg = "a tournament to become king has started between the top warriors: "
-                    for part_char in participant_chars:
-                        msg += part_char.name + ", "
-                    Parent.SendStreamMessage(self.format_message(
-                        msg[:-2]
-                    ))
-                else:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, at least 2 candidates needed to start a tournament",
-                        username
-                    ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def bounties(self, user_id, username, paging="1", conn=None):
+        page = int(paging)
+        pages = int(ceil(Bounty.count(conn) / 5.0))
+        if pages == 0:
+            Parent.SendStreamMessage(self.format_message(
+                "there are no bounties currently"
+            ))
+        elif page > pages:
+            Parent.SendStreamMessage(self.format_message(
+                "there are currently only {0} pages",
+                pages
+            ))
+        else:
+            top = Bounty.find_all_ordered_by_worth(page, 5, conn)
+            Parent.SendStreamMessage(self.format_message(
+                "bounties: {0}, page {1}/{2}",
+                ', '.join(map(lambda x: x.character.name + ": " + str(x.reward), top)),
+                page,
+                pages
+            ))
+
+    @connect
+    def top_kills(self, user_id, username, paging="1", conn=None):
+        page = int(paging)
+        pages = int(ceil(Bounty.count(conn, True) / 5.0))
+        if pages == 0:
+            Parent.SendStreamMessage(self.format_message(
+                "there are no killers currently"
+            ))
+        elif page > pages:
+            Parent.SendStreamMessage(self.format_message(
+                "there are currently only {0} pages",
+                pages
+            ))
+        else:
+            top = Bounty.find_all_ordered_by_kills(page, 5, conn)
+            Parent.SendStreamMessage(self.format_message(
+                "kills: {0}, page {1}/{2}",
+                ', '.join(map(lambda x: x.character.name + ": " + str(x.kill_count), top)),
+                page,
+                pages
+            ))
+
+    @connect
+    def tax(self, user_id, username, amount=None, conn=None):
+        king = King.find(conn)
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username, stun_check=False):
+            return
+        if char.char_id == king.character_id and amount is not None:
+            amount = int(amount)
+            king.tax_rate = max(min(amount, 10), 0)
+            king.save()
+        Parent.SendStreamMessage(self.format_message(
+            "your {0} set the tax to {1}%",
+            king.gender,
+            king.tax_rate
+        ))
+
+    @connect
+    def queen(self, user_id, username, conn):
+        king = King.find(conn)
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username, stun_check=False):
+            return
+        if king is not None and king.character_id == char.char_id:
+            king.gender = "queen"
+            king.save()
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, your title has been set to queen",
+                char.name
+            ))
+        elif king is not None and king.character is not None:
+            Parent.SendStreamMessage(self.format_message(
+                "our current {0} is {1}",
+                king.gender,
+                king.character.name
+            ))
+        else:
+            Parent.SendStreamMessage(self.format_message(
+                "Pieland doesn't have a king or queen currently"
+            ))
+
+    @connect
+    def king(self, user_id, username, conn):
+        king = King.find(conn)
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username, stun_check=False):
+            return
+        if king is not None and king.character_id == char.char_id:
+            king.gender = "king"
+            king.save()
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, your title has been set to king",
+                char.name
+            ))
+        elif king is not None and king.character is not None:
+            Parent.SendStreamMessage(self.format_message(
+                "our current {0} is {1}",
+                king.gender,
+                king.character.name
+            ))
+        else:
+            Parent.SendStreamMessage(self.format_message(
+                "Pieland doesn't have a king or queen currently"
+            ))
+
+    @connect
+    def contest(self, user_id, username, conn):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        king = King.find(conn)
+        tournament = Tournament.find(conn)
+        if tournament is not None:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, a tournament to become king is already in progress",
+                username
+            ))
+            return
+        if king is not None and king.indisputable_until > dt.datetime.now(utc):
+            delta = king.indisputable_until - dt.datetime.now(utc)
+            hours, remainder = divmod(delta.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            delta_str = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
+            Parent.SendStreamMessage(self.format_message(
+                "{0} the {1} cannot be disputed so short after hes crowning, please wait {2}",
+                username,
+                king.gender,
+                delta_str
+            ))
+            return
+        candidates = Character.get_order_by_lvl_and_xp(3, conn, min_lvl=5)
+        if king.character_id not in map(lambda x: x.char_id, candidates):
+            candidates = candidates[0:-1]
+        if char not in candidates:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you are not eligible to become king",
+                char.name
+            ))
+            return
+        participant_chars = Tournament.initiate_tournament(
+            king, max(self.scriptSettings.min_fight_lvl, 5), conn)
+        if participant_chars is not None:
+            msg = "a tournament to become king has started between the top warriors: "
+            for part_char in participant_chars:
+                msg += part_char.name + ", "
+            Parent.SendStreamMessage(self.format_message(
+                msg[:-2]
+            ))
+        else:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, at least 2 candidates needed to start a tournament",
+                username
+            ))
 
     def smite(self, user_id, username, target_name):
         pass
@@ -1036,192 +956,142 @@ class RpgGame(object):
     def unsmite(self, user_id, username, target_name):
         pass
 
-    def teleport(self, user_id, username, tp_name):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                if char.position in Map.tp_positions().itervalues():
-                    target_location = Map.tp_positions().get(tp_name, None)
-                    if target_location is None or target_location == char.position:
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, you cannot teleport to that place",
-                            username
-                        ))
-                    elif Parent.IsOnUserCooldown(self.script_name, "tp", user_id):
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, you can't do that right now, pls wait {1} seconds.",
-                            username,
-                            Parent.GetUserCooldownDuration(self.script_name, 'tp', user_id)
-                        ))
-                    else:
-                        Parent.AddUserCooldown(self.script_name, "tp", user_id, 600)
-                        char.position.coord = target_location.coord
-                        char.save()
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, you suddenly feel lightheaded and start to disappear...",
-                            username
-                        ))
-                else:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you need to be at a portal to teleport!",
-                        username
-                    ))
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def teleport(self, user_id, username, tp_name, conn):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        if char.position in Map.tp_positions().itervalues():
+            target_location = Map.tp_positions().get(tp_name, None)
+            if target_location is None or target_location == char.position:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you cannot teleport to that place",
+                    username
+                ))
+            elif Parent.IsOnUserCooldown(self.script_name, "tp", user_id):
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you can't do that right now, pls wait {1} seconds.",
+                    username,
+                    Parent.GetUserCooldownDuration(self.script_name, 'tp', user_id)
+                ))
+            else:
+                Parent.AddUserCooldown(self.script_name, "tp", user_id, 600)
+                char.position.coord = target_location.coord
+                char.save()
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you suddenly feel lightheaded and start to disappear...",
+                    username
+                ))
+        else:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you need to be at a portal to teleport!",
+                username
+            ))
 
     # ---------------------------------------
     #   specials functions
     # ---------------------------------------
-    def stun(self, user_id, username, target_name):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username, target_name):
-                    return
-                char.use_special(Special.Specials.STUN, target)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def stun(self, user_id, username, target_name, conn):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        target = Character.find_by_name(target_name, conn)
+        if not self.check_valid_target(target, username, target_name):
+            return
+        char.use_special(Special.Specials.STUN, target)
 
-    def track(self, user_id, username, target_name):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username, target_name):
-                    return
-                char.use_special(Special.Specials.TRACK, target)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def track(self, user_id, username, target_name, conn):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        target = Character.find_by_name(target_name, conn)
+        if not self.check_valid_target(target, username, target_name):
+            return
+        char.use_special(Special.Specials.TRACK, target)
 
-    def guardian(self, user_id, username, target_name=None):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                if target_name is None:
-                    target = char
-                else:
-                    target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username, target_name):
-                        return
-                char.use_special(Special.Specials.GUARDIAN, target)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def guardian(self, user_id, username, target_name=None, conn=None):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        if target_name is None:
+            target = char
+        else:
+            target = Character.find_by_name(target_name, conn)
+            if not self.check_valid_target(target, username, target_name):
+                return
+        char.use_special(Special.Specials.GUARDIAN, target)
 
-    def empower(self, user_id, username, target_name=None):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                if target_name is None:
-                    target = char
-                else:
-                    target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username, target_name):
-                        return
-                char.use_special(Special.Specials.EMPOWER, target)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def empower(self, user_id, username, target_name=None, conn=None):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        if target_name is None:
+            target = char
+        else:
+            target = Character.find_by_name(target_name, conn)
+            if not self.check_valid_target(target, username, target_name):
+                return
+        char.use_special(Special.Specials.EMPOWER, target)
 
-    def repel(self, user_id, username, target_name=None):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username, stun_check=False):
-                    return
-                if target_name is None:
-                    target = char
-                else:
-                    target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username, target_name):
-                        return
-                char.use_special(Special.Specials.REPEL, target)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def repel(self, user_id, username, target_name=None, conn=None):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username, stun_check=False):
+            return
+        if target_name is None:
+            target = char
+        else:
+            target = Character.find_by_name(target_name, conn)
+            if not self.check_valid_target(target, username, target_name):
+                return
+        char.use_special(Special.Specials.REPEL, target)
 
-    def blind(self, user_id, username, target_name):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username, target_name):
-                    return
-                char.use_special(Special.Specials.BLIND, target)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def blind(self, user_id, username, target_name, conn):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        target = Character.find_by_name(target_name, conn)
+        if not self.check_valid_target(target, username, target_name):
+            return
+        char.use_special(Special.Specials.BLIND, target)
 
-    def curse(self, user_id, username, target_name):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username, target_name):
-                    return
-                char.use_special(Special.Specials.CURSE, target)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def curse(self, user_id, username, target_name, conn):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        target = Character.find_by_name(target_name, conn)
+        if not self.check_valid_target(target, username, target_name):
+            return
+        char.use_special(Special.Specials.CURSE, target)
 
-    def invis(self, user_id, username, target_name=None):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                if target_name is None:
-                    target = char
-                else:
-                    target = Character.find_by_name(target_name, conn)
-                    if not self.check_valid_target(target, username, target_name):
-                        return
-                char.use_special(Special.Specials.INVIS, target)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def invis(self, user_id, username, target_name=None, conn=None):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        if target_name is None:
+            target = char
+        else:
+            target = Character.find_by_name(target_name, conn)
+            if not self.check_valid_target(target, username, target_name):
+                return
+        char.use_special(Special.Specials.INVIS, target)
 
-    def steal(self, user_id, username, target_name):
-        try:
-            with self.get_connection() as conn:
-                char = Character.find_by_user(user_id, conn)
-                if not self.check_valid_char(char, username):
-                    return
-                target = Character.find_by_name(target_name, conn)
-                if not self.check_valid_target(target, username, target_name):
-                    return
-                char.use_special(Special.Specials.STEAL, target)
-        finally:
-            if 'conn' in locals():
-                conn.close()
-            self.db_lock.release()
+    @connect
+    def steal(self, user_id, username, target_name, conn):
+        char = Character.find_by_user(user_id, conn)
+        if not self.check_valid_char(char, username):
+            return
+        target = Character.find_by_name(target_name, conn)
+        if not self.check_valid_target(target, username, target_name):
+            return
+        char.use_special(Special.Specials.STEAL, target)
 
     # ---------------------------------------
     #   auxiliary functions
