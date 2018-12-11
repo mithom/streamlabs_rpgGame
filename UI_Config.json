@@ -666,6 +666,13 @@
     "tooltip": "start a tournament to become the next king, if possible",
     "group": "Command Names"
   },
+  "tp_command": {
+    "type": "textbox",
+    "value": "!tp",
+    "label": "tp command",
+    "tooltip": "tp from 1 tp location to another.\n a name needs to be provided\n has a long cooldown",
+    "group": "Command Names"
+  },
   "smite_command": {
     "type": "textbox",
     "value": "!smite",

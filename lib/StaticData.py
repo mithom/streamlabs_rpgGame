@@ -15,7 +15,7 @@ class Map(object):
     y_max = 0
     x_max = 0
     _starting_position = None
-    _teleportation_positions = []
+    _tp_positions = None
 
     @staticmethod
     def read_map():
@@ -30,6 +30,12 @@ class Map(object):
         return cls._starting_position
 
     @classmethod
+    def tp_positions(cls):
+        if cls._tp_positions is None:
+            cls.get_map()
+        return cls._tp_positions
+
+    @classmethod
     def get_map(cls):
         if cls._map is None:
             map_dict = cls.read_map()
@@ -38,7 +44,7 @@ class Map(object):
             cls._starting_position = map_dict["starting_coordinates"]
             cls.x_max = max([len(x) for x in lmap])
             cls.y_max = len(lmap)
-            cls._teleportation_positions = {row[0]: Position.Position(row[1], row[2]) for row in tp_locations}
+            cls._tp_positions = {row[0]: Position.Position(row[1], row[2]) for row in tp_locations}
             cls._map = [[Location.find_by_name(name) for name in (row + (cls.x_max - len(row)) * [None])] for row in lmap]
         return cls._map
 

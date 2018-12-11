@@ -119,6 +119,7 @@ class Settings(object):
             self.look_command = "!look"
             self.tax_command = "!tax"
             self.contest_command = "!contest"
+            self.tp_command = "!tp"
             self.smite_command = "smite"
             self.unsmite_command = "!unsmite"
 

@@ -22,7 +22,7 @@ import sqlite3
 Parent = None
 random = random.WichmannHill()
 
-
+#  TODO: database connection with @connection and filling last argument
 #  TODO: bosses billboard, view persons on same tile, auto flee for alert char
 #  TODO: teleportation points (long cooldown)
 #  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
@@ -276,12 +276,13 @@ class RpgGame(object):
             "!" + self.scriptSettings.blind_name: self.blind,
             "!" + self.scriptSettings.curse_name: self.curse,
             "!" + self.scriptSettings.steal_name: self.steal,
-            "!" + self.scriptSettings.guardian_name: self.guardian,  # those last 4 can be both with or without target
+            "!" + self.scriptSettings.guardian_name: self.guardian,
             "!" + self.scriptSettings.empower_name: self.empower,
             "!" + self.scriptSettings.repel_name: self.repel,
             "!" + self.scriptSettings.invis_name: self.invis,
             self.scriptSettings.bounties_command: self.bounties,
             self.scriptSettings.topkills_command: self.top_kills,
+            self.scriptSettings.tp_command: self.teleport,
         }, {
             self.scriptSettings.give_command: self.give,
             self.scriptSettings.bounty_command: self.bounty,
@@ -1034,6 +1035,43 @@ class RpgGame(object):
 
     def unsmite(self, user_id, username, target_name):
         pass
+
+    def teleport(self, user_id, username, tp_name):
+        try:
+            with self.get_connection() as conn:
+                char = Character.find_by_user(user_id, conn)
+                if not self.check_valid_char(char, username):
+                    return
+                if char.position in Map.tp_positions().itervalues():
+                    target_location = Map.tp_positions().get(tp_name, None)
+                    if target_location is None or target_location == char.position:
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you cannot teleport to that place",
+                            username
+                        ))
+                    elif Parent.IsOnUserCooldown(self.script_name, "tp", user_id):
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you can't do that right now, pls wait {1} seconds.",
+                            username,
+                            Parent.GetUserCooldownDuration(self.script_name, 'tp', user_id)
+                        ))
+                    else:
+                        Parent.AddUserCooldown(self.script_name, "tp", user_id, 600)
+                        char.position.coord = target_location.coord
+                        char.save()
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you suddenly feel lightheaded and start to disappear...",
+                            username
+                        ))
+                else:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you need to be at a portal to teleport!",
+                        username
+                    ))
+        finally:
+            if 'conn' in locals():
+                conn.close()
+            self.db_lock.release()
 
     # ---------------------------------------
     #   specials functions
