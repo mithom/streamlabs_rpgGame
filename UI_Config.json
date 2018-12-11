@@ -603,6 +603,20 @@
     "tooltip": "This command adjust some messages for gender.",
     "group": "Command Names"
   },
+  "bounties_command": {
+    "type": "textbox",
+    "value": "!bounties",
+    "label": "bounties command",
+    "tooltip": "shows the top 5 biggest bounties\nproviding a number as argument will show the respective page",
+    "group": "Command Names"
+  },
+  "topkills_command": {
+    "type": "textbox",
+    "value": "!topKills",
+    "label": "topKills command",
+    "tooltip": "shows the top 5 biggest killing sprees\nproviding a number as argument will show the respective page",
+    "group": "Command Names"
+  },
   "create_command": {
     "type": "textbox",
     "value": "!create",

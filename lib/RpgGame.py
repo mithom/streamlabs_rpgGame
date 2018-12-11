@@ -260,8 +260,8 @@ class RpgGame(object):
             "!" + self.scriptSettings.empower_name: self.empower,
             "!" + self.scriptSettings.repel_name: self.repel,
             "!" + self.scriptSettings.invis_name: self.invis,
-            "!bounties": self.bounties,
-            "!topKills": self.top_kills,
+            self.scriptSettings.bounties_command: self.bounties,
+            self.scriptSettings.topkills_command: self.top_kills,
         }, {
             self.scriptSettings.create_command: self.create,
             self.scriptSettings.move_command: self.move,
@@ -280,8 +280,8 @@ class RpgGame(object):
             "!" + self.scriptSettings.empower_name: self.empower,
             "!" + self.scriptSettings.repel_name: self.repel,
             "!" + self.scriptSettings.invis_name: self.invis,
-            "!bounties": self.bounties,
-            "!topKills": self.top_kills,
+            self.scriptSettings.bounties_command: self.bounties,
+            self.scriptSettings.topkills_command: self.top_kills,
         }, {
             self.scriptSettings.give_command: self.give,
             self.scriptSettings.bounty_command: self.bounty,

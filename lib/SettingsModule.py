@@ -108,6 +108,8 @@ class Settings(object):
             self.dough_command = "!dough"
             self.queen_command = "!queen"
             self.king_command = "!king"
+            self.bounties_command = '!bounties'
+            self.topkills_command = '!topKills'
 
             # 1 arg
             self.create_command = "!create"
