@@ -103,12 +103,12 @@ def OpenDataFolder():
     os.startfile(os.path.join(os.path.dirname(__file__), "data"))
 
 
-pushtime = 0
-pushcount = 0
+push_time = 0
+push_count = 0
 
 
 def ResetDatabase():
-    global pushtime, pushcount
+    global push_time, push_count
     if time.time() > pushtime:
         pushcount = 0
         pushtime = time.time() + 5

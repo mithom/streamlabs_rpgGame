@@ -194,15 +194,15 @@ class Character(object):
         terrain_factor = 1.5
         if self.position.location.difficulty * 2 < self.lvl:
             terrain_factor = 0.5
-        death_chance = 100 * self.trait.death_chance_factor * (
-            max(3 + terrain_factor * (self.position.location.difficulty * 2 - self.lvl), 1)) / (100 + armor_bonus)
+        death_chance = 100 * (
+            max(2.5 + terrain_factor * (self.position.location.difficulty * 2 - self.lvl), 1)) / (100 + armor_bonus)
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.CURSE, self.connection):
             death_chance += 5
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.GUARDIAN, self.connection):
             death_chance -= 10
-        if self.lvl < 4:
-            death_chance -= 2.5
-        return rand > death_chance
+        if self.lvl <= 4:
+            death_chance -= 5-self.lvl
+        return rand > (self.trait.death_chance_factor * death_chance)
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
         roll = random.randint(1, 40)
