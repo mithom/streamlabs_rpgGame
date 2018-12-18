@@ -25,9 +25,7 @@ random = random.WichmannHill()
 
 #  TODO: return streammessages and send those with decorator
 #  TODO: bosses billboard, view persons on same tile, auto flee for alert char
-#  TODO: teleportation points (long cooldown)
 #  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
-#  TODO: loot player on flee except if alert
 
 
 def parse_datetime(adt):
@@ -247,7 +245,7 @@ class RpgGame(object):
             bounty.delete()
         if to_pay > 0:
             Parent.AddPoints(killer_user_id, Parent.GetDisplayName(killer_user_id), to_pay)
-            if to_pay > 1000:  # TODO: setting for min_announcement_amount
+            if to_pay > 1000:
                 Parent.SendStreamMessage(self.format_message(
                     "{0} has claimed the huge amount of {1} in bounties!",
                     Parent.GetDisplayName(killer_user_id),

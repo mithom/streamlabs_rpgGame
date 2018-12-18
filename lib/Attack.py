@@ -132,7 +132,16 @@ class Attack(object):
         attacker = fight.attacker
         target = fight.target
         sneak = sneak and target not in defenders
-        if target is None or target.char_id in kills or attacker.position != target.position:
+        if target is None or target.char_id in kills:
+            return None
+        if attacker.position != target.position:
+            amount = attacker.loot(target)
+            if amount > 0:
+                self.Parent.SendStreamMessage(self.format_message(
+                    "{0} has looted {1} for {2} points",
+                    attacker.name, target.name,
+                    amount
+                ))
             return None
         if attacker.attack(target, defense_bonus=attacker in defenders,
                            attack_bonus=fight.action == self.COUNTER_ACTION, sneak=sneak):

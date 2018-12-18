@@ -127,11 +127,21 @@ class Character(object):
             invisibility.delete()
 
     def attempt_flee(self, vs_lvl):
-        if random.random() * 100 <= (45 - self.lvl + vs_lvl):
+        if random.random() * 100 <= (45 - self.lvl + vs_lvl + self.trait.flee_bonus):
             self.position.coord = random.choice(self.position.flee_options())
             self.save()
             return True
         return False
+
+    def loot(self, target):
+        if target.trait.trait.id == Trait.Traits.ALERT:
+            return 0
+        loot_amount = min(random.randint(1,self.game.scriptSettings.max_steal_amount),
+                          self.Parent.GetPoints(target.user_id))
+        if self.Parent.RemovePoints(target.user_id, self.Parent.GetDisplayName(self.user_id), loot_amount):
+            self.Parent.AddPoints(self.user_id, self.Parent.GetDisplayName(self.user_id), loot_amount)
+            return loot_amount
+        return 0
 
     def exp_for_difficulty(self, difficulty):
         weapon_bonus = 0
@@ -297,7 +307,7 @@ class Character(object):
     def delete(self):
         attack = Attack.find_by_attacker_or_target(self, self.connection)
         if attack is not None and attack.boss_id is None:
-            # TODO: fix problem is person is attacked during boss battle and dies by boss.
+            # TODO: fix problem when person is attacked during boss battle and dies by boss.
             self.Parent.Log("rpgGame", "something is wrong in the code, char got deleted while still in a fight.")
         elif attack is not None:
             attack.delete()
@@ -463,7 +473,7 @@ class Trait(NamedData):
         if self.id == self.Traits.GREEDY:
             return 1.5 + random.randint(0, 6) * 0.25
         if self.id == self.Traits.ALERT:
-            return None
+            return 2 + random.randint(0, 3)
         if self.id == self.Traits.LUCKY:
             return 0.8 + random.randint(0, 3) * 0.05
         if self.id == self.Traits.VIOLENT:
@@ -484,7 +494,10 @@ class Trait(NamedData):
         return strength if self.id == self.Traits.GREEDY else 1
 
     def sneak_penalty_factor(self):
-        return 0 if self.id == self.Traits.ALERT else 1
+        return 0 if self.id == self.Traits.ALERT else 2
+
+    def flee_bonus(self, strength):
+        return strength if self.id == self.Traits.ALERT else 0
 
     def death_chance_factor(self, strength, lvl):
         if self.id == self.Traits.LUCKY:
@@ -556,6 +569,10 @@ class TraitStrength(object):
     @property
     def sneak_penalty_factor(self):
         return self.trait.sneak_penalty_factor()
+
+    @property
+    def flee_bonus(self):
+        return self.trait.flee_bonus(self.strength)
 
     @property
     def death_chance_factor(self):
