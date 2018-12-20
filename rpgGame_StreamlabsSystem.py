@@ -109,11 +109,11 @@ push_count = 0
 
 def ResetDatabase():
     global push_time, push_count
-    if time.time() > pushtime:
-        pushcount = 0
-        pushtime = time.time() + 5
-    pushcount += 1
-    if pushcount >= 5:
+    if time.time() > push_time:
+        push_count = 0
+        push_time = time.time() + 5
+    push_count += 1
+    if push_count >= 5:
         game.reset_db()
         Init()
 
