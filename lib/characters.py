@@ -19,10 +19,14 @@ class Character(object):
     game = None
     Parent = None
     format_message = None
+    cache = {}
 
     def __init__(self, char_id, name, user_id, experience, lvl, weapon_id, armor_id, trait_id,
                  exp_gain_time, x, y, trait_bonus, connection, weapon=None, armor=None, trait=None):
         self.__char_id = char_id
+
+        self.cache[self.__char_id] = self
+
         self.name = name
         self.user_id = user_id
         self.experience = experience
@@ -344,6 +348,8 @@ class Character(object):
 
     @classmethod
     def find(cls, character_id, connection):
+        if character_id in cls.cache:
+            return cls.cache[character_id]
         cursor = connection.execute(
             """SELECT * from characters
             WHERE character_id = :character_id""",
@@ -473,7 +479,7 @@ class Trait(NamedData):
         if self.id == self.Traits.GREEDY:
             return 1.5 + random.randint(0, 6) * 0.25
         if self.id == self.Traits.ALERT:
-            return 2 + random.randint(0, 3)
+            return 5 + random.randint(0, 5)
         if self.id == self.Traits.LUCKY:
             return 0.8 + random.randint(0, 3) * 0.05
         if self.id == self.Traits.VIOLENT:

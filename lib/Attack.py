@@ -79,6 +79,11 @@ class Attack(object):
 
     def resolve_fight(self):
         kills = {}
+        initial_target_reaction = filter(lambda x: x.attacker == self.target, self.children)
+        if len(initial_target_reaction) == 0 and self.target.trait.trait.id == characters.Trait.Traits.ALERT:
+            flee = self.create(self.FLEE_ACTION, self.target_id, resolver_id=self.resolver_id,
+                               connection=self.connection)
+            self.children.insert(0, flee)
         defenders = [attack.attacker_id for attack in self.children if attack.action == self.DEFEND_ACTION]
         for attack in filter(lambda x: x.action == self.FLEE_ACTION, self.children):
             max_lvl = max(self.children, key=lambda x: x.attacker.lvl)

@@ -76,6 +76,7 @@ def connect(f):
             with args[0].get_connection() as conn:
                 return f(*args, conn=conn, **kwargs)
         finally:
+            Character.cache = {}
             if 'conn' in locals():
                 # noinspection PyUnboundLocalVariable
                 conn.close()
