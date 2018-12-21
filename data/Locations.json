@@ -7,7 +7,7 @@
   ["Swamps", 4, 5, "Giant Crab"],
   ["Mountains", 5, 6, "Giant"],
   ["Ruins", 5, 6, "Troll"],
-  ["Dessert", 6, 7, "Giant Scorpion"],
+  ["Desert", 6, 7, "Giant Scorpion"],
   ["Caves", 6, 7, "Risen Skeleton"],
   ["Crypt", 8, 9, "Skeleton lord"],
   ["Abyss", 10, 11, "Demon"]

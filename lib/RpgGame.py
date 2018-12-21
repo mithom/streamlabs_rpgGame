@@ -23,8 +23,7 @@ import sqlite3
 Parent = None
 random = random.WichmannHill()
 
-#  TODO: return streammessages and send those with decorator
-#  TODO: bosses billboard, view persons on same tile, auto flee for alert char
+#  TODO: bosses billboard, view persons on same tile
 #  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
 
 
@@ -487,7 +486,7 @@ class RpgGame(object):
         if attacker.lvl < self.scriptSettings.min_fight_lvl:
             Parent.SendStreamMessage(self.format_message(
                 "{0}, your character isn't lvl {lvl} yet",
-                username, lvl=5
+                username, lvl=self.scriptSettings.min_fight_lvl
             ))
             return
         fight1 = Attack.find_by_attacker_or_target(attacker, conn)
