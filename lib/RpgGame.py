@@ -3,7 +3,7 @@ from characters import Character, Trait
 from Attack import Attack
 from Bounty import Bounty
 from Boss import Boss
-from King import King, Tournament, Participant
+from King import King, Tournament
 import operator
 import random
 from Special import SpecialCooldown, Special, ActiveEffect
@@ -664,19 +664,10 @@ class RpgGame(object):
             ))
             return
         else:
-            flee_part = Participant.find(flee_char.char_id, conn)
-            if flee_part is not None and flee_part == Participant.find(fight.attacker_id, conn):
-                flee_part.alive = False
-                flee_part.save()
-                Parent.SendStreamMessage(self.format_message(
-                    "{0} tries to flee from the fight and thereby disqualifies from the tournament",
-                    flee_char.name
-                ))
-            else:
-                Parent.SendStreamMessage(self.format_message(
-                    "{0} starts looking for a way out of this fight",
-                    flee_char.name
-                ))
+            Parent.SendStreamMessage(self.format_message(
+                "{0} starts looking for a way out of this fight",
+                flee_char.name
+            ))
             Attack.create(Attack.FLEE_ACTION, flee_char.char_id, resolver_id=fight.resolver_id, connection=conn)
 
     @connect

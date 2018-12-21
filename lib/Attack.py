@@ -89,10 +89,19 @@ class Attack(object):
             max_lvl = max(self.children, key=lambda x: x.attacker.lvl)
             max_lvl = max(max_lvl.attacker.lvl, self.attacker.lvl)
             if attack.attacker.attempt_flee(max_lvl):
-                self.Parent.SendStreamMessage(self.format_message(
-                    "{0} has successfully fled from the fight",
-                    attack.attacker.name
-                ))
+                flee_part = King.Participant.find(attack.attacker_id, self.connection)
+                if flee_part is not None and flee_part == King.Participant.find(self.attacker_id, self.connection) and flee_part.alive:
+                    flee_part.alive = False
+                    flee_part.save()
+                    self.Parent.SendStreamMessage(self.format_message(
+                        "{0} flees from the fight and thereby disqualifies from the tournament",
+                        attack.attacker.name
+                    ))
+                else:
+                    self.Parent.SendStreamMessage(self.format_message(
+                        "{0} has successfully fled from the fight",
+                        attack.attacker.name
+                    ))
         result = self.resolve_attack(self, kills, defenders)
         if result is not None:
             kills.update(result)
@@ -110,7 +119,8 @@ class Attack(object):
             dead_char = characters.Character.find(dead, self.connection)
             killer_char = characters.Character.find(killer, self.connection)
             dead_part = King.Participant.find(dead_char.char_id, self.connection)
-            if dead_part is not None and dead_part == King.Participant.find(killer_char.char_id, self.connection):
+            if dead_part is not None and dead_part == King.Participant.find(killer_char.char_id, self.connection) \
+                    and dead_part.alive:
                 self.Parent.SendStreamMessage(self.format_message(
                     "{0} has been knocked out of the tournament by {1}",
                     dead_char.name,
