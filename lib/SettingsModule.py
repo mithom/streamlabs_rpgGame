@@ -49,6 +49,8 @@ class Settings(object):
             self.violent_name = "Violent"
             self.pacifist_enabled = True
             self.pacifist_name = "Pacifist"
+            self.plain_enabled = False
+            self.plain_name = "Plain"
 
             # Specials
             self.persist_enabled = True
@@ -97,6 +99,9 @@ class Settings(object):
             self.steal_name = "Steal"
             self.steal_identifier = "L"
             self.steal_cd = 60
+            self.unknown_enabled = False
+            self.unknown_name = "Unknown"
+            self.unknown_identifier = "?"
 
             # command names
             # 0 args

@@ -141,13 +141,17 @@ class RpgGame(object):
             Weapon.load_weapons(conn)
             Trait.create_traits(self.scriptSettings, conn)
             Special.create_specials(self.scriptSettings, conn)
-            Character.load_static_data(conn)
+            Character.load_static_data(self.scriptSettings, conn)
             Boss.create_bosses(conn)
         conn.close()
         self.db_lock.release()
 
     def apply_reload(self):
-        SpecialCooldown.max_steal_amount = self.scriptSettings.max_steal_amount
+        with self.get_connection() as conn:
+            SpecialCooldown.max_steal_amount = self.scriptSettings.max_steal_amount
+            Character.reload_static_data(self.scriptSettings, conn)
+        conn.close()
+        self.db_lock.release()
 
     def reset_db(self):
         self.db_lock.acquire()

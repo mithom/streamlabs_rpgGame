@@ -218,6 +218,20 @@
     "tooltip":"when checked, pacifist is available as a trait",
     "group":"traits"
   },
+  "plain_name":{
+    "type":"textbox",
+    "value":"Plain",
+    "label":"plain name",
+    "tooltip":"name of the plain trait if enabled\nthis is always the fallback for disabled traits on existing characters",
+    "group":"traits"
+  },
+  "plain_enabled":{
+    "type":"checkbox",
+    "value":false,
+    "label":"plain enabled",
+    "tooltip":"when checked, plain is available as a trait\nThis trait modifies nothing\nthis is always the fallback for disabled traits on existing characters",
+    "group":"traits"
+  },
   "persist_enabled":{
     "type":"checkbox",
     "value":true,
@@ -531,6 +545,27 @@
     "value":"L",
     "label":"steal identifier",
     "tooltip":"identifier of the steal special if enabled",
+    "group":"specials"
+  },
+  "unknown_enabled":{
+    "type":"checkbox",
+    "value":false,
+    "label":"unknown enabled",
+    "tooltip":"when checked, unknown is available as a special\nThis special cannot be used\nThis is always the fallback for disabled specials on existing characters",
+    "group":"specials"
+  },
+  "unknown_name":{
+    "type":"textbox",
+    "value":"Unknown",
+    "label":"unknown name",
+    "tooltip":"name of the unknown special if enabled\nThis special cannot be used\nThis is always the fallback for disabled specials on existing characters",
+    "group":"specials"
+  },
+  "unknown_identifier":{
+    "type":"textbox",
+    "value":"?",
+    "label":"unknown identifier",
+    "tooltip":"identifier of the unknown special if enabled\nThis special cannot be used\nThis is always the fallback for disabled specials on existing characters",
     "group":"specials"
   },
   "steal_cd":{

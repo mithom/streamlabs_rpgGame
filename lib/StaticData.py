@@ -63,12 +63,17 @@ class NamedData(StaticData):
         return self.id == other.id
 
     @classmethod
-    def find(cls, data_id):
-        return cls.data_by_id.get(data_id, None)
+    def find(cls, data_id, default=None):
+        return cls.data_by_id.get(data_id, default)
 
     @classmethod
-    def find_by_name(cls, name):
-        return cls.data_by_name.get(name, None)
+    def find_by_name(cls, name, default=None):
+        return cls.data_by_name.get(name, default)
+
+    @classmethod
+    def reset(cls):
+        cls.data_by_id = {}
+        cls.data_by_name = {}
 
 
 class Location(NamedData):

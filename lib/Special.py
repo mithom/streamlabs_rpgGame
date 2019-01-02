@@ -147,6 +147,7 @@ class Special(NamedData):
     """The specials self are static, the join-table won't be"""
     data_by_name = {}
     data_by_id = {}
+    unknown = None
 
     class Specials(Enum):
         PERSIST = "Persist"
@@ -159,6 +160,7 @@ class Special(NamedData):
         CURSE = "Curse"
         INVIS = "Invis"
         STEAL = "Steal"
+        UNKNOWN = "Unknown"  # does nothing
 
     def __init__(self, orig_name, name, identifier, cooldown_time, duration, connection):
         if type(orig_name) is not self.Specials:
@@ -167,6 +169,14 @@ class Special(NamedData):
         self.cooldown_time = cooldown_time
         self.identifier = identifier
         self.duration = duration
+
+    @classmethod
+    def find(cls, data_id):
+        return super(Special, cls).find(data_id, cls.unknown)
+
+    @classmethod
+    def find_by_name(cls, name):
+        return super(Special, cls).find_by_name(name, cls.unknown)
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
@@ -184,7 +194,7 @@ class Special(NamedData):
         specials = []
         # noinspection PyTypeChecker
         for special in cls.Specials:
-            if getattr(script_settings, special.name.lower() + "_enabled"):
+            if getattr(script_settings, special.name.lower() + "_enabled") or special is cls.Specials.UNKNOWN:
                 specials.append((special.value, getattr(script_settings, special.name.lower() + "_name"),
                                  getattr(script_settings, special.name.lower() + "_identifier"),
                                  getattr(script_settings, special.name.lower() + "_cd", None),
@@ -194,13 +204,16 @@ class Special(NamedData):
         connection.commit()
 
     @classmethod
-    def load_specials(cls, connection):
+    def load_specials(cls, script_settings, connection):
         """loads weapons from database"""
         cursor = connection.execute('SELECT orig_name, name, identifier, cooldown_time, duration FROM specials')
         for row in cursor:
             special = cls(*row, connection=connection)
-            cls.data_by_id[special.id] = special
-            cls.data_by_name[special.name] = special
+            if getattr(script_settings, special.name.lower() + "_enabled"):
+                cls.data_by_id[special.id] = special
+                cls.data_by_name[special.name] = special
+            if special.id == cls.Specials.UNKNOWN:
+                cls.unknown = special
 
 
 class ActiveEffect(object):

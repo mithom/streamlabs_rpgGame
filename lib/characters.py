@@ -267,8 +267,7 @@ class Character(object):
         return False
 
     def use_special(self, special_enum, target):
-        special_list = \
-            [special for special in self.specials if special.specials_orig_name == special_enum]
+        special_list = filter(lambda x: x.specials_orig_name == special_enum, self.specials)
         if len(special_list) > 0:
             special = special_list[0]
             if special.unavailable_until is None or special.unavailable_until < dt.datetime.now(utc):
@@ -442,9 +441,15 @@ class Character(object):
         ActiveEffect.create_table_if_not_exists(connection)
 
     @classmethod
-    def load_static_data(cls, connection):
-        Trait.load_traits(connection)
-        Special.load_specials(connection)
+    def load_static_data(cls, script_settings, connection):
+        Trait.load_traits(script_settings, connection)
+        Special.load_specials(script_settings, connection)
+
+    @classmethod
+    def reload_static_data(cls, script_settings, conn):
+        Trait.reset()
+        Special.reset()
+        cls.load_static_data(script_settings, conn)
 
 
 class Trait(NamedData):
@@ -453,6 +458,7 @@ class Trait(NamedData):
     """
     data_by_name = {}
     data_by_id = {}
+    plain = None
 
     class Traits(Enum):
         DURABLE = "Durable"
@@ -463,6 +469,7 @@ class Trait(NamedData):
         LUCKY = "Lucky"
         VIOLENT = "Violent"
         PACIFIST = "Pacifist"
+        PLAIN = "Plain"
 
     def __init__(self, orig_name, name, connection):
         if type(orig_name) is not self.Traits:
@@ -486,6 +493,7 @@ class Trait(NamedData):
             return -1
         if self.id == self.Traits.PACIFIST:
             return 0
+        return 0
 
     def defense_bonus(self, strength):
         return strength if self.id in [self.Traits.DURABLE, self.Traits.PACIFIST] else 0
@@ -513,6 +521,14 @@ class Trait(NamedData):
         return 1
 
     @classmethod
+    def find(cls, data_id):
+        return super(Trait, cls).find(data_id, cls.plain)
+
+    @classmethod
+    def find_by_name(cls, name):
+        return super(Trait, cls).find_by_name(name, cls.plain)
+
+    @classmethod
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists traits
                 (orig_name      text  PRIMARY KEY   NOT NULL,
@@ -520,24 +536,27 @@ class Trait(NamedData):
                 );""")
 
     @classmethod
-    def create_traits(cls, script_settings, connection):
+    def create_traits(cls, script_settings, connection):  # TODO: load first, update names if already exist
         """creates weapons into the database"""
         traits = []
         # noinspection PyTypeChecker
         for trait in cls.Traits:
-            if getattr(script_settings, trait.name.lower() + "_enabled"):
+            if getattr(script_settings, trait.name.lower() + "_enabled") or trait is cls.Traits.PLAIN:
                 traits.append((trait.value, getattr(script_settings, trait.name.lower() + "_name")))
         connection.executemany('INSERT OR IGNORE INTO traits(orig_name, name) VALUES (?, ?)', traits)
         connection.commit()
 
     @classmethod
-    def load_traits(cls, connection):
+    def load_traits(cls,script_settings, connection):
         """loads weapons from database"""
         cursor = connection.execute('SELECT orig_name, name FROM traits')
         for row in cursor:
             trait = cls(*row, connection=connection)
-            cls.data_by_id[trait.id] = trait
-            cls.data_by_name[trait.name] = trait
+            if getattr(script_settings, trait.name.lower() + "_enabled"):
+                cls.data_by_id[trait.id] = trait
+                cls.data_by_name[trait.name] = trait
+            if trait.id == cls.Traits.PLAIN:
+                cls.plain = trait
 
 
 class TraitStrength(object):
