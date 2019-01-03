@@ -140,7 +140,7 @@ class Character(object):
     def loot(self, target):
         if target.trait.trait.id == Trait.Traits.ALERT:
             return 0
-        loot_amount = min(random.randint(1,self.game.scriptSettings.max_steal_amount),
+        loot_amount = min(random.randint(1, self.game.scriptSettings.max_steal_amount),
                           self.Parent.GetPoints(target.user_id))
         if self.Parent.RemovePoints(target.user_id, self.Parent.GetDisplayName(self.user_id), loot_amount):
             self.Parent.AddPoints(self.user_id, self.Parent.GetDisplayName(self.user_id), loot_amount)
@@ -215,7 +215,7 @@ class Character(object):
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.GUARDIAN, self.connection):
             death_chance -= 10
         if self.lvl <= 4:
-            death_chance -= 5-self.lvl
+            death_chance -= 5 - self.lvl
         return rand > (self.trait.death_chance_factor * death_chance)
 
     def attack(self, defender, sneak, defense_bonus=False, attack_bonus=False):
@@ -292,7 +292,7 @@ class Character(object):
     def participate_in_same_tournament(self, char2):
         part1 = King.Participant.find(self.char_id, self.connection)
         part2 = King.Participant.find(char2.char_id, self.connection)
-        return part1 == part2 and part1.alive and part2.alive # checks tournament equality in None safe way, srry for bad == use
+        return part1 == part2 and part1.alive and part2.alive  # checks tournament equality in None safe way, srry for bad == use
 
     def save(self):
         self.connection.execute(
@@ -447,8 +447,8 @@ class Character(object):
 
     @classmethod
     def reload_static_data(cls, script_settings, conn):
-        Trait.reset()
-        Special.reset()
+        Trait.create_or_update_traits(script_settings, conn)
+        Special.create_or_update_specials(script_settings, conn)
         cls.load_static_data(script_settings, conn)
 
 
@@ -536,23 +536,33 @@ class Trait(NamedData):
                 );""")
 
     @classmethod
-    def create_traits(cls, script_settings, connection):  # TODO: load first, update names if already exist
-        """creates weapons into the database"""
-        traits = []
+    def create_or_update_traits(cls, script_settings, connection):
+        """creates weapons into the database and update existing ones.
+        afterwards traits need to be loaded in again"""
+
+        def should_create(trait):
+            return (getattr(script_settings, trait.name.lower() + "_enabled") and trait not in cls.data_by_id) or \
+                   (trait is cls.Traits.PLAIN and cls.plain is None)
+
+        cls.load_traits(script_settings, connection)
         # noinspection PyTypeChecker
-        for trait in cls.Traits:
-            if getattr(script_settings, trait.name.lower() + "_enabled") or trait is cls.Traits.PLAIN:
-                traits.append((trait.value, getattr(script_settings, trait.name.lower() + "_name")))
-        connection.executemany('INSERT OR IGNORE INTO traits(orig_name, name) VALUES (?, ?)', traits)
+        new_traits = [(trait.value, getattr(script_settings, trait.name.lower() + "_name")) for trait in cls.Traits if
+                      should_create(trait)]
+        connection.executemany('INSERT INTO traits(orig_name, name) VALUES (?, ?)', new_traits)
+        # noinspection PyUnresolvedReferences
+        updated_traits = [(getattr(script_settings, trait.name.lower() + "_name"), trait.value) for trait in
+                          cls.data_by_id.keys() + [cls.Traits.PLAIN]]
+        connection.executemany('UPDATE traits SET name = ? WHERE orig_name = ?', updated_traits)
         connection.commit()
+        cls.reset()
 
     @classmethod
-    def load_traits(cls,script_settings, connection):
+    def load_traits(cls, script_settings, connection):
         """loads weapons from database"""
         cursor = connection.execute('SELECT orig_name, name FROM traits')
         for row in cursor:
             trait = cls(*row, connection=connection)
-            if getattr(script_settings, trait.name.lower() + "_enabled"):
+            if getattr(script_settings, trait.id.name.lower() + "_enabled"):
                 cls.data_by_id[trait.id] = trait
                 cls.data_by_name[trait.name] = trait
             if trait.id == cls.Traits.PLAIN:

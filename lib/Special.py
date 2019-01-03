@@ -4,6 +4,7 @@ from enum import Enum
 import datetime as dt
 from pytz import utc
 import random
+
 random = random.WichmannHill()
 
 
@@ -189,19 +190,33 @@ class Special(NamedData):
             );""")
 
     @classmethod
-    def create_specials(cls, script_settings, connection):
-        """creates weapons into the database"""
-        specials = []
+    def create_or_update_specials(cls, script_settings, connection):
+        """creates weapons into the database and update existing ones.
+        Weapons must be reloaded afterwards"""
+
+        def should_create(special):
+            return (getattr(script_settings, special.name.lower() + "_enabled") and special not in cls.data_by_id) or \
+                   (special is cls.Specials.UNKNOWN and cls.unknown is None)
+
+        cls.load_specials(script_settings, connection)
         # noinspection PyTypeChecker
-        for special in cls.Specials:
-            if getattr(script_settings, special.name.lower() + "_enabled") or special is cls.Specials.UNKNOWN:
-                specials.append((special.value, getattr(script_settings, special.name.lower() + "_name"),
-                                 getattr(script_settings, special.name.lower() + "_identifier"),
-                                 getattr(script_settings, special.name.lower() + "_cd", None),
-                                 getattr(script_settings, special.name.lower() + "_duration", None)))
-        connection.executemany('''INSERT OR IGNORE INTO specials(orig_name, name, identifier, cooldown_time, duration)
-                                VALUES (?, ?, ?, ?, ?)''', specials)
+        new_specials = [(special.value, getattr(script_settings, special.name.lower() + "_name"),
+                         getattr(script_settings, special.name.lower() + "_identifier"),
+                         getattr(script_settings, special.name.lower() + "_cd", None),
+                         getattr(script_settings, special.name.lower() + "_duration", None))
+                        for special in cls.Specials if should_create(special)]
+        connection.executemany('''INSERT INTO specials(orig_name, name, identifier, cooldown_time, duration)
+                                VALUES (?, ?, ?, ?, ?)''', new_specials)
+        # noinspection PyUnresolvedReferences
+        updated_specials = [(getattr(script_settings, special.name.lower() + "_name"),
+                             getattr(script_settings, special.name.lower() + "_identifier"),
+                             getattr(script_settings, special.name.lower() + "_cd", None),
+                             getattr(script_settings, special.name.lower() + "_duration", None),
+                             special.value) for special in cls.data_by_id.keys()+[cls.Specials.UNKNOWN]]
+        connection.executemany('''UPDATE specials SET name = ?, identifier = ?, cooldown_time = ?, duration = ?
+                                WHERE orig_name = ?''', updated_specials)
         connection.commit()
+        cls.reset()
 
     @classmethod
     def load_specials(cls, script_settings, connection):
@@ -209,7 +224,7 @@ class Special(NamedData):
         cursor = connection.execute('SELECT orig_name, name, identifier, cooldown_time, duration FROM specials')
         for row in cursor:
             special = cls(*row, connection=connection)
-            if getattr(script_settings, special.name.lower() + "_enabled"):
+            if getattr(script_settings, special.id.name.lower() + "_enabled"):
                 cls.data_by_id[special.id] = special
                 cls.data_by_name[special.name] = special
             if special.id == cls.Specials.UNKNOWN:
