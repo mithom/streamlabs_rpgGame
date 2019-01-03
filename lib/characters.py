@@ -292,7 +292,7 @@ class Character(object):
     def participate_in_same_tournament(self, char2):
         part1 = King.Participant.find(self.char_id, self.connection)
         part2 = King.Participant.find(char2.char_id, self.connection)
-        return part1 == part2 and part1.alive and part2.alive  # checks tournament equality in None safe way, srry for bad == use
+        return part1 == part2 and (part1 is None or (part1.alive and part2.alive))  # checks tournament equality in None safe way, srry for bad == use
 
     def save(self):
         self.connection.execute(

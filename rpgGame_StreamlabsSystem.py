@@ -19,7 +19,7 @@ ScriptName = "rpgGame"
 Website = "https://www.twitch.tv/mi_thom"
 Description = "a chatbot rpg game based on Kaylovespie's Pieland game"
 Creator = "mi_thom"
-Version = "0.0.6"
+Version = "0.0.7"
 
 # ---------------------------------------
 #   Global Variables

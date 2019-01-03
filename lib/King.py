@@ -172,7 +172,7 @@ class King(object):
         old_king = cls.find(conn)
         if old_king is not None:
             if old_king.character_id == participant.character_id:
-                old_king.indisputable_until = datetime.datetime.now(utc) + datetime.timedelta(minutes=60)
+                old_king.indisputable_until = datetime.datetime.now(utc) + datetime.timedelta(minutes=30)
                 old_king.save()
                 return old_king
             else:

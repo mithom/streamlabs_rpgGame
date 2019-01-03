@@ -648,7 +648,7 @@ class RpgGame(object):
             ))
             return
         else:
-            Attack.create(Attack.COUNTER_ACTION, countermen.char_id, resolver_id=fight.resolver_id,
+            Attack.create(Attack.COUNTER_ACTION, countermen.char_id, fight.attacker_id, resolver_id=fight.resolver_id,
                           connection=conn)
             Parent.SendStreamMessage(self.format_message(
                 "{0} prepares to counter attack",
