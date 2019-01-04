@@ -75,7 +75,7 @@ To start your journey just type: !create charactername
 * (5000pc: lvl 18) Divine Aura
 
 #### TRAITS
-###### alert doesn't work yet
+###### lucky revive chance doesn't work yet (lowered death chance already works)
 
 Every time you are born into Pieland at level 1 you will get a random trait:
 
@@ -123,7 +123,7 @@ Roshan will spawn during special occasions and will grant a special to whomever 
 #### settings
 these can be found under the scripts tab in streamlabs chatbot, click on the rpgGame and it will pop up on the right side.
 
-Here you can enabe/disable and rename all the traits and specials.
+Here you can enabe/disable and rename all the traits and specials. If you disable a Trait or Special in an already existing game, players who have them will instead have the Plain trait or the Unknown special respectively. Both do absolutely nothing. Having those 2 disabled will only disable the chance that you get them on spawn, not the fallback when disabling another trait/special.
 
 You can also configure in here how often the game checks for game state updates, change command names and more stuff
 
@@ -131,7 +131,12 @@ You can also configure in here how often the game checks for game state updates,
 
 You can find this folder by going to the script settings, click on the 'database stuff' tab and press the 'open data folder' button.
 
-Here you can add/change/remove the armors/weapons/Locations/Map/Bosses.
+Here you can add/change/remove the armors/weapons/Locations/Map/Bosses. *YOU MUST RESET DATABASE IN ORDER TO CHANGE ANYTHING*
+There are 2 exceptions to this:
+
+1) You can change the Map, as long as no player was standing on that spot (will bug the player otherwise)
+2) You can add weapons/armors etc, you need to refresh the script after saving the files. But you cannot change or remove already existing items
+
 The meaning each line in the files is listed here:
 
 ###### Armors.json
@@ -183,7 +188,7 @@ Battle system has a separate tick rate. - Done
 * After attack, certain amount of time to react, (20 seconds) to type a different command - Done
 * Success rate flee 45% - Done
 * Fight = 1 round - Done
-* Sneak attack, when attacking outside of village or town -> you cannot flee. 
+* Sneak attack, when attacking someone that is already in combat - Done
 * There is a map - configurable
 * Move has it's own cooldown, shorter CD then game tick. - Done
 * Exp gained depending on last time moved (x sec after last move/exp gain) - Done
