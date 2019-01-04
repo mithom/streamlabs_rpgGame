@@ -968,13 +968,19 @@ class RpgGame(object):
                     Parent.GetUserCooldownDuration(self.script_name, 'tp', user_id)
                 ))
             else:
-                Parent.AddUserCooldown(self.script_name, "tp", user_id, 600)
-                char.position.coord = target_location.coord
-                char.save()
-                Parent.SendStreamMessage(self.format_message(
-                    "{0}, you suddenly feel lightheaded and start to disappear...",
-                    username
-                ))
+                fight = Attack.find_by_attacker_or_target(char, conn)
+                if fight is None:
+                    Parent.AddUserCooldown(self.script_name, "tp", user_id, 600)
+                    char.position.coord = target_location.coord
+                    char.save()
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you suddenly feel lightheaded and start to disappear...",
+                        username
+                    ))
+                else:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, you cannot teleport while in a fight", username
+                    ))
         else:
             Parent.SendStreamMessage(self.format_message(
                 "{0}, you need to be at a portal to teleport!",
