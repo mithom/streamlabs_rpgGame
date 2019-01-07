@@ -51,10 +51,12 @@ class SpecialCooldown(object):
         self.save()
         if self.specials_orig_name is Special.Specials.TRACK:
             self.Parent.SendStreamMessage(self.format_message(
-                "{0}, after spying on {1} you learned he is wearing {armor} and using {weapon}. Hes trait is {trait} " +
-                "and he can do {specials}.",
+                "{0}, after spying on {1} you learned he is located at ({x}, {y}) where he is wearing {armor} and using"
+                " {weapon}. Hes trait is {trait} and he can do {specials}.",
                 self.Parent.GetDisplayName(self.character.user_id),
                 target.name,
+                x=target.position.x,
+                y=target.position.y,
                 weapon=getattr(target.weapon, "name", "hes bare hands"),
                 armor=getattr(target.armor, "name", "rags"),
                 trait=target.trait.trait.name,
