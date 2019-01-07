@@ -106,6 +106,13 @@
     "tooltip": "under this lvl, fighting is not allowed",
     "group": "gameplay"
   },
+  "auto_contest": {
+    "type": "checkbox",
+    "value": true,
+    "label": "auto start kings contest when no king",
+    "tooltip": "if there is no king and there could be one, automatically start a tournament",
+    "group": "gameplay"
+  },
   "durable_name":{
     "type":"textbox",
     "value":"Durable",

@@ -31,6 +31,7 @@ class Settings(object):
             self.xp_farm_time = 60
             self.max_steal_amount = 100
             self.min_fight_lvl = 5
+            self.auto_contest = True
 
             # traits
             self.durable_enabled = True

@@ -163,7 +163,7 @@ class RpgGame(object):
     def tick(self, conn):
         king = King.find(conn)
         tournament = Tournament.find(conn)
-        if tournament is None:
+        if tournament is None and self.scriptSettings.auto_contest:
             if king is None or king.character is None:
                 participant_chars = Tournament.initiate_tournament(
                     king, max(self.scriptSettings.min_fight_lvl, 5), conn)
