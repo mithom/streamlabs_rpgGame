@@ -113,6 +113,13 @@
     "tooltip": "if there is no king and there could be one, automatically start a tournament",
     "group": "gameplay"
   },
+  "max_participants": {
+    "type": "numberbox",
+    "value": 4,
+    "label": "max participants",
+    "tooltip": "maximum number of participants for kings contest.\nother eligible players can still buy in with a ticket.",
+    "group": "gameplay"
+  },
   "durable_name":{
     "type":"textbox",
     "value":"Durable",

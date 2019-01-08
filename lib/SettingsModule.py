@@ -32,6 +32,7 @@ class Settings(object):
             self.max_steal_amount = 100
             self.min_fight_lvl = 5
             self.auto_contest = True
+            self.max_participants = 4
 
             # traits
             self.durable_enabled = True

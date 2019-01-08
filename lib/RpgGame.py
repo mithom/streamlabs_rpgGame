@@ -166,7 +166,7 @@ class RpgGame(object):
         if tournament is None and self.scriptSettings.auto_contest:
             if king is None or king.character is None:
                 participant_chars = Tournament.initiate_tournament(
-                    king, max(self.scriptSettings.min_fight_lvl, 5), conn)
+                    king, max(self.scriptSettings.min_fight_lvl, 5), self.scriptSettings.max_participants, conn)
                 if participant_chars is not None:
                     msg = "a tournament to become king has started between the top warriors: "
                     for part_char in participant_chars:
@@ -929,7 +929,8 @@ class RpgGame(object):
             ))
             return
         participant_chars = Tournament.initiate_tournament(
-            king, max(self.scriptSettings.min_fight_lvl, max(self.scriptSettings.min_fight_lvl, 5)), conn)
+            king, max(self.scriptSettings.min_fight_lvl, max(self.scriptSettings.min_fight_lvl, 5)),
+            self.scriptSettings.max_participants, conn)
         if participant_chars is not None:
             msg = "a tournament to become king has started between the top warriors: "
             for part_char in participant_chars:
