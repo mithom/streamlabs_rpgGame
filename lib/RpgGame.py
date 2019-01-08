@@ -547,7 +547,7 @@ class RpgGame(object):
             if target.lvl < self.scriptSettings.min_fight_lvl:
                 Parent.SendStreamMessage(self.format_message(
                     "{0}, {target} isn't lvl {lvl} yet",
-                    username, lvl=5, target=target_name
+                    username, lvl=self.scriptSettings.min_fight_lvl, target=target_name
                 ))
                 return
             if fight1 is not None:
@@ -919,7 +919,7 @@ class RpgGame(object):
                 delta_str
             ))
             return
-        candidates = Character.get_order_by_lvl_and_xp(3, conn, min_lvl=5)
+        candidates = Character.get_order_by_lvl_and_xp(3, conn, min_lvl=max(self.scriptSettings.min_fight_lvl, 5))
         if king.character_id not in map(lambda x: x.char_id, candidates):
             candidates = candidates[0:-1]
         if char not in candidates:
@@ -929,7 +929,7 @@ class RpgGame(object):
             ))
             return
         participant_chars = Tournament.initiate_tournament(
-            king, max(self.scriptSettings.min_fight_lvl, 5), conn)
+            king, max(self.scriptSettings.min_fight_lvl, max(self.scriptSettings.min_fight_lvl, 5)), conn)
         if participant_chars is not None:
             msg = "a tournament to become king has started between the top warriors: "
             for part_char in participant_chars:
