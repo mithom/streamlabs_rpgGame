@@ -76,7 +76,7 @@ class NamedData(StaticData):
         cls.data_by_name = {}
 
 
-class Location(NamedData):
+class Location(NamedData):  # TODO: update difficulty, reward and monsters based on name
     data_by_name = {}
     data_by_id = {}
 

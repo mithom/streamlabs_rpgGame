@@ -34,6 +34,38 @@ class Settings(object):
             self.auto_contest = True
             self.max_participants = 4
 
+            # items TODO: add to UI_Config
+            self.warp_tonic_enabled = True
+            self.warp_tonic_price = 100
+            self.warp_tonic_name = "WarpTonic"
+            self.warp_tonic_min_lvl = 5
+            self.magical_elixir_enabled = True
+            self.magical_elixir_price = 100
+            self.magical_elixir_name = "MagicalElixir"
+            self.magical_elixir_min_lvl = 20
+            self.potion_of_strength_enabled = True
+            self.potion_of_strength_price = 100
+            self.potion_of_strength_name = 'PotionOfStrength'
+            self.potion_of_strength_min_lvl = 5
+            self.potion_of_strength_duration = 60
+            self.bull_elixir_enabled = True
+            self.bull_elixir_price = 100
+            self.bull_elixir_name = 'BullElixir'
+            self.bull_elixir_min_lvl = 10
+            self.tournament_ticket_enabled = True
+            self.tournament_ticket_price = 10
+            self.tournament_ticket_name = 'TournamentTicket'
+            self.tournament_ticket_min_lvl = 5
+            self.potion_of_defense_enabled = True
+            self.potion_of_defense_price = 100
+            self.potion_of_defense_name = 'PotionOfDefense'
+            self.potion_of_defense_min_lvl = 5
+            self.potion_of_defense_duration = 90
+            self.stone_elixir_enabled = True
+            self.stone_elixir_price = 100
+            self.stone_elixir_name = 'StoneElixir'
+            self.stone_elixir_min_lvl = 10
+
             # traits
             self.durable_enabled = True
             self.durable_name = "Durable"

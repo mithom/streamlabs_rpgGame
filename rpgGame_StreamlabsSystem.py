@@ -89,7 +89,7 @@ def Tick():
 
 
 # noinspection PyPep8Naming
-def Execute(data):
+def Execute(data):  # TODO: add category where nb of arguments doesn't matter
     if data.IsChatMessage():
         p_count = data.GetParamCount()
         command_functions = game.commands()

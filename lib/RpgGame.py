@@ -6,7 +6,7 @@ from Boss import Boss
 from King import King, Tournament
 import operator
 import random
-from Special import SpecialCooldown, Special, ActiveEffect
+from Special import SpecialCooldown, Special, ActiveEffect, Item
 from threading import Lock
 from math import ceil
 from functools import wraps
@@ -123,6 +123,7 @@ class RpgGame(object):
             Weapon.create_table_if_not_exists(conn)
             Armor.create_table_if_not_exists(conn)
             Character.create_table_if_not_exists(conn)
+            Item.create_table_if_not_exists(conn)
             Attack.create_table_if_not_exists(conn)
             Bounty.create_table_if_not_exists(conn)
             Boss.create_table_if_not_exists(conn)
@@ -141,6 +142,7 @@ class RpgGame(object):
             Weapon.load_weapons(conn)
             Trait.create_or_update_traits(self.scriptSettings, conn)
             Special.create_or_update_specials(self.scriptSettings, conn)
+            Item.create_or_update_items(self.scriptSettings, conn)
             Character.load_static_data(self.scriptSettings, conn)
             Boss.create_bosses(conn)
         conn.close()
@@ -475,11 +477,16 @@ class RpgGame(object):
                         username, character.name, armor.name
                     ))
             else:
-                Parent.SendStreamMessage(self.format_message(
-                    "{0}, {1} does not exists",
-                    username,
-                    item_name
-                ))
+                item = Item.find_by_name(item_name)
+                if item is not None:
+                    if character.lvl >= item.min_lvl and Parent.RemovePoints(user_id, username, item.price):
+                        item.use(character)
+                else:
+                    Parent.SendStreamMessage(self.format_message(
+                        "{0}, {1} does not exists",
+                        username,
+                        item_name
+                    ))
 
     @connect
     def attack(self, user_id, username, target_name, conn):

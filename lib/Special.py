@@ -202,19 +202,20 @@ class Special(NamedData):
 
         cls.load_specials(script_settings, connection)
         # noinspection PyTypeChecker
-        new_specials = [(special.value, getattr(script_settings, special.name.lower() + "_name"),
-                         getattr(script_settings, special.name.lower() + "_identifier"),
-                         getattr(script_settings, special.name.lower() + "_cd", None),
-                         getattr(script_settings, special.name.lower() + "_duration", None))
-                        for special in cls.Specials if should_create(special)]
+        new_specials = [(new_special.value, getattr(script_settings, new_special.name.lower() + "_name"),
+                         getattr(script_settings, new_special.name.lower() + "_identifier"),
+                         getattr(script_settings, new_special.name.lower() + "_cd", None),
+                         getattr(script_settings, new_special.name.lower() + "_duration", None))
+                        for new_special in cls.Specials if should_create(new_special)]
         connection.executemany('''INSERT INTO specials(orig_name, name, identifier, cooldown_time, duration)
                                 VALUES (?, ?, ?, ?, ?)''', new_specials)
         # noinspection PyUnresolvedReferences
-        updated_specials = [(getattr(script_settings, special.name.lower() + "_name"),
-                             getattr(script_settings, special.name.lower() + "_identifier"),
-                             getattr(script_settings, special.name.lower() + "_cd", None),
-                             getattr(script_settings, special.name.lower() + "_duration", None),
-                             special.value) for special in cls.data_by_id.keys()+[cls.Specials.UNKNOWN]]
+        updated_specials = [(getattr(script_settings, updated_special.name.lower() + "_name"),
+                             getattr(script_settings, updated_special.name.lower() + "_identifier"),
+                             getattr(script_settings, updated_special.name.lower() + "_cd", None),
+                             getattr(script_settings, updated_special.name.lower() + "_duration", None),
+                             updated_special.value) for updated_special in
+                            cls.data_by_id.keys() + [cls.Specials.UNKNOWN]]
         connection.executemany('''UPDATE specials SET name = ?, identifier = ?, cooldown_time = ?, duration = ?
                                 WHERE orig_name = ?''', updated_specials)
         connection.commit()
@@ -231,6 +232,102 @@ class Special(NamedData):
                 cls.data_by_name[special.name] = special
             if special.id == cls.Specials.UNKNOWN:
                 cls.unknown = special
+
+
+class Item(NamedData):
+    """The specials self are static, the join-table won't be"""
+    data_by_name = {}
+    data_by_id = {}
+    unknown = None
+
+    class Items(Enum):
+        WARP_TONIC = "WarpTonic"
+        MAGICAL_ELIXIR = "MagicalElixir"  # use special only once (or perm, and potion for 1 use)
+        POTION_OF_STRENGTH = "PotionOfStrength"  # temp +2 str
+        BULL_ELIXIR = 'BullElixir'  # perm +1 str
+        TOURNAMENT_TICKET = 'TournamentTicket'
+        POTION_OF_DEFENSE = 'PotionOfDefense'  # temp +2 def
+        STONE_ELIXIR = 'StoneElixir'  # perm +1 def
+
+    def __init__(self, orig_name, name, price, duration, min_lvl, connection):
+        if type(orig_name) is not self.Items:
+            orig_name = self.Items(orig_name)
+        super(Item, self).__init__(orig_name, name, connection)
+        self.price = price
+        self.duration = duration  # not needed
+        self.min_lvl = min_lvl
+
+    def use(self, character):
+        if self.id is self.Items.WARP_TONIC:
+            pass  # TODO: implement
+        elif self.id is self.Items.MAGICAL_ELIXIR:
+            pass  # TODO: implement
+        elif self.id is self.Items.TOURNAMENT_TICKET:
+            pass  # TODO: implement
+        elif self.id is self.Items.BULL_ELIXIR:
+            pass  # TODO: implement
+        elif self.id is self.Items.STONE_ELIXIR:
+            pass  # TODO: implement
+        elif self.id is self.Items.POTION_OF_DEFENSE:
+            pass  # TODO: implement
+        elif self.id is self.Items.POTION_OF_STRENGTH:
+            pass  # TODO: implement
+
+    @classmethod
+    def find(cls, data_id):
+        return super(Item, cls).find(data_id, cls.unknown)
+
+    @classmethod
+    def find_by_name(cls, name):
+        return super(Item, cls).find_by_name(name, cls.unknown)
+
+    @classmethod
+    def create_table_if_not_exists(cls, connection):
+        connection.execute("""create table if not exists items
+            (orig_name      text    PRIMARY KEY  NOT NULL,
+            name            text    NOT NULL,
+            price           integer NOT NULL,
+            duration        integer,
+            min_lvl         integer NOT NULL 
+            );""")
+
+    @classmethod
+    def create_or_update_items(cls, script_settings, connection):
+        """creates weapons into the database and update existing ones.
+        Weapons must be reloaded afterwards"""
+
+        def should_create(item):
+            return getattr(script_settings, item.name.lower() + "_enabled") and item not in cls.data_by_id
+
+        cls.load_items(script_settings, connection)
+        # noinspection PyTypeChecker
+        new_items = [(new_item.value, getattr(script_settings, new_item.name.lower() + "_name"),
+                      getattr(script_settings, new_item.name.lower() + "_price"),
+                      getattr(script_settings, new_item.name.lower() + "_duration", None),
+                      getattr(script_settings, new_item.name.lower() + "_min_lvl"))
+                      for new_item in cls.Items if should_create(new_item)]
+        connection.executemany('''INSERT INTO items(orig_name, name, price, duration, min_lvl)
+                                VALUES (?, ?, ?, ?, ?)''', new_items)
+        # noinspection PyUnresolvedReferences
+        updated_items = [(getattr(script_settings, updated_item.name.lower() + "_name"),
+                          getattr(script_settings, updated_item.name.lower() + "_price"),
+                          getattr(script_settings, updated_item.name.lower() + "_duration", None),
+                          getattr(script_settings, updated_item.name.lower() + "_min_lvl"),
+                          updated_item.value) for updated_item in cls.data_by_id.keys()]
+        connection.executemany('''UPDATE items SET name = ?, price = ?, duration = ?, min_lvl = ?
+                                WHERE orig_name = ?''', updated_items)
+        connection.commit()
+        cls.reset()
+
+    @classmethod
+    def load_items(cls, script_settings, connection):
+        """loads weapons from database"""
+        cursor = connection.execute('SELECT orig_name, name, price, duration FROM items')
+        for row in cursor:
+            item = cls(*row, connection=connection)
+            if getattr(script_settings, item.id.name.lower() + "_enabled"):
+                cls.data_by_id[item.id] = item
+                cls.data_by_name[item.name] = item
 
 
 class ActiveEffect(object):
