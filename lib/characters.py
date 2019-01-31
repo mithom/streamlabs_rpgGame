@@ -6,7 +6,7 @@ from pytz import utc
 import datetime as dt
 from Position import Position
 from Attack import Attack
-from Special import SpecialCooldown, Special, ActiveEffect
+from Special import SpecialCooldown, Special, ActiveEffect, Item
 import King
 
 random = random.WichmannHill()
@@ -108,6 +108,10 @@ class Character(object):
         armor_bonus = self.trait.defense_bonus
         if self.armor is not None:
             armor_bonus += self.armor.min_lvl
+        if ActiveEffect.find_by_target_and_special(self, Item.Items.POTION_OF_DEFENSE, self.connection):
+            armor_bonus += 4
+        if ActiveEffect.find_by_target_and_special(self, Item.Items.STONE_ELIXIR, self.connection):
+            armor_bonus += 2
         return armor_bonus
 
     @property
@@ -117,6 +121,10 @@ class Character(object):
             attack_bonus += self.weapon.min_lvl
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.EMPOWER, self.connection):
             attack_bonus += 4
+        if ActiveEffect.find_by_target_and_special(self, Item.Items.POTION_OF_STRENGTH, self.connection):
+            attack_bonus += 4
+        if ActiveEffect.find_by_target_and_special(self, Item.Items.BULL_ELIXIR, self.connection):
+            attack_bonus += 2
         return attack_bonus
 
     def is_stunned(self):

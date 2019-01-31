@@ -304,7 +304,7 @@ class RpgGame(object):
         }]
 
     @connect
-    def info(self, user_id, username, conn):
+    def info(self, user_id, username, conn):  # TODO: add active effects + duration
         character = Character.find_by_user(user_id, conn)
         if not self.check_valid_char(character, username, stun_check=False):
             return
@@ -331,7 +331,7 @@ class RpgGame(object):
         ))
 
     @connect
-    def condensed_info(self, user_id, username, conn):
+    def condensed_info(self, user_id, username, conn):# TODO: add active effects id's
         character = Character.find_by_user(user_id, conn)
         if not self.check_valid_char(character, username, stun_check=False):
             return
@@ -966,12 +966,14 @@ class RpgGame(object):
             return
         if char.position in Map.tp_positions().itervalues():
             target_location = Map.tp_positions().get(tp_name, None)
+            warp_tonic = ActiveEffect.find_by_target_and_special(char, Item.Items.WARP_TONIC, conn)
+            is_on_user_cd = Parent.IsOnUserCooldown(self.script_name, "tp", user_id)
             if target_location is None or target_location == char.position:
                 Parent.SendStreamMessage(self.format_message(
                     "{0}, you cannot teleport to that place",
                     username
                 ))
-            elif Parent.IsOnUserCooldown(self.script_name, "tp", user_id):
+            elif is_on_user_cd and warp_tonic is None:
                 Parent.SendStreamMessage(self.format_message(
                     "{0}, you can't do that right now, pls wait {1} seconds.",
                     username,
@@ -980,13 +982,20 @@ class RpgGame(object):
             else:
                 fight = Attack.find_by_attacker_or_target(char, conn)
                 if fight is None:
-                    Parent.AddUserCooldown(self.script_name, "tp", user_id, 600)
+                    if is_on_user_cd:
+                        warp_tonic.delete()
+                        Parent.SendStreamMessage(self.format_message(
+                            """{0}, you take a sip of the potion and fall asleep... you wake up at a new location""",
+                            username
+                        ))
+                    else:
+                        Parent.AddUserCooldown(self.script_name, "tp", user_id, 600)
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, you suddenly feel lightheaded and start to disappear...",
+                            username
+                        ))
                     char.position.coord = target_location.coord
                     char.save()
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you suddenly feel lightheaded and start to disappear...",
-                        username
-                    ))
                 else:
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, you cannot teleport while in a fight", username

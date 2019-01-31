@@ -300,6 +300,8 @@ class Item(Usable):
     def use(self, character):
         if self.id is self.Items.TOURNAMENT_TICKET:
             pass  # TODO: implement
+        elif self.id is self.Items.MAGICAL_ELIXIR:
+            character.gain_special()
         else:
             ActiveEffect.create(character, self, character.connection)
 
