@@ -5,9 +5,25 @@ import Position
 
 
 class StaticData(object):
-    def __init__(self, connection):
+    def __init__(self, data_id, connection):
         # self.connection = connection
-        pass
+        self.__data_id = data_id
+
+    @property
+    def id(self):
+        return self.__data_id
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    @classmethod
+    def find(cls, data_id, default=None):
+        data = cls.data_by_id.get(data_id, default)
+        return data if isinstance(data, cls) else default
+
+    @classmethod
+    def reset(cls):
+        cls.data_by_id = {}
 
 
 class Map(object):
@@ -45,34 +61,24 @@ class Map(object):
             cls.x_max = max([len(x) for x in lmap])
             cls.y_max = len(lmap)
             cls._tp_positions = {row[0]: Position.Position(row[1], row[2]) for row in tp_locations}
-            cls._map = [[Location.find_by_name(name) for name in (row + (cls.x_max - len(row)) * [None])] for row in lmap]
+            cls._map = [[Location.find_by_name(name) for name in (row + (cls.x_max - len(row)) * [None])] for row in
+                        lmap]
         return cls._map
 
 
 class NamedData(StaticData):
     def __init__(self, data_id, name, connection):
-        super(NamedData, self).__init__(connection)
-        self.__data_id = data_id
+        super(NamedData, self).__init__(data_id, connection)
         self.name = name
-
-    @property
-    def id(self):
-        return self.__data_id
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-    @classmethod
-    def find(cls, data_id, default=None):
-        return cls.data_by_id.get(data_id, default)
 
     @classmethod
     def find_by_name(cls, name, default=None):
-        return cls.data_by_name.get(name, default)
+        data = cls.data_by_name.get(name, default)
+        return data if isinstance(data, cls) else default
 
     @classmethod
     def reset(cls):
-        cls.data_by_id = {}
+        super(NamedData, cls).reset()
         cls.data_by_name = {}
 
 
@@ -100,8 +106,8 @@ class Location(NamedData):  # TODO: update difficulty, reward and monsters based
     def create_locations(cls, connection):
         """creates weapons into the database"""
         locations = cls.read_locations()
-        connection.executemany('INSERT OR IGNORE INTO locations(name, difficulty, reward, monsters) VALUES (?, ?, ?, ?)'
-                               , locations)
+        connection.executemany(
+            'INSERT OR IGNORE INTO locations(name, difficulty, reward, monsters) VALUES (?, ?, ?, ?)', locations)
         connection.commit()
 
     @staticmethod
