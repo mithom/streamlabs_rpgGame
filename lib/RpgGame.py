@@ -143,6 +143,7 @@ class RpgGame(object):
             Trait.create_or_update_traits(self.scriptSettings, conn)
             Special.create_or_update_specials(self.scriptSettings, conn)
             Item.create_or_update_items(self.scriptSettings, conn)
+            Item.load_items(self.scriptSettings, conn)
             Character.load_static_data(self.scriptSettings, conn)
             Boss.create_bosses(conn)
         conn.close()
@@ -479,7 +480,8 @@ class RpgGame(object):
             else:
                 item = Item.find_by_name(item_name)
                 if item is not None:
-                    if character.lvl >= item.min_lvl and Parent.RemovePoints(user_id, username, item.price):
+                    if character.lvl >= item.min_lvl and item.can_buy(character) and \
+                            Parent.RemovePoints(user_id, username, item.price):
                         item.use(character)
                 else:
                     Parent.SendStreamMessage(self.format_message(

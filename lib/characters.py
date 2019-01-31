@@ -179,9 +179,7 @@ class Character(object):
             self.gain_special()
 
     def gain_special(self):  # TODO: possibility to only gain selection of specials from a specific boss
-        specials = set(Special.data_by_id.keys())
-        character_specials = set(map(lambda x: x.specials_orig_name, self.specials))
-        new_specials = specials - character_specials
+        new_specials = Special.available_specials(self)
         if len(new_specials) > 0:
             new_special_id = random.choice(list(new_specials))
             special = SpecialCooldown.create(self.char_id, new_special_id, self.connection)

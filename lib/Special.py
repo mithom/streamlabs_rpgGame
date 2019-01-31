@@ -8,6 +8,14 @@ import random
 random = random.WichmannHill()
 
 
+class AutoNumber(Enum):
+    def __new__(cls):
+        value = len(cls.__members__) + 1
+        obj = object.__new__(cls)
+        obj._value_ = value
+        return obj
+
+
 class SpecialCooldown(object):
     Parent = None
     format_message = None
@@ -141,15 +149,38 @@ class SpecialCooldown(object):
             specials_orig_name  text      NOT NULL,
             unavailable_until  timestamp,
             FOREIGN KEY (character_id)   REFERENCES characters(character_id),
-            FOREIGN KEY (specials_orig_name)   REFERENCES specials(orig_name),
+            FOREIGN KEY (specials_orig_name)   REFERENCES usable(orig_name),
             PRIMARY KEY (character_id, specials_orig_name)
         );""")
 
 
-class Special(NamedData):
-    """The specials self are static, the join-table won't be"""
+class Usable(NamedData):
     data_by_name = {}
     data_by_id = {}
+
+    class Classes(AutoNumber):
+        Special = ()
+        Item = ()
+
+    def __init__(self, orig_name, name, identifier, duration, connection):
+        super(Usable, self).__init__(orig_name, name, connection)
+        self.identifier = identifier
+        self.duration = duration
+        self.type = self.Classes[self.__class__.__name__]
+
+    @classmethod
+    def create_table_if_not_exists(cls, connection):
+        connection.execute("""create table if not exists usable
+            (orig_name      text    PRIMARY KEY  NOT NULL,
+            name            text    NOT NULL,
+            identifier      char    UNIQUE       NOT NULL,
+            duration        integer,
+            class           integer NOT NULL
+            );""")
+
+
+class Special(Usable):
+    """The specials self are static, the join-table won't be"""
     unknown = None
 
     class Specials(Enum):
@@ -168,10 +199,14 @@ class Special(NamedData):
     def __init__(self, orig_name, name, identifier, cooldown_time, duration, connection):
         if type(orig_name) is not self.Specials:
             orig_name = self.Specials(orig_name)
-        super(Special, self).__init__(orig_name, name, connection)
+        super(Special, self).__init__(orig_name, name, identifier, duration, connection)
         self.cooldown_time = cooldown_time
-        self.identifier = identifier
-        self.duration = duration
+
+    @classmethod
+    def available_specials(cls, character):
+        specials = set(cls.data_by_id.keys())
+        character_specials = set(map(lambda x: x.specials_orig_name, character.specials))
+        return specials - character_specials
 
     @classmethod
     def find(cls, data_id):
@@ -183,13 +218,9 @@ class Special(NamedData):
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
-        connection.execute("""create table if not exists specials
-            (orig_name      text    PRIMARY KEY  NOT NULL,
-            name            text    NOT NULL,
-            identifier      char    UNIQUE       NOT NULL,
-            cooldown_time   integer,
-            duration        integer
-            );""")
+        super(Special, cls).create_table_if_not_exists(connection)
+        if "cooldown_time" not in [i[1] for i in connection.execute("""PRAGMA table_info(usable)""")]:
+            connection.execute("""ALTER TABLE usable ADD COLUMN cooldown_time integer;""")
 
     @classmethod
     def create_or_update_specials(cls, script_settings, connection):
@@ -205,18 +236,19 @@ class Special(NamedData):
         new_specials = [(new_special.value, getattr(script_settings, new_special.name.lower() + "_name"),
                          getattr(script_settings, new_special.name.lower() + "_identifier"),
                          getattr(script_settings, new_special.name.lower() + "_cd", None),
+                         cls.Classes[cls.__name__].value,
                          getattr(script_settings, new_special.name.lower() + "_duration", None))
                         for new_special in cls.Specials if should_create(new_special)]
-        connection.executemany('''INSERT INTO specials(orig_name, name, identifier, cooldown_time, duration)
-                                VALUES (?, ?, ?, ?, ?)''', new_specials)
+        connection.executemany('''INSERT INTO usable(orig_name, name, identifier, cooldown_time, class, duration)
+                                VALUES (?, ?, ?, ?, ?, ?)''', new_specials)
         # noinspection PyUnresolvedReferences
         updated_specials = [(getattr(script_settings, updated_special.name.lower() + "_name"),
                              getattr(script_settings, updated_special.name.lower() + "_identifier"),
                              getattr(script_settings, updated_special.name.lower() + "_cd", None),
                              getattr(script_settings, updated_special.name.lower() + "_duration", None),
                              updated_special.value) for updated_special in
-                            cls.data_by_id.keys() + [cls.Specials.UNKNOWN]]
-        connection.executemany('''UPDATE specials SET name = ?, identifier = ?, cooldown_time = ?, duration = ?
+                            cls.data_by_id.keys() + [cls.Specials.UNKNOWN] if updated_special in cls.Specials]
+        connection.executemany('''UPDATE usable SET name = ?, identifier = ?, cooldown_time = ?, duration = ?
                                 WHERE orig_name = ?''', updated_specials)
         connection.commit()
         cls.reset()
@@ -224,7 +256,8 @@ class Special(NamedData):
     @classmethod
     def load_specials(cls, script_settings, connection):
         """loads weapons from database"""
-        cursor = connection.execute('SELECT orig_name, name, identifier, cooldown_time, duration FROM specials')
+        cursor = connection.execute('''SELECT orig_name, name, identifier, cooldown_time, duration FROM usable
+                                    WHERE class = ?''', (cls.Classes[cls.__name__].value,))
         for row in cursor:
             special = cls(*row, connection=connection)
             if getattr(script_settings, special.id.name.lower() + "_enabled"):
@@ -234,11 +267,8 @@ class Special(NamedData):
                 cls.unknown = special
 
 
-class Item(NamedData):
-    """The specials self are static, the join-table won't be"""
-    data_by_name = {}
-    data_by_id = {}
-    unknown = None
+class Item(Usable):
+    """The items self are static, the join-table won't be"""
 
     class Items(Enum):
         WARP_TONIC = "WarpTonic"
@@ -249,47 +279,36 @@ class Item(NamedData):
         POTION_OF_DEFENSE = 'PotionOfDefense'  # temp +2 def
         STONE_ELIXIR = 'StoneElixir'  # perm +1 def
 
-    def __init__(self, orig_name, name, price, duration, min_lvl, connection):
+    def __init__(self, orig_name, name, identifier, price, duration, min_lvl, connection):
         if type(orig_name) is not self.Items:
             orig_name = self.Items(orig_name)
-        super(Item, self).__init__(orig_name, name, connection)
+        super(Item, self).__init__(orig_name, name, identifier, duration, connection)
         self.price = price
         self.duration = duration  # not needed
         self.min_lvl = min_lvl
 
-    def use(self, character):
-        if self.id is self.Items.WARP_TONIC:
-            pass  # TODO: implement
-        elif self.id is self.Items.MAGICAL_ELIXIR:
-            pass  # TODO: implement
+    def can_buy(self, character):
+        if self.id is self.Items.MAGICAL_ELIXIR:
+            return len(Special.available_specials(character)) > 0
         elif self.id is self.Items.TOURNAMENT_TICKET:
-            pass  # TODO: implement
-        elif self.id is self.Items.BULL_ELIXIR:
-            pass  # TODO: implement
-        elif self.id is self.Items.STONE_ELIXIR:
-            pass  # TODO: implement
-        elif self.id is self.Items.POTION_OF_DEFENSE:
-            pass  # TODO: implement
-        elif self.id is self.Items.POTION_OF_STRENGTH:
-            pass  # TODO: implement
+            return False  # TODO: implement
+        elif self.id in (
+                self.Items.WARP_TONIC, self.Items.BULL_ELIXIR, self.Items.STONE_ELIXIR, self.Items.POTION_OF_DEFENSE,
+                self.Items.POTION_OF_STRENGTH):
+            return ActiveEffect.find_by_target_and_special(character, self.id, character.connection) is None
 
-    @classmethod
-    def find(cls, data_id):
-        return super(Item, cls).find(data_id, cls.unknown)
-
-    @classmethod
-    def find_by_name(cls, name):
-        return super(Item, cls).find_by_name(name, cls.unknown)
+    def use(self, character):
+        if self.id is self.Items.TOURNAMENT_TICKET:
+            pass  # TODO: implement
+        else:
+            ActiveEffect.create(character, self, character.connection)
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
-        connection.execute("""create table if not exists items
-            (orig_name      text    PRIMARY KEY  NOT NULL,
-            name            text    NOT NULL,
-            price           integer NOT NULL,
-            duration        integer,
-            min_lvl         integer NOT NULL 
-            );""")
+        super(Item, cls).create_table_if_not_exists(connection)
+        if "price" not in [i[1] for i in connection.execute("""PRAGMA table_info(usable)""")]:
+            connection.execute("""ALTER TABLE usable ADD COLUMN price integer;""")
+            connection.execute("""ALTER TABLE usable ADD COLUMN min_lvl integer;""")
 
     @classmethod
     def create_or_update_items(cls, script_settings, connection):
@@ -304,17 +323,20 @@ class Item(NamedData):
         new_items = [(new_item.value, getattr(script_settings, new_item.name.lower() + "_name"),
                       getattr(script_settings, new_item.name.lower() + "_price"),
                       getattr(script_settings, new_item.name.lower() + "_duration", None),
-                      getattr(script_settings, new_item.name.lower() + "_min_lvl"))
-                      for new_item in cls.Items if should_create(new_item)]
-        connection.executemany('''INSERT INTO items(orig_name, name, price, duration, min_lvl)
-                                VALUES (?, ?, ?, ?, ?)''', new_items)
+                      getattr(script_settings, new_item.name.lower() + "_min_lvl"),
+                      getattr(script_settings, new_item.name.lower() + "_identifier"),
+                      cls.Classes[cls.__name__].value)
+                     for new_item in cls.Items if should_create(new_item)]
+        connection.executemany('''INSERT INTO usable(orig_name, name, price, duration, min_lvl, identifier, class)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)''', new_items)
         # noinspection PyUnresolvedReferences
         updated_items = [(getattr(script_settings, updated_item.name.lower() + "_name"),
                           getattr(script_settings, updated_item.name.lower() + "_price"),
                           getattr(script_settings, updated_item.name.lower() + "_duration", None),
                           getattr(script_settings, updated_item.name.lower() + "_min_lvl"),
-                          updated_item.value) for updated_item in cls.data_by_id.keys()]
-        connection.executemany('''UPDATE items SET name = ?, price = ?, duration = ?, min_lvl = ?
+                          getattr(script_settings, updated_item.name.lower() + "_identifier"),
+                          updated_item.value) for updated_item in cls.data_by_id.keys() if updated_item in cls.Items]
+        connection.executemany('''UPDATE usable SET name = ?, price = ?, duration = ?, min_lvl = ?, identifier = ?
                                 WHERE orig_name = ?''', updated_items)
         connection.commit()
         cls.reset()
@@ -322,7 +344,8 @@ class Item(NamedData):
     @classmethod
     def load_items(cls, script_settings, connection):
         """loads weapons from database"""
-        cursor = connection.execute('SELECT orig_name, name, price, duration FROM items')
+        cursor = connection.execute('''SELECT orig_name, name, identifier, price, duration, min_lvl FROM usable
+                                    WHERE class = ?''', (cls.Classes[cls.__name__].value,))
         for row in cursor:
             item = cls(*row, connection=connection)
             if getattr(script_settings, item.id.name.lower() + "_enabled"):
@@ -366,7 +389,7 @@ class ActiveEffect(object):
 
     def delete(self):
         self.connection.execute("""DELETE FROM active_effects
-                                WHERE target_id = ? and specials_orig_name = ?""",
+                                WHERE target_id = ? and usable_orig_name = ?""",
                                 (self.target_id, self.specials_orig_name,))
 
     @classmethod
@@ -393,44 +416,46 @@ class ActiveEffect(object):
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
-    def find_by_target_and_special(cls, target, special, connection):
-        if type(special) is Special:
-            special = special.id.value
-        if type(special) is Special.Specials:
-            special = special.value
+    def find_by_target_and_special(cls, target, usable, connection):
+        if isinstance(usable, Usable):
+            usable = usable.id.value
+        if type(usable) is Special.Specials or type(usable) is Item.Items:
+            usable = usable.value
         if type(target) is characters.Character:
             target = target.char_id
         cursor = connection.execute("""SELECT * FROM active_effects
-                                    WHERE target_id = :target AND specials_orig_name = :special""",
-                                    {"target": target, "special": special})
+                                    WHERE target_id = :target AND usable_orig_name = :special""",
+                                    {"target": target, "special": usable})
         row = cursor.fetchone()
         if row is None:
             return None
         return cls(*row, connection=connection)
 
     @classmethod
-    def create(cls, target, special, connection):
-        if type(target) is characters.Character:
+    def create(cls, target, usable, connection):
+        if isinstance(target, characters.Character):
             target = target.char_id
-        if type(special) is Special:
-            special_id = special.id
+        if isinstance(usable, Usable):
+            usable_id = usable.id
         else:
-            special_id = special
-            special = Special.find(special_id)
-        expiration_time = dt.datetime.now(utc) + dt.timedelta(seconds=special.duration)
+            usable_id = usable
+            usable = usable.find(usable_id)
+
+        expiration_time = dt.datetime.now(utc) + \
+                          dt.timedelta(seconds=usable.duration) if usable.duration is not None else None
         connection.execute(
-            '''INSERT INTO active_effects (target_id, specials_orig_name, expiration_time)
+            '''INSERT INTO active_effects (target_id, usable_orig_name, expiration_time)
             VALUES (:target_id, :specials_orig_name, :expiration_time)''',
-            {"target_id": target, "specials_orig_name": special_id.value, "expiration_time": expiration_time})
-        return cls(target, special, expiration_time, connection=connection)
+            {"target_id": target, "specials_orig_name": usable_id.value, "expiration_time": expiration_time})
+        return cls(target, usable_id, expiration_time, connection=connection)
 
     @classmethod
     def create_table_if_not_exists(cls, connection):
         connection.execute("""create table if not exists active_effects
             (target_id            text      NOT NULL,
-            specials_orig_name    text      NOT NULL,
-            expiration_time       timestamp NOT NULL,
-            FOREIGN KEY (target_id)   REFERENCES characters(character_id),
-            FOREIGN KEY (specials_orig_name)   REFERENCES specials(orig_name),
-            PRIMARY KEY (target_id, specials_orig_name)
+            usable_orig_name      text      NOT NULL,
+            expiration_time       timestamp,
+            FOREIGN KEY (target_id)           REFERENCES characters(character_id),
+            FOREIGN KEY (usable_orig_name)    REFERENCES usable(orig_name),
+            PRIMARY KEY (target_id, usable_orig_name)
             );""")
