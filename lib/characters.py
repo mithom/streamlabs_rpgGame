@@ -208,14 +208,11 @@ class Character(object):
 
     def check_survival(self):
         rand = random.random() * 100
-        armor_bonus = 0
-        if self.armor is not None:
-            armor_bonus = self.armor.min_lvl * 20
         terrain_factor = 1.5
         if self.position.location.difficulty * 2 < self.lvl:
             terrain_factor = 0.5
-        death_chance = 100 * (
-            max(2.5 + terrain_factor * (self.position.location.difficulty * 2 - self.lvl), 1)) / (100 + armor_bonus)
+        death_chance = 100 * (max(2.5 + terrain_factor * (self.position.location.difficulty * 2 - self.lvl), 1)) / (
+                100 + self.armor_bonus * 20)
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.CURSE, self.connection):
             death_chance += 5
         if ActiveEffect.find_by_target_and_special(self, Special.Specials.GUARDIAN, self.connection):
@@ -298,7 +295,8 @@ class Character(object):
     def participate_in_same_tournament(self, char2):
         part1 = King.Participant.find(self.char_id, self.connection)
         part2 = King.Participant.find(char2.char_id, self.connection)
-        return part1 == part2 and (part1 is None or (part1.alive and part2.alive))  # checks tournament equality in None safe way, srry for bad == use
+        # checks tournament equality in None safe way, srry for bad == use
+        return part1 == part2 and (part1 is None or (part1.alive and part2.alive))
 
     def save(self):
         self.connection.execute(
