@@ -86,7 +86,7 @@ class SpecialCooldown(object):
             ))
         elif self.specials_orig_name is Special.Specials.REPEL:
             for effect in ActiveEffect.find_all_by_target(target, self.connection):
-                if effect.specials_orig_name is not Special.Specials.GUARDIAN:
+                if effect.usable_orig_name is not Special.Specials.GUARDIAN:
                     effect.delete()
             ActiveEffect.create(target, self.special, self.connection)
             self.Parent.SendStreamMessage(self.format_message(
@@ -208,10 +208,12 @@ class Special(Usable):
         character_specials = set(map(lambda x: x.specials_orig_name, character.specials))
         return specials - character_specials
 
+    # noinspection PyMethodOverriding
     @classmethod
     def find(cls, data_id):
         return super(Special, cls).find(data_id, cls.unknown)
 
+    # noinspection PyMethodOverriding
     @classmethod
     def find_by_name(cls, name):
         return super(Special, cls).find_by_name(name, cls.unknown)
@@ -356,14 +358,18 @@ class Item(Usable):
 
 
 class ActiveEffect(object):
-    def __init__(self, target_id, specials_orig_name, expiration_time, connection, target=None, special=None):
+    def __init__(self, target_id, usable_orig_name, expiration_time, connection, target=None, usable=None):
         self.connection = connection
 
         self.target_id = target_id
         self._target = target
+        if isinstance(usable_orig_name, str) or isinstance(usable_orig_name, unicode):
 
-        self.specials_orig_name = specials_orig_name
-        self._special = special
+            usable = Usable.find_by_name(usable_orig_name)
+            self.usable_orig_name = usable.id
+        else:
+            self.usable_orig_name = usable_orig_name
+        self._usable = usable
 
         self.expiration_time = expiration_time
 
@@ -379,20 +385,20 @@ class ActiveEffect(object):
         self.target_id = value.char_id
 
     @property
-    def special(self):
-        if self._special is None:
-            self._special = Special.find(self.specials_orig_name)
-        return self._special
+    def usable(self):
+        if self._usable is None:
+            self._usable = Usable.find(self.usable_orig_name)
+        return self._usable
 
-    @special.setter
-    def special(self, value):
-        self._special = value
-        self.specials_orig_name = value.id
+    @usable.setter
+    def usable(self, value):
+        self._usable = value
+        self.usable_orig_name = value.id
 
     def delete(self):
         self.connection.execute("""DELETE FROM active_effects
                                 WHERE target_id = ? and usable_orig_name = ?""",
-                                (self.target_id, self.specials_orig_name,))
+                                (self.target_id, self.usable_orig_name.value,))
 
     @classmethod
     def delete_all_by_target(cls, target, connection):
@@ -441,7 +447,7 @@ class ActiveEffect(object):
             usable_id = usable.id
         else:
             usable_id = usable
-            usable = usable.find(usable_id)
+            usable = Usable.find(usable_id)
 
         expiration_time = dt.datetime.now(utc) + \
                           dt.timedelta(seconds=usable.duration) if usable.duration is not None else None

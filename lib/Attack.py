@@ -141,7 +141,7 @@ class Attack(object):
                     self.game.pay_bounties(Bounty.Bounty.find_all_by_character(dead, self.connection),
                                            killer_char.user_id)
                     killer_char.save()
-                dead_char.delete()
+                dead_char.die()
 
     def resolve_attack(self, fight, kills, defenders, sneak=False):
         attacker = fight.attacker

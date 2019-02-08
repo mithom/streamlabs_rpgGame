@@ -83,7 +83,7 @@ def connect(f):
     return wrapper
 
 
-# noinspection PyUnboundLocalVariable
+# noinspection PyUnboundLocalVariable,PyUnusedLocal
 class RpgGame(object):
     db_lock = Lock()
 
@@ -216,9 +216,8 @@ class RpgGame(object):
                         character.exp_for_difficulty(character.position.location.difficulty)):
                     lvl_up.append(character)
                 character.save()
-            else:
+            elif character.die():
                 deaths.append(character)
-                character.delete()
         if len(coin_rewards) > 0:
             Parent.AddPointsAll(coin_rewards)
         conn.commit()
@@ -235,14 +234,13 @@ class RpgGame(object):
     def do_boss_attacks(self, conn):
         for boss in Boss.find_by_active_and_past_attack_time(conn):
             killed_char = boss.do_attack(self.scriptSettings.fight_resolve_time)
-            if killed_char is not None:
+            if killed_char is not None and killed_char.die():
                 Parent.SendStreamMessage(self.format_message(
                     "{0}, {1} has been killed by boss {2}",
                     Parent.GetDisplayName(killed_char.user_id),
                     killed_char.name,
                     boss.name
                 ))
-                killed_char.delete()
             boss.save()
 
     def pay_bounties(self, bounties, killer_user_id):
@@ -331,7 +329,7 @@ class RpgGame(object):
         ))
 
     @connect
-    def condensed_info(self, user_id, username, conn):# TODO: add active effects id's
+    def condensed_info(self, user_id, username, conn):  # TODO: add active effects id's
         character = Character.find_by_user(user_id, conn)
         if not self.check_valid_char(character, username, stun_check=False):
             return
@@ -357,23 +355,45 @@ class RpgGame(object):
                 self.scriptSettings.create_permission_info
             ))
             return
-        if Character.find_by_user(user_id, conn) is None and \
-                Character.find_by_name(character_name, conn) is None and \
-                Boss.find_by_name(character_name, conn) is None:
-            exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
-            x, y = Map.starting_position()
-            Character.create(character_name, user_id, 0, 1, None, None, exp_gain_time, x, y, conn)
-            Parent.SendStreamMessage(self.format_message(
-                "{0}, you just created a new hero who listens to the mighty name of {1}. For more info about" +
-                " this hero, type " + self.scriptSettings.info_command,
-                username,
-                character_name
-            ))
+        if Character.find_by_user(user_id, conn) is None:
+            if Character.find_by_name(character_name, conn) is None and \
+                Boss.find_by_name(character_name, conn) is None and \
+                    Character.find_by_dead_and_name(character_name, conn) is None:
+                exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
+                x, y = Map.starting_position()
+                old = Character.find_by_dead_and_user(user_id, conn)
+                if old is not None:
+                    specials = [sp.special.id for sp in old.specials]
+                    effects = ActiveEffect.find_all_by_target(old, conn)
+                    old.delete()
+                new = Character.create(character_name, user_id, 0, 1, None, None, exp_gain_time, x, y, conn)
+                if old is not None and Special.Specials.PERSIST in specials:
+                    for special in specials:
+                        if special != Special.Specials.PERSIST:
+                            SpecialCooldown.create(new, special, connection=conn)
+                    for effect in effects:
+                        if effect.expiration_time is None:
+                            ActiveEffect.create(new, effect.usable, conn)
+                    new.armor = old.armor
+                    new.weapon = old.weapon
+                    new.save()
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you just created a new hero who listens to the mighty name of {1}. For more info about" +
+                    " this hero, type " + self.scriptSettings.info_command,
+                    username,
+                    character_name
+                ))
+            else:
+                Parent.SendStreamWhisper(user_id, self.format_message(
+                    "{0}, character could not be created, {1} is already taken, or still being mourned",
+                    username,
+                    character_name,
+                    whisper=True
+                ))
         else:
             Parent.SendStreamWhisper(user_id, self.format_message(
-                "{0}, character could not be created, you either already have one, or {1} has been taken",
+                "{0}, character could not be created, already have a character. !info to know everything about hem.",
                 username,
-                character_name,
                 whisper=True
             ))
 
@@ -964,47 +984,50 @@ class RpgGame(object):
         char = Character.find_by_user(user_id, conn)
         if not self.check_valid_char(char, username):
             return
-        if char.position in Map.tp_positions().itervalues():
-            target_location = Map.tp_positions().get(tp_name, None)
+
+        target_location = Map.tp_positions().get(tp_name, None)
+        fight = Attack.find_by_attacker_or_target(char, conn)
+
+        if target_location is None or target_location == char.position:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you cannot teleport to that place",
+                username
+            ))
+        elif fight is not None:
+            Parent.SendStreamMessage(self.format_message(
+                "{0}, you cannot teleport while in a fight", username
+            ))
+        else:  # general tp conditions have been met, now check specific case
             warp_tonic = ActiveEffect.find_by_target_and_special(char, Item.Items.WARP_TONIC, conn)
             is_on_user_cd = Parent.IsOnUserCooldown(self.script_name, "tp", user_id)
-            if target_location is None or target_location == char.position:
-                Parent.SendStreamMessage(self.format_message(
-                    "{0}, you cannot teleport to that place",
-                    username
-                ))
-            elif is_on_user_cd and warp_tonic is None:
+            if is_on_user_cd and warp_tonic is None:  # no only case applies
                 Parent.SendStreamMessage(self.format_message(
                     "{0}, you can't do that right now, pls wait {1} seconds.",
                     username,
                     Parent.GetUserCooldownDuration(self.script_name, 'tp', user_id)
                 ))
+            elif char.position in Map.tp_positions().itervalues() and not is_on_user_cd:
+                Parent.AddUserCooldown(self.script_name, "tp", user_id, 600)
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you touch the portal and suddenly feel lightheaded as you start to disappear...",
+                    username
+                ))
+                char.position.coord = target_location.coord
+                char.save()
+            elif warp_tonic is not None:
+                warp_tonic.delete()
+                char.position.coord = target_location.coord
+                char.save()
+                Parent.SendStreamMessage(self.format_message(
+                    """{0}, you take a sip of the potion and fall asleep... you wake up at a new location""",
+                    username
+                ))
             else:
-                fight = Attack.find_by_attacker_or_target(char, conn)
-                if fight is None:
-                    if is_on_user_cd:
-                        warp_tonic.delete()
-                        Parent.SendStreamMessage(self.format_message(
-                            """{0}, you take a sip of the potion and fall asleep... you wake up at a new location""",
-                            username
-                        ))
-                    else:
-                        Parent.AddUserCooldown(self.script_name, "tp", user_id, 600)
-                        Parent.SendStreamMessage(self.format_message(
-                            "{0}, you suddenly feel lightheaded and start to disappear...",
-                            username
-                        ))
-                    char.position.coord = target_location.coord
-                    char.save()
-                else:
-                    Parent.SendStreamMessage(self.format_message(
-                        "{0}, you cannot teleport while in a fight", username
-                    ))
-        else:
-            Parent.SendStreamMessage(self.format_message(
-                "{0}, you need to be at a portal to teleport!",
-                username
-            ))
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you need to be at a portal to teleport!",
+                    username
+                ))
+
 
     # ---------------------------------------
     #   specials functions

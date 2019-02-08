@@ -45,7 +45,7 @@ class Bounty(object):
     @staticmethod
     def kill_reward(kill_count):
         return min(kill_count * 100 + max(600 * 1.5 ** (max(kill_count, 0) / 3) - 600, 0), 10000)
-        # TODO: add config kill delay + make the 100 a selectable amount
+        # TODO: increase of increase should slow down on higher kills + make configurable
 
     @property
     def reward(self):
@@ -89,7 +89,7 @@ class Bounty(object):
     def find_by_character_name_from_piebank(cls, char_name, connection):
         cursor = connection.execute(
             """SELECT b.* from bounties b natural join characters c
-            WHERE  c.name = :character_name and b.benefactor_id is NULL """,
+            WHERE  c.name = :character_name and b.benefactor_id is NULL and c.alive = 1""",
             {"character_name": char_name}
         )
         row = cursor.fetchone()
@@ -101,7 +101,7 @@ class Bounty(object):
     def find_by_user_id_from_piebank(cls, user_id, connection):
         cursor = connection.execute(
             """SELECT b.* from bounties b natural join characters c
-            WHERE  c.user_id = :user_id and b.benefactor_id is NULL """,
+            WHERE  c.user_id = :user_id and b.benefactor_id is NULL and c.alive = 1""",
             {"user_id": user_id}
         )
         row = cursor.fetchone()
@@ -115,7 +115,7 @@ class Bounty(object):
             benefactor_id = benefactor_id.char_id
         cursor = connection.execute(
             """SELECT b.* from bounties b natural join characters c
-            WHERE  c.name = :character_name and b.benefactor_id = :benefactor_id""",
+            WHERE  c.name = :character_name and b.benefactor_id = :benefactor_id and c.alive = 1""",
             {"character_name": char_name, "benefactor_id": benefactor_id}
         )
         row = cursor.fetchone()
@@ -141,7 +141,8 @@ class Bounty(object):
         #                       {"limit": per, "offset": (page-1)*per})
         conn.create_function("KILLREWARD", 1, cls.kill_reward)
         cursor = conn.execute('''SELECT bounty_id, character_id, benefactor_id,sum(reward), sum(kill_count)
-                              FROM bounties
+                              FROM bounties b NATURAL JOIN characters c
+                              WHERE alive = 1
                               GROUP BY character_id
                               ORDER BY sum(reward)+ KILLREWARD(IFNULL(sum(kill_count),0))
                               DESC LIMIT :limit OFFSET :offset''',
@@ -150,7 +151,8 @@ class Bounty(object):
 
     @classmethod
     def find_all_ordered_by_kills(cls, page, per, conn):
-        cursor = conn.execute("""SELECT * FROM bounties WHERE benefactor_id IS NULL
+        cursor = conn.execute("""SELECT b.* FROM bounties b NATURAL JOIN characters c
+                              WHERE benefactor_id IS NULL and alive = 1
                               ORDER BY kill_count DESC LIMIT :limit OFFSET :offset""",
                               {"limit": per, "offset": (page - 1) * per})
         return [cls(*row, connection=conn) for row in cursor]
@@ -158,9 +160,11 @@ class Bounty(object):
     @staticmethod
     def count(conn, only_kills=False):
         if only_kills:
-            cursor = conn.execute("""SELECT COUNT(DISTINCT character_id) FROM bounties WHERE benefactor_id IS NULL""")
+            cursor = conn.execute("""SELECT COUNT(DISTINCT character_id) FROM bounties NATURAL JOIN characters
+                                    WHERE benefactor_id IS NULL and alive = 1""")
         else:
-            cursor = conn.execute("""SELECT COUNT(DISTINCT character_id) FROM bounties """)
+            cursor = conn.execute("""SELECT COUNT(DISTINCT character_id) FROM bounties NATURAL JOIN characters 
+                                    WHERE alive = 1""")
         return cursor.fetchone()[0]
 
     @classmethod

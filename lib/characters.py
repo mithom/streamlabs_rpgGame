@@ -22,7 +22,7 @@ class Character(object):
     cache = {}
 
     def __init__(self, char_id, name, user_id, experience, lvl, weapon_id, armor_id, trait_id,
-                 exp_gain_time, x, y, trait_bonus, connection, weapon=None, armor=None, trait=None):
+                 exp_gain_time, x, y, trait_bonus, alive, connection, weapon=None, armor=None, trait=None):
         self.__char_id = char_id
 
         self.cache[self.__char_id] = self
@@ -48,6 +48,7 @@ class Character(object):
         self._specials = None
 
         self.position = Position(x, y)
+        self.alive = alive
 
         self.connection = connection
 
@@ -71,7 +72,10 @@ class Character(object):
     @weapon.setter
     def weapon(self, weapon):
         self._weapon = weapon
-        self.weapon_id = weapon.id
+        if weapon is not None:
+            self.weapon_id = weapon.id
+        else:
+            self.weapon_id = None
 
     @property
     def armor(self):
@@ -82,7 +86,10 @@ class Character(object):
     @armor.setter
     def armor(self, armor):
         self._armor = armor
-        self.armor_id = armor.id
+        if armor is not None:
+            self.armor_id = armor.id
+        else:
+            self.armor_id = None
 
     @property
     def trait(self):
@@ -146,7 +153,7 @@ class Character(object):
         return False
 
     def loot(self, target):
-        if target.trait.trait.id == Trait.Traits.ALERT:
+        if target.trait_id == Trait.Traits.ALERT:
             return 0
         loot_amount = min(random.randint(1, self.game.scriptSettings.max_steal_amount),
                           self.Parent.GetPoints(target.user_id))
@@ -298,6 +305,22 @@ class Character(object):
         # checks tournament equality in None safe way, srry for bad == use
         return part1 == part2 and (part1 is None or (part1.alive and part2.alive))
 
+    def die(self):
+        if self.trait_id == Trait.Traits.LUCKY:
+            # 15-60% chance to revive for first time, -15% each time thereafter
+            if random.random() <= (1-self.trait_bonus)*3:
+                self.trait_bonus = min(1, self.trait_bonus+0.05)
+                self.Parent.SendStreamMessage(self.format_message(
+                    "{0} feels lucky today and can't shake the feeling that he should've died",
+                    self.name
+                ))
+                self.save()
+                return False
+        self.alive = False
+        self.connection.execute("""UPDATE characters set alive = 0 WHERE character_id = :char_id""",
+                                {"char_id": self.char_id})
+        return True
+
     def save(self):
         self.connection.execute(
             """UPDATE characters set name = :name, user_id = :user_id,
@@ -347,7 +370,7 @@ class Character(object):
         )
         connection.commit()
         return cls(cursor.lastrowid, name, user_id, experience, lvl, weapon_id, armor_id, trait_id,
-                   exp_gain_time, x, y, trait_bonus, connection=connection)
+                   exp_gain_time, x, y, trait_bonus, True, connection=connection)
 
     @classmethod
     def find(cls, character_id, connection):
@@ -355,7 +378,7 @@ class Character(object):
             return cls.cache[character_id]
         cursor = connection.execute(
             """SELECT * from characters
-            WHERE character_id = :character_id""",
+            WHERE character_id = :character_id AND alive = 1""",
             {"character_id": character_id}
         )
         row = cursor.fetchone()
@@ -367,7 +390,7 @@ class Character(object):
     def find_by_user(cls, user_id, connection):
         cursor = connection.execute(
             """SELECT * from characters
-            WHERE user_id = :user_id""",
+            WHERE user_id = :user_id AND alive = 1""",
             {"user_id": user_id}
         )
         row = cursor.fetchone()
@@ -376,10 +399,22 @@ class Character(object):
         return cls(*row, connection=connection)
 
     @classmethod
+    def find_by_dead_and_user(cls, user_id, conn):
+        cursor = conn.execute(
+            """SELECT * from characters
+            WHERE user_id = :user_id AND alive = 0""",
+            {"user_id": user_id}
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return cls(*row, connection=conn)
+
+    @classmethod
     def find_by_name(cls, name, connection):
         cursor = connection.execute(
             """SELECT * from characters
-            WHERE name = :name""",
+            WHERE name = :name AND alive = 1""",
             {"name": name}
         )
         row = cursor.fetchone()
@@ -388,23 +423,31 @@ class Character(object):
         return cls(*row, connection=connection)
 
     @classmethod
+    def find_by_dead_and_name(cls, name, conn):
+        cursor = conn.execute(
+            """SELECT * from characters
+            WHERE name = :name AND alive = 0""",
+            {"name": name}
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return cls(*row, connection=conn)
+
+    @classmethod
     def find_by_past_exp_time(cls, connection):
         cursor = connection.execute(
             """ SELECT * from characters
-            WHERE exp_gain_time <= ? """,
+            WHERE exp_gain_time <= ? AND alive = 1""",
             (dt.datetime.now(utc),)
         )
-        # characters = []
-        # for row in cursor:
-        #     characters.append(cls(*row, connection=connection))
-        # return characters
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
     def find_by_location(cls, x, y, connection):
         cursor = connection.execute(
             """ SELECT * from characters
-            WHERE x = :x and y = :y""",
+            WHERE x = :x and y = :y AND alive = 1""",
             {"x": x, "y": y}
         )
         return map(lambda row: cls(*row, connection=connection), cursor)
@@ -412,7 +455,7 @@ class Character(object):
     @classmethod
     def get_order_by_lvl_and_xp(cls, limit, connection, min_lvl=0):
         cursor = connection.execute("""SELECT * FROM characters c
-            WHERE c.lvl >= ?
+            WHERE c.lvl >= ? AND c.alive = 1
             ORDER BY c.lvl DESC, c.experience DESC
             LIMIT ?""", (min_lvl, limit,))
         return map(lambda row: cls(*row, connection=connection), cursor)
@@ -435,12 +478,15 @@ class Character(object):
             exp_gain_time   timestamp,
             x               integer NOT NULL,
             y               integer NOT NULL,
-            trait_bonus     integer,
+            trait_bonus     real,
+            alive           boolean NOT NULL DEFAULT 1,
               FOREIGN KEY (weapon_id)   REFERENCES weapons(weapon_id),
               FOREIGN KEY (armor_id)    REFERENCES armors(armor_id),
               FOREIGN KEY (trait_id)    REFERENCES traits(orig_name)
             );"""
         )
+        if "alive" not in [i[1] for i in connection.execute("""PRAGMA table_info(characters)""")]:
+            connection.execute("""ALTER TABLE characters ADD COLUMN alive boolean NOT NULL DEFAULT 1;""")
         SpecialCooldown.create_table_if_not_exists(connection)
         ActiveEffect.create_table_if_not_exists(connection)
 
@@ -524,10 +570,12 @@ class Trait(NamedData):
             return 1 - max((8 - lvl) * 0.01, 0)
         return 1
 
+    # noinspection PyMethodOverriding
     @classmethod
     def find(cls, data_id):
         return super(Trait, cls).find(data_id, cls.plain)
 
+    # noinspection PyMethodOverriding
     @classmethod
     def find_by_name(cls, name):
         return super(Trait, cls).find_by_name(name, cls.plain)
@@ -544,9 +592,9 @@ class Trait(NamedData):
         """creates weapons into the database and update existing ones.
         afterwards traits need to be loaded in again"""
 
-        def should_create(trait):
-            return (getattr(script_settings, trait.name.lower() + "_enabled") and trait not in cls.data_by_id) or \
-                   (trait is cls.Traits.PLAIN and cls.plain is None)
+        def should_create(trait_sc):
+            return (getattr(script_settings, trait_sc.name.lower() + "_enabled") and trait_sc not in cls.data_by_id) \
+                   or (trait_sc is cls.Traits.PLAIN and cls.plain is None)
 
         cls.load_traits(script_settings, connection)
         # noinspection PyTypeChecker
