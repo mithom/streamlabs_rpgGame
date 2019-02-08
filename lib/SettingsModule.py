@@ -56,7 +56,7 @@ class Settings(object):
             self.bull_elixir_name = 'BullElixir'
             self.bull_elixir_min_lvl = 10
             self.bull_elixir_identifier = 'BE'
-            self.tournament_ticket_enabled = True
+            self.tournament_ticket_enabled = False
             self.tournament_ticket_price = 10
             self.tournament_ticket_name = 'TournamentTicket'
             self.tournament_ticket_min_lvl = 5
@@ -66,7 +66,7 @@ class Settings(object):
             self.potion_of_defense_name = 'PotionOfDefense'
             self.potion_of_defense_min_lvl = 5
             self.potion_of_defense_duration = 90
-            self.potion_of_defense_identifier = 'D'
+            self.potion_of_defense_identifier = 'PD'
             self.stone_elixir_enabled = True
             self.stone_elixir_price = 100
             self.stone_elixir_name = 'StoneElixir'

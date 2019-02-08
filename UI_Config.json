@@ -120,6 +120,265 @@
     "tooltip": "maximum number of participants for kings contest.\nother eligible players can still buy in with a ticket.",
     "group": "gameplay"
   },
+  "warp_tonic_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"warp tonic enabled",
+    "tooltip":"when checked, warp tonic will be purchasable",
+    "group":"items"
+  },
+  "warp_tonic_price":{
+    "type":"numberbox",
+    "value":100,
+    "label":"warp tonic price",
+    "tooltip":"price of the warp tonic item if enabled",
+    "group":"items"
+  },
+  "warp_tonic_name":{
+    "type":"textbox",
+    "value":"WarpTonic",
+    "label":"warp tonic name",
+    "tooltip":"name of the warp tonic item if enabled",
+    "group":"items"
+  },
+  "warp_tonic_min_lvl":{
+    "type":"numberbox",
+    "value":5,
+    "label":"warp tonic min lvl",
+    "tooltip":"minimum lvl to buy warp tonic if enabled",
+    "group":"items"
+  },
+  "warp_tonic_identifier":{
+    "type":"textbox",
+    "value":"W",
+    "label":"warp tonic identifier",
+    "tooltip":"condensed info identifier when you have bought warp tonic",
+    "group":"items"
+  },
+  "magical_elixir_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"magical elixir enabled",
+    "tooltip":"",
+    "group":"items"
+  },
+  "magical_elixir_price":{
+    "type":"numberbox",
+    "value":100,
+    "label":"magical elixir price",
+    "tooltip":"",
+    "group":"items"
+  },
+  "magical_elixir_name":{
+    "type":"textbox",
+    "value":"MagicalElixir",
+    "label":"magical elixir name",
+    "tooltip":"",
+    "group":"items"
+  },
+  "magical_elixir_min_lvl":{
+    "type":"numberbox",
+    "value":20,
+    "label":"magical elixir min lvl",
+    "tooltip":"",
+    "group":"items"
+  },
+  "magical_elixir_identifier":{
+    "type":"textbox",
+    "value":"M",
+    "label":"magical elixir identifier",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_strength_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"potion of strength enabled",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_strength_price":{
+    "type":"numberbox",
+    "value":100,
+    "label":"potion of strength price",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_strength_name":{
+    "type":"textbox",
+    "value":"PotionOfStrength",
+    "label":"potion of strength name",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_strength_min_lvl":{
+    "type":"numberbox",
+    "value":5,
+    "label":"potion of strength min lvl",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_strength_duration":{
+    "type":"numberbox",
+    "value":60,
+    "label":"potion of strength duration",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_strength_identifier":{
+    "type":"textbox",
+    "value":"PS",
+    "label":"potion of strength identifier",
+    "tooltip":"",
+    "group":"items"
+  },
+  "bull_elixir_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"bull elixir enabled",
+    "tooltip":"",
+    "group":"items"
+  },
+  "bull_elixir_price":{
+    "type":"numberbox",
+    "value":100,
+    "label":"bull elixir price",
+    "tooltip":"",
+    "group":"items"
+  },
+  "bull_elixir_name":{
+    "type":"textbox",
+    "value":"BullElixir",
+    "label":"bull elixir name",
+    "tooltip":"",
+    "group":"items"
+  },
+  "bull_elixir_min_lvl":{
+    "type":"numberbox",
+    "value":10,
+    "label":"bull elixir min lvl",
+    "tooltip":"",
+    "group":"items"
+  },
+  "bull_elixir_identifier":{
+    "type":"textbox",
+    "value":"BE",
+    "label":"bull elixir identifier",
+    "tooltip":"",
+    "group":"items"
+  },
+  "tournament_ticket_enabled":{
+    "type":"checkbox",
+    "value":false,
+    "label":"tournament ticket enabled",
+    "tooltip":"",
+    "group":"items"
+  },
+  "tournament_ticket_price":{
+    "type":"numberbox",
+    "value":"Durable",
+    "label":"tournament ticket price",
+    "tooltip":"",
+    "group":"items"
+  },
+  "tournament_ticket_name":{
+    "type":"textbox",
+    "value":"TournamentTicket",
+    "label":"tournament ticket name",
+    "tooltip":"",
+    "group":"items"
+  },
+  "tournament_ticket_min_lvl":{
+    "type":"numberbox",
+    "value":5,
+    "label":"tournament ticket min lvl",
+    "tooltip":"",
+    "group":"items"
+  },
+  "tournament_ticket_identifier":{
+    "type":"textbox",
+    "value":"TT",
+    "label":"tournament ticket identifier",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_defense_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"potion of defense enabled",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_defense_price":{
+    "type":"numberbox",
+    "value":100,
+    "label":"potion of defense price",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_defense_name":{
+    "type":"textbox",
+    "value":"PotionOfDefense",
+    "label":"potion of defense name",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_defense_min_lvl":{
+    "type":"numberbox",
+    "value":5,
+    "label":"potion of defense min lvl",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_defense_duration":{
+    "type":"numberbox",
+    "value":90,
+    "label":"potion of defense duration",
+    "tooltip":"",
+    "group":"items"
+  },
+  "potion_of_defense_identifier":{
+    "type":"textbox",
+    "value":"PD",
+    "label":"potion of defense identifier",
+    "tooltip":"",
+    "group":"items"
+  },
+  "stone_elixir_enabled":{
+    "type":"checkbox",
+    "value":true,
+    "label":"stone elixir enabled",
+    "tooltip":"",
+    "group":"items"
+  },
+  "stone_elixir_price":{
+    "type":"numberbox",
+    "value":100,
+    "label":"stone elixir price",
+    "tooltip":"",
+    "group":"items"
+  },
+  "stone_elixir_name":{
+    "type":"textbox",
+    "value":"StoneElixir",
+    "label":"stone elixir name",
+    "tooltip":"",
+    "group":"items"
+  },
+  "stone_elixir_min_lvl":{
+    "type":"numberbox",
+    "value":10,
+    "label":"stone elixir min_lvl",
+    "tooltip":"",
+    "group":"items"
+  },
+  "stone_elixir_identifier":{
+    "type":"textbox",
+    "value":"SE",
+    "label":"stone elixir identifier",
+    "tooltip":"",
+    "group":"items"
+  },
   "durable_name":{
     "type":"textbox",
     "value":"Durable",
