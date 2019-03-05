@@ -10,8 +10,6 @@ To start your journey just type: !create charactername
 * !move \[location] - Moves to the location and starts leveling if there are monsters.
 * !buy \[item] - Attempts to purchase and equip the desired weapon or armor.
 * !i - condensed version of info including experience progress.
-* !bounties - show the top 5 bounties, pass a number to see 6-10 etc.
-* !topKills - show the top killing sprees, pass a number to see 6-10 etc.
 
 ##### combat - done
 * !attack \[player] - This will start an attack on a nearby player which will resolve in 20 seconds. (will counter if you are attacked)
@@ -20,6 +18,15 @@ To start your journey just type: !create charactername
 * !flee - This will give you a large defense bonus and but you may still be looted. You go to a random location. !move will also initiate a flee to the specified location.
 * !look \[player] - Get an idea of your chances against a nearby player.
 
+#### information
+###### !weapons, !armors and !consumables cannot be changed names - forgot to implement O.o
+* !bounties (page) - show the top 5 bounties, pass a number to see 6-10 etc.
+* !topKills (page) - show the top killing sprees, pass a number to see 6-10 etc.
+* !armors (page) - shows available armors in the shop
+* !weapons (page) - shows available weapons in the shop
+* !consumables (page) - shows purchasable consumables from the shop
+
+
 ##### kingdom
 ###### !smite and !unsmite do not work yet
 * !dough - check piecoin balance.
@@ -27,7 +34,7 @@ To start your journey just type: !create charactername
 * !bounty \[amount] \[target] - place piecoins on a player's head (loot reward).
 * !tax (amount) - This allows the king to tax everyone at a certain percentage (0-100).
 * !queen / !king - These commands adjust some messages for gender.
-* !contest - If eligible, start a tournament to become king
+* !contest - If eligible, start a tournament to become king, this happens automatically if there is no king.
 * !smite \[player] - Put a peasant in their place. They must be less than level 5.
 * !unsmite \[player] - Unban a player.
 
@@ -74,9 +81,8 @@ To start your journey just type: !create charactername
 * (2000pc: lvl 16) Dragon Scalemail
 * (5000pc: lvl 18) Divine Aura
 
-#### TRAITS
-###### lucky revive chance doesn't work yet (lowered death chance already works)
-
+#### TRAITS - done
+###### you can disable/rename traits as you like
 Every time you are born into Pieland at level 1 you will get a random trait:
 
 * Durable - Defense bonus in combat and less risk fighting lower levels
@@ -88,8 +94,8 @@ Every time you are born into Pieland at level 1 you will get a random trait:
 * Violent - Less starting damage but gains damage for each kill
 * Pacifist - Gains armor every 2 levels but loses it for each kill
 
-#### SPECIALS
-###### Persist does not work yet
+#### SPECIALS - done
+###### you can disable/rename specials as you like
 
 These special powers are rare in Pieland. They will be granted every 15 levels or upon slaying Roshan. Most of them can be used on a nearby target player, or on the caster themselves if no one is specified. When obtaining a new special it is random, but you are guaranteed to get one you don't already have.
 
@@ -106,11 +112,20 @@ Specials are identified by a letter but casted with their full name (!guardian),
 * (I)nvis (180) - Can't be targeted for 10 minutes (any pvp combat dispels this.)
 * Stea(L) (60) - Pickpockets a random amount up to 2% of a player's piecoins. 3% for greedy players. Dispels invis on self.
 
-#### BOSSES
+#### CONSUMABLES
+###### can be configured/disabled/renamed in settings
+* (W)arpTonic - allows tp from everywhere and bypass tp timer
+* (S)tone(E)lixir - permanent small defense boost
+* (P)otionOf(S)trength - temporary attack boost
+* (P)otionOf(D)efense - temporary defense boost
+* (M)agicalElixir - gain a random unowned special
+* (B)ull(E)lixir - permanent small attack boost
+* (T)ournament(T)icket - not implemented yet
 
+#### BOSSES
 Roshan will spawn during special occasions and will grant a special to whomever lands the killing blow. Anyone who helps with the fight will gain experience. There is no level requirement to fight Roshan but anyone with low defense needs to be careful because he can kill you. - configurable
 
-###### boss fights
+##### boss fights
 * Boss has HP, but players do not HP (1). - Done
 * Boss can take 25 hits. - configurable
 * He attacks 1 player, but attacks hem twice. - Done (should make config)
@@ -123,7 +138,7 @@ Roshan will spawn during special occasions and will grant a special to whomever 
 #### settings
 these can be found under the scripts tab in streamlabs chatbot, click on the rpgGame and it will pop up on the right side.
 
-Here you can enabe/disable and rename all the traits and specials. If you disable a Trait or Special in an already existing game, players who have them will instead have the Plain trait or the Unknown special respectively. Both do absolutely nothing. Having those 2 disabled will only disable the chance that you get them on spawn, not the fallback when disabling another trait/special.
+Here you can enabe/disable and rename all the traits, specials and consumables. If you disable a Trait or Special in an already existing game, players who have them will instead have the Plain trait or the Unknown special respectively. Both do absolutely nothing. Having those 2 disabled will only disable the chance that you get them on spawn, not the fallback when disabling another trait/special.
 
 You can also configure in here how often the game checks for game state updates, change command names and more stuff
 
@@ -137,7 +152,7 @@ There are 2 exceptions to this:
 1) You can change the Map, as long as no player was standing on that spot (will bug the player otherwise)
 2) You can add weapons/armors etc, you need to refresh the script after saving the files. But you cannot change or remove already existing items
 
-The meaning each line in the files is listed here:
+The meaning of each line in the files is listed below so you can add them as you want:
 
 ###### Armors.json
 \["Name", price, min_lvl\]
@@ -146,7 +161,13 @@ The meaning each line in the files is listed here:
 ###### Locations.json
 \["Name", difficulty, reward, "what you can die from", "possibly more thing", ...\]
 ###### Map.json
-open the file, it speaks for itself, coordinates start counting at 0 (harder to explain than to see)
+open the file, it speaks for itself, coordinates start counting at 0 (harder to explain than to see).
+
+teleportation_locations have the format: \["Name", x, y\]
+
+Names in the 'Map' part of the file need to match with existing locations in the Locations.json file. 
+Names in the teleportation_location are names of the portals and thus new.
+ x and y are the coordinates of the location of the portal
 ###### Bosses.json
 \["Name", attack, defense, max_hp, hp, x, y, hp_regen\]
 
@@ -174,13 +195,12 @@ ability to add gender, if gender is available, automatically adapt game to it (a
 ###### general
 * Shopping only in towns.
 * Upon death: lose everything except coins. - Done
-* Persist ability: get best weapon for lvl until you reach your persisted weapon.
 
 ###### combat
 * Only 1 weapon at a time. - Done
 * Only 1 armor at a time. - Done
 * Each lvl has difficulty, if not high enough lvl, death chance goes up. - Done
-* Towns - safe, 0% death chance.
+* Towns - safe, 0% death chance. - NOT TRUE
 * Beginning terrains, 5-10% death chance. - Done
 * Exp depending on difficulty. - Done
 
