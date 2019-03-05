@@ -322,7 +322,7 @@ class RpgGame(object):
               "You are currently wearing {armor} and use {weapon} as weapon." + \
               " Your trait is {trait_name} with strength {trait_strength}"
         if len(character.specials) > 0:
-            msg +=" and specials: {specials}"
+            msg += " and specials: {specials}"
         if len(effects) > 0:
             msg += ", and are under the effects of: {effects}"
 
@@ -342,8 +342,9 @@ class RpgGame(object):
             trait_name=character.trait.trait.name,
             trait_strength=character.trait.strength or 0,
             specials=", ".join(map(lambda x: x.special.name, character.specials)),
-            effects=", ".join(map(lambda x: x.usable.name+ " for " +
-                                str((x.expiration_time - dt.datetime.now(utc)).total_seconds())+"s", effects))
+            effects=", ".join(map(lambda x: x.usable.name + " for " +
+                                            str((x.expiration_time - dt.datetime.now(utc)).total_seconds()) + "s",
+                                  effects))
         ))
 
     @connect
