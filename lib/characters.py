@@ -503,9 +503,6 @@ class Character(object):
 
 
 class Trait(NamedData):
-    """
-    TODO: recovery from dead
-    """
     data_by_name = {}
     data_by_id = {}
     plain = None

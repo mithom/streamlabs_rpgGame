@@ -28,13 +28,13 @@ class Settings(object):
 
             # Gameplay
             self.fight_resolve_time = 20
-            self.xp_farm_time = 60
+            self.xp_farm_time = 601
             self.max_steal_amount = 100
             self.min_fight_lvl = 5
             self.auto_contest = True
             self.max_participants = 4
 
-            # items TODO: add to UI_Config
+            # items
             self.warp_tonic_enabled = True
             self.warp_tonic_price = 100
             self.warp_tonic_name = "WarpTonic"

@@ -275,6 +275,9 @@ class RpgGame(object):
             "!" + self.scriptSettings.invis_name: self.invis,
             self.scriptSettings.bounties_command: self.bounties,
             self.scriptSettings.topkills_command: self.top_kills,
+            "!armors": self.armors,
+            "!weapons": self.weapons,
+            "!consumables": self.consumables,
         }, {
             self.scriptSettings.create_command: self.create,
             self.scriptSettings.move_command: self.move,
@@ -296,6 +299,9 @@ class RpgGame(object):
             self.scriptSettings.bounties_command: self.bounties,
             self.scriptSettings.topkills_command: self.top_kills,
             self.scriptSettings.tp_command: self.teleport,
+            "!armors": self.armors,
+            "!weapons": self.weapons,
+            "!consumables": self.consumables,
         }, {
             self.scriptSettings.give_command: self.give,
             self.scriptSettings.bounty_command: self.bounty,
@@ -743,7 +749,7 @@ class RpgGame(object):
             if Parent.RemovePoints(user_id, username, amount):
                 bounty = Bounty.find_by_user_id_from_piebank(user_id, conn)
                 if bounty is not None and amount >= 2 * bounty.reward and bounty.kill_count > 1:
-                    bounty.delete()  # TODO: maybe add chance factor, higher is more chance to delete it?
+                    bounty.delete()
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, Your bounty has been cleared",
                         username
@@ -855,6 +861,69 @@ class RpgGame(object):
             Parent.SendStreamMessage(self.format_message(
                 "kills: {0}, page {1}/{2}",
                 ', '.join(map(lambda x: x.character.name + ": " + str(x.kill_count), top)),
+                page,
+                pages
+            ))
+
+    def armors(self, user_id, username, paging="1", conn=None):
+        page = int(paging)
+        pages = int(ceil(len(Armor.data_by_id)/5.0))
+        if pages == 0:
+            return
+        if page > pages:
+            if pages > 0:
+                Parent.SendStreamMessage(self.format_message(
+                    "there are currently only {0} pages",
+                    pages
+                ))
+        else:
+            data =  sorted(Armor.data_by_id.values(), key=lambda x: x.min_lvl)
+            Parent.SendStreamMessage(self.format_message(
+                "armors: {0}, page {1}/{2}",
+                ", ".join(map(lambda x: x.name + "[price: " + str(x.price) + ", lvl: " + str(x.min_lvl)+"]",
+                              data[(page-1)*5:page*5])),
+                page,
+                pages
+            ))
+
+    def weapons(self, user_id, username, paging="1", conn=None):
+        page = int(paging)
+        pages = int(ceil(len(Weapon.data_by_id) / 5.0))
+        if pages == 0:
+            return
+        if page > pages:
+            if pages > 0:
+                Parent.SendStreamMessage(self.format_message(
+                    "there are currently only {0} pages",
+                    pages
+                ))
+        else:
+            data = sorted(Weapon.data_by_id.values(), key=lambda x: x.min_lvl)
+            Parent.SendStreamMessage(self.format_message(
+                "weapons: {0}, page {1}/{2}",
+                ", ".join(map(lambda x: x.name + "[price: " + str(x.price) + ", lvl: " + str(x.min_lvl) + "]",
+                              data[(page - 1) * 5:page * 5])),
+                page,
+                pages
+            ))
+
+    def consumables(self, user_id, username, paging="1", conn=None):
+        page = int(paging)
+        pages = int(ceil(len(Item.data_by_id)/5.0))
+        if pages == 0:
+            return
+        if page > pages:
+            if pages > 0:
+                Parent.SendStreamMessage(self.format_message(
+                    "there are currently only {0} pages",
+                    pages
+                ))
+        else:
+            data = sorted(Item.data_by_id.values(), key=lambda x: x.min_lvl)
+            Parent.SendStreamMessage(self.format_message(
+                "consumables: {0}, page {1}/{2}",
+                ", ".join(map(lambda x: x.name + "[price: " + str(x.price) + ", lvl: " + str(x.min_lvl) + "]",
+                              data[(page - 1) * 5:page * 5])),
                 page,
                 pages
             ))
@@ -1027,7 +1096,6 @@ class RpgGame(object):
                     "{0}, you need to be at a portal to teleport!",
                     username
                 ))
-
 
     # ---------------------------------------
     #   specials functions
