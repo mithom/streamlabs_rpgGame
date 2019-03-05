@@ -23,6 +23,7 @@ import sqlite3
 Parent = None
 random = random.WichmannHill()
 
+
 #  TODO: bosses billboard, view persons on same tile
 #  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
 
@@ -80,6 +81,7 @@ def connect(f):
                 # noinspection PyUnboundLocalVariable
                 conn.close()
             args[0].db_lock.release()
+
     return wrapper
 
 
@@ -308,16 +310,24 @@ class RpgGame(object):
         }]
 
     @connect
-    def info(self, user_id, username, conn):  # TODO: add active effects + duration
+    def info(self, user_id, username, conn):
         character = Character.find_by_user(user_id, conn)
         if not self.check_valid_char(character, username, stun_check=False):
             return
         location = character.position.location
+
+        effects = ActiveEffect.find_all_by_target(character, conn)
+        msg = "{username}, your character {char_name} is located at {coords}, which is a {loc_name} with " + \
+              "difficulty {difficulty}. Your current lvl is {lvl} and xp {xp}/{needed_xp}. " + \
+              "You are currently wearing {armor} and use {weapon} as weapon." + \
+              " Your trait is {trait_name} with strength {trait_strength}"
+        if len(character.specials) > 0:
+            msg +=" and specials: {specials}"
+        if len(effects) > 0:
+            msg += ", and are under the effects of: {effects}"
+
         Parent.SendStreamWhisper(user_id, self.format_message(
-            "{username}, your character {char_name} is located at {coords}, which is a {loc_name} with " +
-            "difficulty {difficulty}. Your current lvl is {lvl} and xp {xp}/{needed_xp}. " +
-            "You are currently wearing {armor} and use {weapon} as weapon." +
-            " Your trait is {trait_name} with strength {trait_strength} and specials: {specials}",
+            msg,
             whisper=True,
             username=username,
             char_name=character.name,
@@ -331,22 +341,30 @@ class RpgGame(object):
             coords=str(character.position.coord),
             trait_name=character.trait.trait.name,
             trait_strength=character.trait.strength or 0,
-            specials=", ".join(map(lambda x: x.special.name, character.specials))
+            specials=", ".join(map(lambda x: x.special.name, character.specials)),
+            effects=", ".join(map(lambda x: x.usable.name+ " for " +
+                                str((x.expiration_time - dt.datetime.now(utc)).total_seconds())+"s", effects))
         ))
 
     @connect
-    def condensed_info(self, user_id, username, conn):  # TODO: add active effects id's
+    def condensed_info(self, user_id, username, conn):
         character = Character.find_by_user(user_id, conn)
         if not self.check_valid_char(character, username, stun_check=False):
             return
+        effects = ActiveEffect.find_all_by_target(character, conn)
+        msg = "{0}, name: {1}, location {2}, lvl: {3}, trait: {4}, specials: {5}"
+        if len(effects) > 0:
+            msg += ", effects: {6}"
         Parent.SendStreamWhisper(user_id, self.format_message(
-            "{0}, name: {1}, location {2}, lvl: {3}, trait: {4}, specials: {5}",
+            msg,
             username,
             character.name,
             character.position.location.name,
             character.lvl,
             character.trait.trait.name,
             ", ".join(map(lambda x: x.special.identifier, character.specials)),
+            ", ".join(map(lambda x: x.usable.identifier + ": " + str(x.expiration_time - dt.datetime.now(utc))[2:7],
+                          effects)),
             whisper=True
         ))
 
@@ -363,7 +381,7 @@ class RpgGame(object):
             return
         if Character.find_by_user(user_id, conn) is None:
             if Character.find_by_name(character_name, conn) is None and \
-                Boss.find_by_name(character_name, conn) is None and \
+                    Boss.find_by_name(character_name, conn) is None and \
                     Character.find_by_dead_and_name(character_name, conn) is None:
                 exp_gain_time = dt.datetime.now(utc) + dt.timedelta(seconds=self.scriptSettings.xp_farm_time)
                 x, y = Map.starting_position()
@@ -867,7 +885,7 @@ class RpgGame(object):
 
     def armors(self, user_id, username, paging="1", conn=None):
         page = int(paging)
-        pages = int(ceil(len(Armor.data_by_id)/5.0))
+        pages = int(ceil(len(Armor.data_by_id) / 5.0))
         if pages == 0:
             return
         if page > pages:
@@ -877,11 +895,11 @@ class RpgGame(object):
                     pages
                 ))
         else:
-            data =  sorted(Armor.data_by_id.values(), key=lambda x: x.min_lvl)
+            data = sorted(Armor.data_by_id.values(), key=lambda x: x.min_lvl)
             Parent.SendStreamMessage(self.format_message(
                 "armors: {0}, page {1}/{2}",
-                ", ".join(map(lambda x: x.name + "[price: " + str(x.price) + ", lvl: " + str(x.min_lvl)+"]",
-                              data[(page-1)*5:page*5])),
+                ", ".join(map(lambda x: x.name + "[price: " + str(x.price) + ", lvl: " + str(x.min_lvl) + "]",
+                              data[(page - 1) * 5:page * 5])),
                 page,
                 pages
             ))
@@ -909,7 +927,7 @@ class RpgGame(object):
 
     def consumables(self, user_id, username, paging="1", conn=None):
         page = int(paging)
-        pages = int(ceil(len(Item.data_by_id)/5.0))
+        pages = int(ceil(len(Item.data_by_id) / 5.0))
         if pages == 0:
             return
         if page > pages:
