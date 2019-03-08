@@ -317,6 +317,7 @@ class Character(object):
                 self.save()
                 return False
         self.alive = False
+        del self.cache[self.char_id]
         self.connection.execute("""UPDATE characters set alive = 0 WHERE character_id = :char_id""",
                                 {"char_id": self.char_id})
         return True
