@@ -113,11 +113,25 @@
     "tooltip": "if there is no king and there could be one, automatically start a tournament",
     "group": "gameplay"
   },
+  "min_participants": {
+    "type": "numberbox",
+    "value": 4,
+    "label": "max participants",
+    "tooltip": "minimum number of participants for kings contest.\nIf there are less than this number of participants, no tournament will be able to start\nIf this is bigger than free_participants, some players will have to buy a ticket before a tournament can start.",
+    "group": "gameplay"
+  },
+  "free_participants": {
+    "type": "numberbox",
+    "value": 4,
+    "label": "max participants",
+    "tooltip": "number of participants that don't need a ticket for kings contest.\nother eligible players can still buy in with a ticket.",
+    "group": "gameplay"
+  },
   "max_participants": {
     "type": "numberbox",
     "value": 4,
     "label": "max participants",
-    "tooltip": "maximum number of participants for kings contest.\nother eligible players can still buy in with a ticket.",
+    "tooltip": "maximum number of participants for kings contest.\n if more people bought a ticket, it will not be consumed",
     "group": "gameplay"
   },
   "warp_tonic_enabled":{
@@ -269,7 +283,7 @@
   },
   "tournament_ticket_enabled":{
     "type":"checkbox",
-    "value":false,
+    "value":true,
     "label":"tournament ticket enabled",
     "tooltip":"",
     "group":"items"

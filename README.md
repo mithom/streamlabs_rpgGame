@@ -131,7 +131,7 @@ Roshan will spawn during special occasions and will grant a special to whomever 
 * He attacks 1 player, but attacks hem twice. - Done (should make config)
 * Boss is in a zone, 1hour respawn time. - configurable
 * Boss only attacks after he is attacked, and then keeps doing so. - Done
-* Zone is always there, but kind of safe zone, but no shopping.
+* Zone is always there, but kind of safe zone, but no shopping. - TODO
 
 ## CONFIGURATION
 

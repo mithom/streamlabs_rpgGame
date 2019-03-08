@@ -1,7 +1,9 @@
 import characters
 import datetime
+import Special
 from pytz import utc
 import random
+
 random = random.WichmannHill()
 
 
@@ -50,20 +52,31 @@ class Tournament(object):
         Participant.create_table_if_not_exists(connection)
 
     @classmethod
-    def initiate_tournament(cls, old_king, min_lvl, part_nb, conn):
+    def initiate_tournament(cls, old_king, min_lvl, min_part_nb, free_part_nb, max_part_nb, conn, challenger=None):
         # find king and 2 or 3 top lvl
-        participants = characters.Character.get_order_by_lvl_and_xp(part_nb, conn, min_lvl=min_lvl)
+        free_participants = characters.Character.get_order_by_lvl_and_xp(free_part_nb, conn, min_lvl=min_lvl)
         if old_king is not None and old_king.character is not None:
-            if old_king.character not in participants:
-                if len(participants) == part_nb:
-                    participants = participants[0:-1]
-                participants.append(old_king.character)
-        if len(participants) >= 2:
+            if old_king.character not in free_participants:
+                if len(free_participants) == free_part_nb:
+                    del free_participants[-1]
+                free_participants.append(old_king.character)
+        ticket_participants = characters.Character.get_with_ticket_ordered_by_lvl_and_xp(
+            max_part_nb - len(free_participants),
+            conn, min_lvl=min_lvl,
+            offset=len(free_participants))
+
+        participants = free_participants + ticket_participants
+        if len(participants) >= min_part_nb:
+            if challenger is not None and challenger not in participants:
+                return None, None, False
+            for participant in ticket_participants:
+                Special.ActiveEffect.delete_by_target_and_usable(participant, Special.Item.Items.TOURNAMENT_TICKET,
+                                                                 conn)
             tournament = cls.create(datetime.datetime.now(utc) + datetime.timedelta(minutes=10), conn)
             for character in participants:
                 Participant.create(character.char_id, True, tournament.tournament_id, conn)
-            return participants
-        return None
+            return free_participants, ticket_participants, False
+        return None, None, True
 
 
 class Participant(object):

@@ -85,6 +85,15 @@ def connect(f):
     return wrapper
 
 
+def start_tournament_message(free_part, ticket_part):
+    msg = "a tournament to become king has started between the top warriors."
+    if free_part:  # not empty/None check.
+        msg += " Favorites: " + ", ".join(x.name for x in free_part)
+    if ticket_part:  # not empty/None check.
+        msg += " warriors: " + ", ".join(x.name for x in ticket_part)
+    return msg
+
+
 # noinspection PyUnboundLocalVariable,PyUnusedLocal
 class RpgGame(object):
     db_lock = Lock()
@@ -167,27 +176,7 @@ class RpgGame(object):
     @connect
     def tick(self, conn):
         king = King.find(conn)
-        tournament = Tournament.find(conn)
-        if tournament is None and self.scriptSettings.auto_contest:
-            if king is None or king.character is None:
-                participant_chars = Tournament.initiate_tournament(
-                    king, max(self.scriptSettings.min_fight_lvl, 5), self.scriptSettings.max_participants, conn)
-                if participant_chars is not None:
-                    msg = "a tournament to become king has started between the top warriors: "
-                    for part_char in participant_chars:
-                        msg += part_char.name + ", "
-                    Parent.SendStreamMessage(self.format_message(
-                        msg[:-2]
-                    ))
-        else:
-            winner = tournament.check_winner()
-            if winner is not None:
-                king = King.crown(winner, conn)
-                tournament.delete()
-                Parent.SendStreamMessage(self.format_message(
-                    "{0} has proven worthy of the crown and shall become king/queen",
-                    king.character.name
-                ))
+        self.check_tournament(king, conn)
         Boss.respawn_bosses(conn)
         ActiveEffect.delete_all_expired(conn)
         self.do_boss_attacks(conn)
@@ -232,6 +221,28 @@ class RpgGame(object):
                                              random.choice(char.position.location.monsters.split(",")) +
                                              " at lvl " + str(char.lvl), deaths))
             Parent.SendStreamMessage(self.format_message(msg))
+
+    def check_tournament(self, king, conn):
+        tournament = Tournament.find(conn)
+        if tournament is None:
+            if self.scriptSettings.auto_contest:
+                if king is None or king.character is None:
+                    participant_chars = Tournament.initiate_tournament(
+                        king, max(self.scriptSettings.min_fight_lvl, 5), self.scriptSettings.min_participants,
+                        self.scriptSettings.free_participants, self.scriptSettings.max_participants, conn)[0]
+                    if participant_chars[0] or participant_chars[1]:
+                        Parent.SendStreamMessage(self.format_message(start_tournament_message(
+                            participant_chars[0], participant_chars[1]
+                        )))
+        else:
+            winner = tournament.check_winner()
+            if winner is not None:
+                king = King.crown(winner, conn)
+                tournament.delete()
+                Parent.SendStreamMessage(self.format_message(
+                    "{0} has proven worthy of the crown and shall become king/queen",
+                    king.character.name
+                ))
 
     def do_boss_attacks(self, conn):
         for boss in Boss.find_by_active_and_past_attack_time(conn):
@@ -1037,30 +1048,26 @@ class RpgGame(object):
                 str(delta)
             ))
             return
-        candidates = Character.get_order_by_lvl_and_xp(3, conn, min_lvl=max(self.scriptSettings.min_fight_lvl, 5))
-        if king.character_id not in map(lambda x: x.char_id, candidates):
-            candidates = candidates[0:-1]
-        if char not in candidates:
-            Parent.SendStreamMessage(self.format_message(
-                "{0}, you are not eligible to become king",
-                char.name
-            ))
-            return
-        participant_chars = Tournament.initiate_tournament(
-            king, max(self.scriptSettings.min_fight_lvl, max(self.scriptSettings.min_fight_lvl, 5)),
-            self.scriptSettings.max_participants, conn)
-        if participant_chars is not None:
-            msg = "a tournament to become king has started between the top warriors: "
-            for part_char in participant_chars:
-                msg += part_char.name + ", "
-            Parent.SendStreamMessage(self.format_message(
-                msg[:-2]
-            ))
+        free_participants, ticket_participants, not_enough_candidates = Tournament.initiate_tournament(
+            king, max(self.scriptSettings.min_fight_lvl, 5), self.scriptSettings.min_participants,
+            self.scriptSettings.free_participants, self.scriptSettings.max_participants, conn, challenger=char)
+        if free_participants or ticket_participants:  # if any of them is not empty
+            Parent.SendStreamMessage(self.format_message(start_tournament_message(free_participants,
+                                                                                  ticket_participants)))
         else:
-            Parent.SendStreamMessage(self.format_message(
-                "{0}, at least 2 candidates needed to start a tournament",
-                username
-            ))
+            if not_enough_candidates:
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, at least {1} candidates needed to start a tournament",
+                    username,
+                    self.scriptSettings.min_participants
+                ))
+            else:
+                gender = ("king" if king is None else king.gender)
+                Parent.SendStreamMessage(self.format_message(
+                    "{0}, you are currently not eligible to become a king, become stronger before challenging the {1}!",
+                    username,
+                    king.gender
+                ))
 
     def smite(self, user_id, username, target_name):
         pass

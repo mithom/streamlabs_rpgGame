@@ -18,7 +18,7 @@ class Settings(object):
                 self.__dict__ = json.load(f, encoding="utf-8")
         except:
             # Config
-            self.test_offline = False
+            self.test_offline = True
             self.update_interval = 1
             self.only_active = True
             self.add_me = True
@@ -32,7 +32,9 @@ class Settings(object):
             self.max_steal_amount = 100
             self.min_fight_lvl = 5
             self.auto_contest = True
-            self.max_participants = 4
+            self.min_participants = 2
+            self.free_participants = 3
+            self.max_participants = 10
 
             # items
             self.warp_tonic_enabled = True
@@ -56,7 +58,7 @@ class Settings(object):
             self.bull_elixir_name = 'BullElixir'
             self.bull_elixir_min_lvl = 10
             self.bull_elixir_identifier = 'BE'
-            self.tournament_ticket_enabled = False
+            self.tournament_ticket_enabled = True
             self.tournament_ticket_price = 10
             self.tournament_ticket_name = 'TournamentTicket'
             self.tournament_ticket_min_lvl = 5

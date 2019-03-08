@@ -308,8 +308,8 @@ class Character(object):
     def die(self):
         if self.trait_id == Trait.Traits.LUCKY:
             # 15-60% chance to revive for first time, -15% each time thereafter
-            if random.random() <= (1-self.trait_bonus)*3:
-                self.trait_bonus = min(1, self.trait_bonus+0.05)
+            if random.random() <= (1 - self.trait_bonus) * 3:
+                self.trait_bonus = min(1, self.trait_bonus + 0.05)
                 self.Parent.SendStreamMessage(self.format_message(
                     "{0} feels lucky today and can't shake the feeling that he should've died",
                     self.name
@@ -454,12 +454,28 @@ class Character(object):
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
-    def get_order_by_lvl_and_xp(cls, limit, connection, min_lvl=0):
+    def get_order_by_lvl_and_xp(cls, limit, connection, min_lvl=0, offset=0):
         cursor = connection.execute("""SELECT * FROM characters c
             WHERE c.lvl >= ? AND c.alive = 1
             ORDER BY c.lvl DESC, c.experience DESC
-            LIMIT ?""", (min_lvl, limit,))
+            LIMIT ? OFFSET ?""", (min_lvl, limit, offset))
         return map(lambda row: cls(*row, connection=connection), cursor)
+
+    @classmethod
+    def get_with_ticket_ordered_by_lvl_and_xp(cls, limit, conn, min_lvl=0, offset=0):
+        cursor = conn.execute(
+            """SELECT c.* FROM (
+                SELECT c.*
+                FROM characters c
+                WHERE c.lvl >= :min_lvl AND c.alive = 1
+                ORDER BY c.lvl DESC, c.experience DESC
+                LIMIT -1 OFFSET :offset_
+              ) AS c INNER JOIN active_effects ae on c.character_id = ae.target_id
+            WHERE ae.usable_orig_name = :TT
+            ORDER BY c.lvl DESC, c.experience DESC LIMIT :limit_ """,
+            {"min_lvl": min_lvl, "offset_": offset, "TT": Item.Items.TOURNAMENT_TICKET.value, "limit_": limit}
+        )
+        return map(lambda row: cls(*row, connection=conn), cursor)
 
     @classmethod
     def create_table_if_not_exists(cls, connection):

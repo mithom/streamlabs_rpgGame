@@ -293,16 +293,17 @@ class Item(Usable):
         if self.id is self.Items.MAGICAL_ELIXIR:
             return len(Special.available_specials(character)) > 0
         elif self.id is self.Items.TOURNAMENT_TICKET:
-            return False  # TODO: implement
+            return ActiveEffect.find_by_target_and_special(character, self.id, character.connection) is None and \
+                   character.lvl >= max(characters.Character.game.scriptSettings.min_fight_lvl, 5)
         elif self.id in (
                 self.Items.WARP_TONIC, self.Items.BULL_ELIXIR, self.Items.STONE_ELIXIR, self.Items.POTION_OF_DEFENSE,
                 self.Items.POTION_OF_STRENGTH):
             return ActiveEffect.find_by_target_and_special(character, self.id, character.connection) is None
+        else:
+            raise NotImplementedError(str(self.id) + " is not implemented in can_buy")
 
     def use(self, character):
-        if self.id is self.Items.TOURNAMENT_TICKET:
-            pass  # TODO: implement
-        elif self.id is self.Items.MAGICAL_ELIXIR:
+        if self.id is self.Items.MAGICAL_ELIXIR:
             character.gain_special()
         else:
             ActiveEffect.create(character, self, character.connection)
@@ -407,6 +408,18 @@ class ActiveEffect(object):
         connection.execute("""DELETE FROM active_effects
                             WHERE target_id = ?""",
                            (target,))
+
+    @classmethod
+    def delete_by_target_and_usable(cls, target, usable, connection):
+        if isinstance(usable, Usable):
+            usable = usable.id.value
+        if type(usable) is Special.Specials or type(usable) is Item.Items:
+            usable = usable.value
+        if type(target) is characters.Character:
+            target = target.char_id
+        connection.execute("""DELETE FROM active_effects
+                                WHERE target_id = ? AND usable_orig_name = ?""",
+                           (target, usable))
 
     @classmethod
     def delete_all_expired(cls, connection):
