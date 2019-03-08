@@ -528,6 +528,10 @@ class RpgGame(object):
                     if character.lvl >= item.min_lvl and item.can_buy(character) and \
                             Parent.RemovePoints(user_id, username, item.price):
                         item.use(character)
+                        Parent.SendStreamMessage(self.format_message(
+                            "{0}, {1} successfully bought {2}",
+                            username, character.name, item.name
+                        ))
                 else:
                     Parent.SendStreamMessage(self.format_message(
                         "{0}, {1} does not exists",
@@ -958,7 +962,7 @@ class RpgGame(object):
             king.tax_rate = max(min(amount, 10), 0)
             king.save()
         Parent.SendStreamMessage(self.format_message(
-            "your {0} set the tax to {1}%",
+            "your {0} set the taxes to {1}%",
             king.gender,
             king.tax_rate
         ))
@@ -1020,20 +1024,17 @@ class RpgGame(object):
         tournament = Tournament.find(conn)
         if tournament is not None:
             Parent.SendStreamMessage(self.format_message(
-                "{0}, a tournament to become king is already in progress",
+                "{0}, a tournament to become king/queen is already in progress",
                 username
             ))
             return
         if king is not None and king.indisputable_until > dt.datetime.now(utc):
             delta = king.indisputable_until - dt.datetime.now(utc)
-            hours, remainder = divmod(delta.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            delta_str = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
             Parent.SendStreamMessage(self.format_message(
-                "{0} the {1} cannot be disputed so short after hes crowning, please wait {2}",
+                "{0} the {1} cannot be disputed so short after the crowning, please wait {2}",
                 username,
                 king.gender,
-                delta_str
+                str(delta)
             ))
             return
         candidates = Character.get_order_by_lvl_and_xp(3, conn, min_lvl=max(self.scriptSettings.min_fight_lvl, 5))
