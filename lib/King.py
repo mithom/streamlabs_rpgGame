@@ -51,7 +51,6 @@ class Tournament(object):
 
     @classmethod
     def initiate_tournament(cls, old_king, min_lvl, part_nb, conn):
-        tournament = cls.create(datetime.datetime.now(utc) + datetime.timedelta(minutes=10), conn)
         # find king and 2 or 3 top lvl
         participants = characters.Character.get_order_by_lvl_and_xp(part_nb, conn, min_lvl=min_lvl)
         if old_king is not None and old_king.character is not None:
@@ -60,6 +59,7 @@ class Tournament(object):
                     participants = participants[0:-1]
                 participants.append(old_king.character)
         if len(participants) >= 2:
+            tournament = cls.create(datetime.datetime.now(utc) + datetime.timedelta(minutes=10), conn)
             for character in participants:
                 Participant.create(character.char_id, True, tournament.tournament_id, conn)
             return participants
