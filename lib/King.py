@@ -64,7 +64,6 @@ class Tournament(object):
             max_part_nb - len(free_participants),
             conn, min_lvl=min_lvl,
             offset=len(free_participants))
-
         participants = free_participants + ticket_participants
         if len(participants) >= min_part_nb:
             if challenger is not None and challenger not in participants:

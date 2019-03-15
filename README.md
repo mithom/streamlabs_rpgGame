@@ -120,7 +120,7 @@ Specials are identified by a letter but casted with their full name (!guardian),
 * (P)otionOf(D)efense - temporary defense boost
 * (M)agicalElixir - gain a random unowned special
 * (B)ull(E)lixir - permanent small attack boost
-* (T)ournament(T)icket - not implemented yet
+* (T)ournament(T)icket - allows you to join a tournament, up to max_participant, higher lvl players get priority.
 
 #### BOSSES
 Roshan will spawn during special occasions and will grant a special to whomever lands the killing blow. Anyone who helps with the fight will gain experience. There is no level requirement to fight Roshan but anyone with low defense needs to be careful because he can kill you. - configurable

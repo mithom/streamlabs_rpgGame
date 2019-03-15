@@ -354,7 +354,8 @@ class RpgGame(object):
             trait_strength=character.trait.strength or 0,
             specials=", ".join(map(lambda x: x.special.name, character.specials)),
             effects=", ".join(map(lambda x: x.usable.name + " for " +
-                                            str((x.expiration_time - dt.datetime.now(utc)).total_seconds()) + "s",
+                                            (str((x.expiration_time - dt.datetime.now(utc)).total_seconds())  + "s"
+                                             if x.expiration_time is not None else 'always'),
                                   effects))
         ))
 
@@ -375,7 +376,7 @@ class RpgGame(object):
             character.lvl,
             character.trait.trait.name,
             ", ".join(map(lambda x: x.special.identifier, character.specials)),
-            ", ".join(map(lambda x: x.usable.identifier + ": " + str(x.expiration_time - dt.datetime.now(utc))[2:7],
+            ", ".join(map(lambda x: (x.usable.identifier + ": " + str(x.expiration_time - dt.datetime.now(utc))[2:7] if x.expiration_time else ""),
                           effects)),
             whisper=True
         ))
