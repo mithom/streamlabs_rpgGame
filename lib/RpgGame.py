@@ -229,7 +229,7 @@ class RpgGame(object):
                 if king is None or king.character is None:
                     participant_chars = Tournament.initiate_tournament(
                         king, max(self.scriptSettings.min_fight_lvl, 5), self.scriptSettings.min_participants,
-                        self.scriptSettings.free_participants, self.scriptSettings.max_participants, conn)[0]
+                        self.scriptSettings.free_participants, self.scriptSettings.max_participants, conn)
                     if participant_chars[0] or participant_chars[1]:
                         Parent.SendStreamMessage(self.format_message(start_tournament_message(
                             participant_chars[0], participant_chars[1]
