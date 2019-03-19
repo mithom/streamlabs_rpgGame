@@ -4,15 +4,15 @@ import codecs
 Parent = None
 
 
-class Settings(object):
+class RpgGameSettings(object):
     # do not use multiple instances of this version of the class, as it uses class
     # variables in order to avoid being in __dict__
     settings_file = ""
     script_name = ""
 
     def __init__(self, settings_file, script_name):
-        Settings.settings_file = settings_file
-        Settings.script_name = script_name
+        RpgGameSettings.settings_file = settings_file
+        RpgGameSettings.script_name = script_name
         try:
             with codecs.open(self.settings_file, encoding="utf-8-sig", mode="r") as f:
                 self.__dict__ = json.load(f, encoding="utf-8")

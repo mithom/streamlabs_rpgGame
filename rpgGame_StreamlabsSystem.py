@@ -10,7 +10,7 @@ import clr
 clr.AddReference("IronPython.Modules.dll")
 
 import RpgGame
-import SettingsModule
+import RpgGameSettingsModule
 
 # ---------------------------------------
 #   [Required]  Script Information
@@ -38,7 +38,7 @@ def Init():
     global ScriptSettings, game, next_update
     # Insert Parent in submodules
     RpgGame.Parent = Parent
-    SettingsModule.Parent = Parent
+    RpgGameSettingsModule.Parent = Parent
 
     #   Create Settings and db Directory
     settings_directory = os.path.join(os.path.dirname(__file__), "Settings")
@@ -50,7 +50,7 @@ def Init():
         os.makedirs(db_directory)
 
     #   Load settings
-    ScriptSettings = SettingsModule.Settings(m_settings_file, ScriptName)
+    ScriptSettings = RpgGameSettingsModule.RpgGameSettings(m_settings_file, ScriptName)
 
     # Create game
     game = RpgGame.RpgGame(ScriptSettings, ScriptName, db_directory)
