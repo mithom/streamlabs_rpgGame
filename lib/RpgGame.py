@@ -10,6 +10,7 @@ from Special import SpecialCooldown, Special, ActiveEffect, Item
 from threading import Lock
 from math import ceil
 from functools import wraps
+import iso8601
 
 import os
 import datetime as dt
@@ -33,19 +34,8 @@ def parse_datetime(adt):
 
 
 def convert_aware_timestamp(val):
-    """this is adjusted from sqlite3/dbapi2.py convert_timestamp"""
-    datepart, timepart = val.split("T")
-    year, month, day = map(int, datepart.split("-"))
-    timepart_full = timepart.split(".")
-    if len(timepart_full) == 2:
-        hours, minutes, seconds = map(int, timepart_full[0].split(":"))
-        microseconds = int('{:0<6.6}'.format(timepart_full[1].decode()))
-    else:
-        hours, minutes, seconds = map(int, timepart.split("+")[0].split(":"))
-        microseconds = 0
-
-    val = dt.datetime(year, month, day, hours, minutes, seconds, microseconds)
-    return utc.localize(val)
+    """python2.7 compatible iso parsing"""
+    return iso8601.parse_date(val, None)
 
 
 sqlite3.register_adapter(dt.datetime, parse_datetime)
