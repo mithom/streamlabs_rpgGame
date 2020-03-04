@@ -445,12 +445,22 @@ class Character(object):
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod
-    def find_by_location(cls, x, y, connection):
-        cursor = connection.execute(
-            """ SELECT * from characters
-            WHERE x = :x and y = :y AND alive = 1""",
-            {"x": x, "y": y}
-        )
+    def find_by_location(cls, connection, *coords):
+        query = "SELECT * from characters WHERE alive = 1"
+        query2 = ""
+        params = []
+        for coord in coords:
+            if len(query2) == 0:
+                query2 = " AND ("
+            else:
+                query2 += " OR "
+            query2 += "(x = ? and y = ?)"
+            params.append(coord[0])
+            params.append(coord[1])
+        if len(query2) > 0:
+            query2 += ")"
+        query = query + query2
+        cursor = connection.execute(query, params)
         return map(lambda row: cls(*row, connection=connection), cursor)
 
     @classmethod

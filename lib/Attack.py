@@ -164,6 +164,7 @@ class Attack(object):
         else:
             return None
 
+
     def resolve_boss_attack(self):
         boss = Boss.Boss.find(self.boss_id, self.connection)
         if boss.state != boss.State.DEAD:

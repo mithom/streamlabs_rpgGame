@@ -75,7 +75,7 @@ class Boss(object):
 
     def do_attack(self, fight_time):
         self.next_attack += dt.timedelta(seconds=fight_time)
-        targets = characters.Character.find_by_location(self.x, self.y, connection=self.connection)
+        targets = characters.Character.find_by_location(self.connection, (self.x, self.y,))
         if len(targets) == 0:
             self.state = self.State.PASSIVE
             self.hp = self._max_hp

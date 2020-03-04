@@ -24,8 +24,8 @@ import sqlite3
 Parent = None
 random = random.WichmannHill()
 
-
-#  TODO: bosses billboard, view persons on same tile
+#  TODO: view persons on same tile or 1 tile next to you (!look), alert characters get notification when spotted
+#  TODO: bosses billboard
 #  TODO: attack cooldown, reset on being attacked (care to not reset on reaction)
 
 
@@ -281,6 +281,7 @@ class RpgGame(object):
             "!armors": self.armors,
             "!weapons": self.weapons,
             "!consumables": self.consumables,
+            "!scout": self.scout,
         }, {
             self.scriptSettings.create_command: self.create,
             self.scriptSettings.move_command: self.move,
@@ -759,6 +760,14 @@ class RpgGame(object):
             target_char.lvl,
             equipment_str
         ))
+
+    @connect
+    def scout(self, user_id, username, conn):
+        characters = Character.find_by_location(conn, (self.x, self.y,), (self.x+1, self.y), (self.x-1, self.y), (self.x, self.y+1), (self.x, self.y-1))
+        for character in characters:
+            #if character
+            pass
+        #Parent.SendStreamMessage(self.format_message())
 
     def dough(self, user_id, username):
         Parent.SendStreamMessage(self.format_message("{0}, your current piecoin balance is {1} {2}",
